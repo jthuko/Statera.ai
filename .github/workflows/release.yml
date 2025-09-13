@@ -1,0 +1,95 @@
+name: release
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+permissions:
+  contents: write
+  packages: write
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: statera/backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet restore Statera.sln
+      - run: dotnet build Statera.sln -c Release --no-restore
+      - run: dotnet test Statera.sln -c Release --no-build --logger "trx;LogFileName=test_results.trx"
+      - run: dotnet publish src/Statera.Api/Statera.Api.csproj -c Release -o out
+      - run: cd out && zip -r ../../backend-api.zip .
+      - uses: actions/upload-artifact@v4
+        with: { name: backend-api, path: statera/backend-api.zip }
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: statera/frontend/statera-web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: 'npm', cache-dependency-path: statera/frontend/statera-web/package.json }
+      - run: npm ci
+      - run: npm test -- --run
+      - run: npm run build
+      - run: cd dist && zip -r ../../frontend-dist.zip .
+      - uses: actions/upload-artifact@v4
+        with: { name: frontend-dist, path: statera/frontend-dist.zip }
+  images:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: ${{ github.actor }}, password: ${{ secrets.GITHUB_TOKEN }} }
+      - uses: docker/build-push-action@v6
+        with:
+          context: statera/backend
+          file: statera/backend/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/jthuko/statera-api:latest
+            ghcr.io/jthuko/statera-api:${{ github.ref_name }}
+            ghcr.io/jthuko/statera-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: docker/build-push-action@v6
+        with:
+          context: statera/frontend/statera-web
+          file: statera/frontend/statera-web/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/jthuko/statera-web:latest
+            ghcr.io/jthuko/statera-web:${{ github.ref_name }}
+            ghcr.io/jthuko/statera-web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+  package:
+    needs: [backend, frontend, images]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: backend-api, path: . }
+      - uses: actions/download-artifact@v4
+        with: { name: frontend-dist, path: . }
+      - run: zip -r statera-monorepo.zip statera -x "statera/**/.git/*"
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            statera-monorepo.zip
+            backend-api.zip
+            frontend-dist.zip
+          body: >
+            ## Docker images
+            - ghcr.io/jthuko/statera-api:${{ github.ref_name }} (and :latest)
+            - ghcr.io/jthuko/statera-web:${{ github.ref_name }} (and :latest)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

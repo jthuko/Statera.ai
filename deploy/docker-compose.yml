@@ -1,0 +1,26 @@
+version: "3.9"
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment: [ACCEPT_EULA=Y, SA_PASSWORD=Your_strong_password123]
+    ports: ["1433:1433"]
+  seq:
+    image: datalust/seq:2024.3
+    environment: [ACCEPT_EULA=Y]
+    ports: ["8081:80","5341:5341"]
+  api:
+    build: ../backend
+    depends_on: [sql, seq]
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Default=Server=sql;Database=Statera;User=sa;Password=Your_strong_password123;TrustServerCertificate=True
+      - Serilog__WriteTo__1__Args__serverUrl=http://seq:5341
+      - JWT__Key=dev-secret-key-please-change
+      - JWT__Issuer=statera
+      - JWT__Audience=statera-web
+    ports: ["5199:5199"]
+  web:
+    build: ../frontend/statera-web
+    depends_on: [api]
+    environment: [VITE_API_URL=http://api:5199]
+    ports: ["8080:8080"]

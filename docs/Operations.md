@@ -1,0 +1,1 @@
+# Operations\nRun `cd deploy && docker compose up -d --build`.\n

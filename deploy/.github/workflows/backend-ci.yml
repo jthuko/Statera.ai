@@ -1,0 +1,12 @@
+name: backend-ci
+on: { push: { paths: ['backend/**'] } }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet restore backend/Statera.sln
+      - run: dotnet build backend/Statera.sln -c Release --no-restore
+      - run: dotnet test backend/tests/Statera.UnitTests/Statera.UnitTests.csproj -c Release --no-build

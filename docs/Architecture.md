@@ -1,0 +1,1 @@
+# Architecture\nClean Architecture; Identity+JWT; Serilog+Seq; OpenTelemetry.\n
