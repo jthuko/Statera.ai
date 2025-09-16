@@ -1,45 +1,114 @@
-using Statera.Api.Domain;
-namespace Statera.Api.Application;
-public class HeuristicAssignmentSuggestionService : IAssignmentSuggestionService
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Statera.Domain;
+
+               // CredentialType
+
+namespace Statera.Application;
+
+/// <summary>
+/// Very simple heuristic: pick active staff in the unit with a valid license,
+/// not on approved time off, then score by lighter weekly hours.
+/// </summary>
+public class HeuristicAssignmentSuggestionService
 {
     private readonly IRepository _repo;
-    public HeuristicAssignmentSuggestionService(IRepository repo) => _repo = repo;
-    public async Task<IReadOnlyList<AssignmentSuggestionDto>> SuggestAsync(ScheduleContextDto ctx, CancellationToken ct)
+    private readonly LicensePolicyService _license;
+
+    public HeuristicAssignmentSuggestionService(IRepository repo, LicensePolicyService license)
+    {
+        _repo = repo;
+        _license = license;
+    }
+
+    /// <param name="startUtc">Candidate assignment start (UTC).</param>
+    /// <param name="endUtc">Candidate assignment end (UTC).</param>
+    /// <param name="unitId">Target Unit (Guid) — was int.</param>
+    /// <param name="requiredCredential">Credential required (enum).</param>
+    public async Task<IReadOnlyList<(Guid StaffId, double Score)>> SuggestAsync(
+        DateTime startUtc,
+        DateTime endUtc,
+        Guid unitId,                               // FIX: was int
+        CredentialType requiredCredential,
+        CancellationToken ct = default)
     {
         var staff = await _repo.GetAllStaffAsync(ct);
-        var assignments = await _repo.GetAssignmentsInRangeAsync(ctx.StartUtc, ctx.EndUtc, ct);
-        var timeOff = await _repo.GetTimeOffInRangeAsync(ctx.StartUtc, ctx.EndUtc, ct);
-        var ot = await _repo.GetOvertimeRuleAsync(ct) ?? new OvertimeRule();
-        var results = new List<AssignmentSuggestionDto>();
-        foreach (var s in staff)
+        var existing = await _repo.GetAssignmentsInRangeAsync(startUtc, endUtc, ct);
+        var timeOff = await _repo.GetTimeOffInRangeAsync(startUtc, endUtc, ct);
+        var rule = await _repo.GetOvertimeRuleAsync(ct) ?? new OvertimeRule
         {
-            double score = 0; var reasons = new List<string>();
-            var tzStart = ctx.StartUtc.ToLocalTime().TimeOfDay;
-            var tzEnd = ctx.EndUtc.ToLocalTime().TimeOfDay;
-            var dow = ctx.StartUtc.ToLocalTime().DayOfWeek;
-            var avail = s.Availabilities.Any(a => a.DayOfWeek == dow && a.StartLocal <= tzStart && a.EndLocal >= tzEnd);
-            if (avail) { score += 0.4; reasons.Add("Available"); } else reasons.Add("Limited availability");
-            var hasCred = s.Licenses.Any(l => l.IsActive && l.ExpirationDate > DateTime.UtcNow && l.LicenseType == ctx.RequiredCredential);
-            if (hasCred) { score += 0.2; reasons.Add("Credential match"); } else reasons.Add("Credential mismatch");
-            var weekStart = ctx.StartUtc.Date.AddDays(-(int)ctx.StartUtc.ToLocalTime().DayOfWeek); var weekEnd = weekStart.AddDays(7);
-            var staffWeek = assignments.Where(a => a.StaffId == s.Id && a.StartUtc >= weekStart && a.EndUtc <= weekEnd).Sum(a => (a.EndUtc - a.StartUtc).TotalHours);
-            if (staffWeek < 40) { score += 0.2; reasons.Add("Under weekly hours"); }
-            var toConflict = timeOff.Any(t => t.StaffId == s.Id && t.Approved && t.StartUtc < ctx.EndUtc && t.EndUtc > ctx.StartUtc);
-            if (!toConflict) { score += 0.1; reasons.Add("No time-off conflict"); } else reasons.Add("Has time-off");
-            var overlap = assignments.Any(a => a.StaffId == s.Id && a.StartUtc < ctx.EndUtc && a.EndUtc > ctx.StartUtc);
-            if (!overlap) { score += 0.1; reasons.Add("No overlap"); } else reasons.Add("Overlaps existing shift");
-            if (ot.HardBlock && staffWeek >= ot.WeeklyHoursThreshold) continue;
-            if (staffWeek >= ot.WeeklyHoursThreshold) { score -= ot.PenaltyWeight; reasons.Add($"Overtime penalty ({ot.PenaltyWeight})"); }
-            score = Math.Clamp(score, 0, 1);
-            results.Add(new AssignmentSuggestionDto(s.Id, score, string.Join("; ", reasons)));
+            DailyHoursThreshold = 8,
+            WeeklyHoursThreshold = 40,
+            OvertimeMultiplier = 1.5
+        };
+
+        var startDay = DateOnly.FromDateTime(startUtc);
+        var nowDay = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Candidates: active, in unit (or no unit filter), valid license, no approved time off, no overlap
+        var candidates = staff
+            .Where(s => s.Active && (!s.UnitId.HasValue || s.UnitId.Value == unitId))
+            .Where(s =>
+            {
+                // LicenseValidation: StaffLicense has string LicenseType + DateOnly? ExpiresOn
+                // Use the policy service you already have
+                return _license.HasValidLicense(s, facilityState: "TX", requiredType: requiredCredential, onDate: startDay);
+            })
+            .Where(s =>
+            {
+                // Not on approved time off overlapping window
+                return !timeOff.Any(r =>
+                    r.StaffId == s.Id &&
+                    string.Equals(r.Status, "Approved", StringComparison.OrdinalIgnoreCase) && // FIX: was r.Approved
+                    r.StartUtc < endUtc &&
+                    r.EndUtc > startUtc);
+            })
+            .Where(s =>
+            {
+                // No overlapping assignment already
+                return !existing.Any(a => a.StaffId == s.Id && a.StartUtc < endUtc && a.EndUtc > startUtc);
+            })
+            .ToList();
+
+        // Score: fewer hours in the last 7 days gets a higher score; apply soft penalty using OvertimeRule thresholds.
+        var weekStart = startUtc.Date.AddDays(-7);
+        var weekEnd = startUtc;
+
+        var weeklyAssignments = await _repo.GetAssignmentsInRangeAsync(weekStart, weekEnd, ct);
+
+        List<(Guid StaffId, double Score)> ranked = new();
+
+        foreach (var s in candidates)
+        {
+            var hrs = weeklyAssignments
+                .Where(a => a.StaffId == s.Id)
+                .Select(a =>
+                {
+                    var st = a.StartUtc < weekStart ? weekStart : a.StartUtc;
+                    var en = a.EndUtc > weekEnd ? weekEnd : a.EndUtc;
+                    var h = (en - st).TotalHours;
+                    return h > 0 ? h : 0;
+                })
+                .Sum();
+
+            // Soft penalty once past weekly threshold (no HardBlock / PenaltyWeight in your domain)
+            double penalty = 0.0;
+            if (hrs > rule.WeeklyHoursThreshold)
+            {
+                var over = hrs - rule.WeeklyHoursThreshold;
+                penalty = over * (rule.OvertimeMultiplier - 1.0); // simple soft penalty
+            }
+
+            // Higher score is better
+            var score = Math.Max(0, 100.0 - hrs - penalty);
+            ranked.Add((s.Id, score));
         }
-        return results.OrderByDescending(r => r.Score).ToList();
+
+        // High to low
+        ranked.Sort((a, b) => b.Score.CompareTo(a.Score));
+        return ranked;
     }
-}
-public interface IRepository
-{
-    Task<List<Staff>> GetAllStaffAsync(CancellationToken ct);
-    Task<List<Assignment>> GetAssignmentsInRangeAsync(DateTime startUtc, DateTime endUtc, CancellationToken ct);
-    Task<List<TimeOffRequest>> GetTimeOffInRangeAsync(DateTime startUtc, DateTime endUtc, CancellationToken ct);
-    Task<OvertimeRule?> GetOvertimeRuleAsync(CancellationToken ct);
 }

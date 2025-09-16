@@ -1,98 +1,102 @@
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿// backend/src/Statera.Api/Program.cs
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
-using Serilog;
-using Statera.Api.Application;
-using Statera.Api.Infrastructure;
-using Statera.Api.Domain;
+using Microsoft.OpenApi.Models;
+using Statera.Api.Endpoints;
+using Statera.Application;
+using Statera.Application.Services;
+using Statera.Endpoints;
+using Statera.Infrastructure;   // AppDbContext, AppUser, AppRole
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration).Enrich.FromLogContext().WriteTo.Console());
 
-var conn = builder.Configuration.GetConnectionString("Default") ?? "Server=localhost;Database=Statera;Trusted_Connection=False;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True";
-builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlServer(conn));
-
-builder.Services.AddIdentity<AppUser, AppRole>().AddEntityFrameworkStores<AppDbContext>().AddDefaultTokenProviders();
-
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("JWT"));
-var jwtOpts = builder.Configuration.GetSection("JWT").Get<JwtOptions>() ?? new JwtOptions();
-var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOpts.Key));
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(o => {
-    o.TokenValidationParameters = new() { ValidateIssuer=true, ValidateAudience=true, ValidateIssuerSigningKey=true, ValidIssuer=jwtOpts.Issuer, ValidAudience=jwtOpts.Audience, IssuerSigningKey=key };
+// JSON (DateOnly/TimeOnly are supported on .NET 8; no custom converters needed)
+builder.Services.ConfigureHttpJsonOptions(o =>
+{
+    o.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
+// EF Core (use your connection string "DefaultConnection" from appsettings.*)
+// 🔧 Read the connection string once, with a fallback between common keys
+var conn = builder.Configuration.GetConnectionString("DefaultConnection")
+           ?? builder.Configuration.GetConnectionString("Default");
+
+// Optional safety check with a friendly message
+if (string.IsNullOrWhiteSpace(conn))
+{
+    throw new InvalidOperationException(
+        "Missing SQL connection string. Add 'ConnectionStrings:DefaultConnection' (or 'Default') to appsettings.* or env vars.");
+}
+
+builder.Services.AddDbContext<AppDbContext>(opts => opts.UseSqlServer(conn));
+
+// ASP.NET Identity (EF-backed)
+builder.Services
+    .AddIdentityCore<AppUser>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+        // tweak password/lockout options here if desired
+    })
+    .AddRoles<AppRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c => {
-    c.SwaggerDoc("v1", new() { Title = "Statera API", Version = "v1" });
-    var scheme = new Microsoft.OpenApi.Models.OpenApiSecurityScheme {
-        Name = "Authorization", Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT", In = Microsoft.OpenApi.Models.ParameterLocation.Header, Description = "Bearer token"
-    };
-    c.AddSecurityDefinition("Bearer", scheme);
-    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement { { scheme, new List<string>() } });
-});
 
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.WithOrigins("http://localhost:8080").AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
-builder.Services.AddHealthChecks();
-builder.Services.AddOpenTelemetry().ConfigureResource(r => r.AddService("statera-api")).WithTracing(t => t.AddAspNetCoreInstrumentation().AddHttpClientInstrumentation().AddOtlpExporter()).WithMetrics(m => m.AddAspNetCoreInstrumentation().AddHttpClientInstrumentation().AddOtlpExporter());
-
-builder.Services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
-builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IRepository, EfRepository>();
-builder.Services.AddScoped<HeuristicAssignmentSuggestionService>();
 builder.Services.AddScoped<LicensePolicyService>();
-builder.Services.AddScoped<AssignmentValidator>();
 builder.Services.AddScoped<SchedulerSuggestionService>();
 
-builder.Services.AddControllers().AddJsonOptions(o => { o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()); });
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(o =>
+{
+    o.SwaggerDoc("v1", new OpenApiInfo { Title = "Statera AI API", Version = "v1" });
+});
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Versioned API group
+var v1 = app.MapGroup("/api/v1");
+
+// Map endpoint modules
+v1.MapPingEndpoints();
+v1.MapHealthEndpoints();
+
+v1.MapAuthEndpoints();            // your auth module (if implemented)
+v1.MapUsersEndpoints();           // Identity-backed users
+v1.MapFacilitiesEndpoints();
+v1.MapUnitsEndpoints();           // <-- replaces Departments
+v1.MapStaffEndpoints();
+v1.MapAssignmentsEndpoints();     // <-- replaces Shifts
+v1.MapSchedulesEndpoints();       // (uses UnitId)
+v1.MapTemplatesEndpoints();       // Shift templates (TimeSpan times)
+v1.MapRequestsEndpoints();        // Time-off / requests
+v1.MapConstraintsEndpoints();
+v1.MapForecastEndpoints();
+
+// Convenience: root -> Swagger
+app.MapGet("/", () => Results.Redirect("/swagger"));
+
+// Apply pending migrations on startup (dev-friendly; remove if you want manual control)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var env = app.Services.GetRequiredService<IHostEnvironment>();
-    if (env.IsDevelopment())
-    {
-        await db.Database.EnsureCreatedAsync();
-        var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Seed");
-        await DevDataSeeder.SeedAsync(app.Services, logger, true);
-    }
+    await db.Database.MigrateAsync();
 }
-app.UseSerilogRequestLogging();
-app.UseCors();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapHealthChecks("/health/live");
-app.MapHealthChecks("/health/ready");
-if (app.Environment.IsDevelopment()){ app.UseSwagger(); app.UseSwaggerUI(); }
-app.MapControllers();
-app.MapPost("/api/v1/auth/register", async (UserManager<AppUser> um, string email, string password) =>
-{
-    var exists = await um.FindByEmailAsync(email);
-    if (exists != null) return Results.BadRequest("User exists");
-    var u = new AppUser { UserName = email, Email = email, EmailConfirmed = true };
-    var res = await um.CreateAsync(u, password);
-    if (!res.Succeeded) return Results.BadRequest(res.Errors);
-    return Results.Ok();
-});
-app.MapPost("/api/v1/auth/login", async (UserManager<AppUser> um, IJwtService jwt, string email, string password) =>
-{
-    var user = await um.FindByEmailAsync(email);
-    if (user is null) return Results.Unauthorized();
-    if (!await um.CheckPasswordAsync(user, password)) return Results.Unauthorized();
-    var tokens = await jwt.CreateAsync(user, CancellationToken.None);
-    return Results.Ok(tokens);
-});
-app.MapPost("/api/v1/scheduler/suggest-assignments", async (HeuristicAssignmentSuggestionService svc, ScheduleContextDto ctx, CancellationToken ct) =>
-{
-    var res = await svc.SuggestAsync(ctx, ct);
-    return Results.Ok(res);
-});
-app.MapPost("/api/v1/scheduler/validate", (Assignment a) => Results.Ok(new { valid = a.EndUtc > a.StartUtc }));
+
 app.Run();
-namespace Statera.Api { public class LicensePolicyService { } public class AssignmentValidator { } public class SchedulerSuggestionService { } }
+
+public partial class Program { }

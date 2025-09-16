@@ -1,0 +1,35 @@
+# ----- Visual Studio / .NET -----
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.opendb
+
+# Build/test output
+TestResults/
+*.trx
+*.log
+*.cache
+
+# Local DB / cache files
+*.mdf
+*.ldf
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+*.dbmdl
+*.jfm
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# Node/Front-end (if present)
+node_modules/
+dist/
+.vite/

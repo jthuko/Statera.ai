@@ -1,15 +1,18 @@
+// backend/src/Statera.Infrastructure/AppDbContext.cs
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Statera.Api.Domain;
-using Statera.Api.Application;
+using Statera.Domain;
 
-namespace Statera.Api.Infrastructure;
+namespace Statera.Infrastructure;
+
 public class AppUser : IdentityUser { }
 public class AppRole : IdentityRole { }
+
 public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
     public DbSet<Staff> Staff => Set<Staff>();
     public DbSet<Role> RolesCatalog => Set<Role>();
     public DbSet<StaffLicense> StaffLicenses => Set<StaffLicense>();
@@ -23,48 +26,96 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
     public DbSet<OvertimeRule> OvertimeRules => Set<OvertimeRule>();
     public DbSet<ShiftSwap> ShiftSwaps => Set<ShiftSwap>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
-        b.Entity<Staff>(e => {
-            e.Property(s => s.EmploymentType).HasConversion<string>().HasMaxLength(20);
-            e.HasIndex(s => s.Email).IsUnique().HasFilter("[Email] IS NOT NULL");
+
+        b.Entity<Staff>(entity =>
+        {
+            entity.Property(s => s.EmploymentType).HasConversion<string>().HasMaxLength(20);
+            entity.Property(s => s.FirstName).IsRequired();
+            entity.Property(s => s.LastName).IsRequired();
+            entity.HasIndex(s => s.Email).IsUnique().HasFilter("[Email] IS NOT NULL");
+            entity.HasIndex(s => s.UnitId);
         });
-        b.Entity<Role>(e => { e.Property(r => r.Position).HasMaxLength(50); e.HasIndex(r => r.Position).IsUnique(); });
-        b.Entity<StaffLicense>(e => {
-            e.Property(l => l.IssuingState).HasMaxLength(2).IsRequired();
-            e.Property(l => l.LicenseNumber).HasMaxLength(32);
-            e.Property(l => l.VerificationUrl).HasMaxLength(256);
-            e.HasIndex(l => new { l.StaffId, l.IssuingState, l.LicenseType, l.IsActive });
+
+        b.Entity<Role>(entity =>
+        {
+            entity.Property(r => r.Position).HasMaxLength(50).IsRequired();
+            entity.HasIndex(r => r.Position).IsUnique();
         });
-        b.Entity<StaffAvailability>(e => {
-            e.Property(a => a.StartLocal).HasConversion<long>();
-            e.Property(a => a.EndLocal).HasConversion<long>();
-            e.HasCheckConstraint("CK_Availability_EndAfterStart", "[EndLocal] > [StartLocal]");
-            e.HasIndex(a => new { a.StaffId, a.DayOfWeek, a.StartLocal });
+
+        b.Entity<StaffLicense>(entity =>
+        {
+            entity.Property(l => l.IssuingState).HasMaxLength(2).IsRequired();
+            entity.Property(l => l.LicenseNumber).HasMaxLength(32);
+            entity.Property(l => l.VerificationUrl).HasMaxLength(256);
+            entity.HasIndex(l => new { l.StaffId, l.IssuingState, l.LicenseType, l.IsActive });
         });
-        b.Entity<Assignment>(e => {
-            e.Property(a => a.FacilityState).HasMaxLength(2).IsRequired();
-            e.Property(a => a.Notes).HasMaxLength(256);
-            e.HasCheckConstraint("CK_Assignment_EndAfterStart", "[EndUtc] > [StartUtc]");
-            e.HasIndex(a => new { a.StaffId, a.StartUtc });
-            e.Property(a => a.RowVersion).IsRowVersion();
+
+        b.Entity<StaffAvailability>(entity =>
+        {
+            entity.Property(a => a.StartLocal);
+            entity.Property(a => a.EndLocal);
+            entity.ToTable(t => t.HasCheckConstraint("CK_Availability_EndAfterStart", "[EndLocal] > [StartLocal]"));
+            entity.HasIndex(a => new { a.StaffId, a.DayOfWeek, a.StartLocal });
         });
-        b.Entity<TimeOffRequest>(e => {
-            e.HasCheckConstraint("CK_TimeOff_EndAfterStart", "[EndUtc] > [StartUtc]");
-            e.HasIndex(t => new { t.StaffId, t.StartUtc });
+
+        b.Entity<Assignment>(entity =>
+        {
+            entity.Property(a => a.FacilityState).HasMaxLength(2).IsRequired();
+            entity.Property(a => a.Notes).HasMaxLength(256);
+            entity.Property(a => a.RowVersion).IsRowVersion();
+            entity.ToTable(t => t.HasCheckConstraint("CK_Assignment_EndAfterStart", "[EndUtc] > [StartUtc]"));
+            entity.HasIndex(a => a.UnitId);
+            entity.HasIndex(a => new { a.StaffId, a.StartUtc });
         });
+
+        b.Entity<TimeOffRequest>(entity =>
+        {
+            entity.ToTable(t => t.HasCheckConstraint("CK_TimeOff_EndAfterStart", "[EndUtc] > [StartUtc]"));
+            entity.HasIndex(t => new { t.StaffId, t.StartUtc });
+        });
+
+        b.Entity<Facility>(entity =>
+        {
+            entity.Property(f => f.Name).IsRequired();
+            entity.Property(f => f.State).IsRequired();
+        });
+
+        b.Entity<Unit>(entity =>
+        {
+            entity.Property(u => u.Name).IsRequired();
+            entity.HasOne(u => u.Facility)
+                  .WithMany(f => f.Units)
+                  .HasForeignKey(u => u.FacilityId);
+        });
+
+        b.Entity<ShiftTemplate>(entity =>
+        {
+            entity.Property(t => t.Name).IsRequired();
+            entity.Property(t => t.Type).IsRequired();
+            entity.Property(t => t.StartLocal);
+            entity.Property(t => t.EndLocal);
+            entity.HasIndex(t => t.UnitId);
+            entity.HasOne<Unit>()
+                  .WithMany()
+                  .HasForeignKey(t => t.UnitId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Schedule>(entity =>
+        {
+            entity.Property(s => s.Name).IsRequired();
+            entity.HasIndex(s => s.UnitId);
+            entity.HasOne<Facility>()
+                  .WithMany()
+                  .HasForeignKey(s => s.FacilityId);
+        });
+
+        b.Entity<OvertimeRule>();
+        b.Entity<ShiftSwap>();
+        b.Entity<AuditLog>();
     }
-}
-public class EfRepository : IRepository
-{
-    private readonly AppDbContext _db;
-    public EfRepository(AppDbContext db) => _db = db;
-    public Task<List<Staff>> GetAllStaffAsync(CancellationToken ct) =>
-        _db.Staff.Include(s => s.Licenses).Include(s => s.Availabilities).ToListAsync(ct);
-    public Task<List<Assignment>> GetAssignmentsInRangeAsync(DateTime startUtc, DateTime endUtc, CancellationToken ct) =>
-        _db.Assignments.Where(a => a.StartUtc < endUtc && a.EndUtc > startUtc).ToListAsync(ct);
-    public Task<List<TimeOffRequest>> GetTimeOffInRangeAsync(DateTime startUtc, DateTime endUtc, CancellationToken ct) =>
-        _db.TimeOffRequests.Where(t => t.StartUtc < endUtc && t.EndUtc > startUtc).ToListAsync(ct);
-    public Task<OvertimeRule?> GetOvertimeRuleAsync(CancellationToken ct) => _db.OvertimeRules.FirstOrDefaultAsync(ct);
 }
