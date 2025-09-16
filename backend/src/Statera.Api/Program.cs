@@ -95,6 +95,14 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
+
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    await DevDataSeeder.ResetAndSeedAsync(
+        scope.ServiceProvider,
+        logger,
+        app.Environment.IsDevelopment(),
+        resetDatabase: true
+    );
 }
 
 app.Run();
