@@ -1,7 +1,19 @@
-import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "./AuthContext";
-export default function RequireAuth({ children }:{ children: JSX.Element }){
-  const { isAuthed } = useAuth(); const loc = useLocation();
-  if(!isAuthed) return <Navigate to="/login" state={{ from: loc }} replace />;
-  return children;
+// src/auth/RequireAuth.tsx
+import { Navigate } from "react-router-dom";
+import { PropsWithChildren } from "react";
+import { useAuth } from "../auth/useAuth"; // adjust path if you use alias
+
+type Role = "Owner" | "Admin" | "Manager" | "Scheduler" | "Viewer";
+
+type RequireAuthProps = PropsWithChildren<{
+  roles?: Role[];
+}>;
+
+export default function RequireAuth({ roles, children }: RequireAuthProps) {
+  const { user, isAuthorized } = useAuth();
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (roles && !isAuthorized(roles)) return <Navigate to="/403" replace />;
+
+  return <>{children}</>;
 }
