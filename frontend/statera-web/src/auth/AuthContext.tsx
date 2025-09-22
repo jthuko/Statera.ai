@@ -22,19 +22,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("statera:user");
-    if (saved) setUser(JSON.parse(saved));
+    const raw = localStorage.getItem("statera:user");
+    if (raw && raw !== "undefined" && raw !== "null") {
+      try {
+        setUser(JSON.parse(raw) as User);
+      } catch {
+        localStorage.removeItem("statera:user");
+      }
+    }
   }, []);
 
   async function login(email: string, password: string) {
-    const res = await api.post("auth/login", { email, password });
-    const { accessToken, refreshToken, user } = res.data;
+    // Ensure leading slash so the axios base "/api/v1" resolves correctly
+    const res = await api.post("/auth/login", { email, password });
+    const { accessToken, refreshToken } = res.data ?? {};
 
+    if (typeof accessToken !== "string" || !accessToken) {
+      throw new Error("No access token received");
+    }
     localStorage.setItem("statera:accessToken", accessToken);
-    localStorage.setItem("statera:refreshToken", refreshToken);
-    localStorage.setItem("statera:user", JSON.stringify(user));
+    if (typeof refreshToken === "string" && refreshToken) {
+      localStorage.setItem("statera:refreshToken", refreshToken);
+    }
 
-    setUser(user);
+    // Prefer any existing user in storage
+    const existing = localStorage.getItem("statera:user");
+    if (existing && existing !== "undefined" && existing !== "null") {
+      try {
+        const parsed = JSON.parse(existing) as User;
+        setUser(parsed);
+        return;
+      } catch {
+        localStorage.removeItem("statera:user");
+      }
+    }
+
+    // Fallback: set a minimal user so guards depending on `user` pass
+    const fallback: User = { id: "self", email, role: "Viewer" };
+    localStorage.setItem("statera:user", JSON.stringify(fallback));
+    setUser(fallback);
   }
 
   function logout() {

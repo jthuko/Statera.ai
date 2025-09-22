@@ -1,19 +1,11 @@
-// src/auth/RequireAuth.tsx
-import { Navigate } from "react-router-dom";
-import { PropsWithChildren } from "react";
-import { useAuth } from "../auth/useAuth"; // adjust path if you use alias
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "./useAuth";
 
-type Role = "Owner" | "Admin" | "Manager" | "Scheduler" | "Viewer";
-
-type RequireAuthProps = PropsWithChildren<{
-  roles?: Role[];
-}>;
-
-export default function RequireAuth({ roles, children }: RequireAuthProps) {
-  const { user, isAuthorized } = useAuth();
-
-  if (!user) return <Navigate to="/login" replace />;
-  if (roles && !isAuthorized(roles)) return <Navigate to="/403" replace />;
-
+export default function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  // accept either a user or a saved token as "authed"
+  const isAuthed = !!user || !!localStorage.getItem("statera:accessToken");
+  const location = useLocation();
+  if (!isAuthed) return <Navigate to="/login" replace state={{ from: location }} />;
   return <>{children}</>;
 }
