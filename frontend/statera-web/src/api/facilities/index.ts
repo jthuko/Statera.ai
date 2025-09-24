@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "../axios"; // ← NOTE: no app/ folder in your project
+import api from "../axios";
 
 export type Facility = {
   id: string;
@@ -9,36 +9,43 @@ export type Facility = {
   adminUserId?: string;
 };
 
-export function useFacilities(q?: string){
+const base = "/facilities"; // axios.baseURL already includes /api/v1
+
+export function useFacilities(q?: string, page = 1, pageSize = 10) {
+  const term = q?.trim();
   return useQuery({
-    queryKey: ["facilities", q ?? ""],
+    queryKey: ["facilities", { term: term ?? "", page, pageSize }],
     queryFn: async () => {
-      const { data } = await api.get("/facilities", { params: { query: q } });
-      return data as Facility[];
-    }
+      const params: Record<string, any> = { page, pageSize };
+      if (term) params.search = term; // only send when not empty
+      const { data } = await api.get(base, { params });
+      // Normalize array vs paged result to always return Facility[]
+      return Array.isArray(data) ? data : (data?.items ?? []);
+    },
+    staleTime: 30_000,
   });
 }
 
-export function useCreateFacility(){
+export function useCreateFacility() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Partial<Facility>) => api.post("/facilities", payload),
+    mutationFn: (payload: Partial<Facility>) => api.post(base, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["facilities"] }),
   });
 }
 
-export function useUpdateFacility(){
+export function useUpdateFacility() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (f: Facility) => api.put(`/facilities/${f.id}`, f),
+    mutationFn: (f: Facility) => api.put(`${base}/${f.id}`, f),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["facilities"] }),
   });
 }
 
-export function useDeleteFacility(){
+export function useDeleteFacility() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.delete(`/facilities/${id}`),
+    mutationFn: (id: string) => api.delete(`${base}/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["facilities"] }),
   });
 }

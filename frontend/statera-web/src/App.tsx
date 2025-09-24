@@ -7,6 +7,7 @@ import Staff from "./pages/Staff";
 import StaffDetail from "./pages/StaffDetail";
 import RequireAuth from "./auth/RequireAuth";
 import AppShell from "./components/AppShell";
+import FacilitiesPage from "./pages/Facilities";
 
 export default function App() {
   return (
@@ -28,7 +29,7 @@ export default function App() {
         <Route path="scheduler" element={<Scheduler />} />
         <Route path="staff" element={<Staff />} />
         <Route path="staff/:id" element={<StaffDetail />} />
-
+        <Route path="facilities" element={<FacilitiesPage />} />
         {/* redirect any old /dashboard links */}
         <Route path="dashboard" element={<Navigate to="/" replace />} />
 

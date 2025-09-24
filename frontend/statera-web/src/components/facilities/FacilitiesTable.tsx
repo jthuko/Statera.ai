@@ -1,0 +1,169 @@
+import { useState } from "react";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Divider,
+  IconButton,
+  InputAdornment,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
+import type { Facility } from "../../api/facilities";
+import {
+  useFacilities,
+  useCreateFacility,
+  useUpdateFacility,
+  useDeleteFacility,
+} from "../../api/facilities";
+import FacilityFormDialog, { FacilityFormValues } from "./FacilityFormDialog";
+
+export default function FacilitiesTable() {
+  const [query, setQuery] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Facility | null>(null);
+
+  const { data, isLoading, error } = useFacilities(query);
+  const items: Facility[] = data ?? []; // hook normalizes to Facility[]
+
+  const createMut = useCreateFacility();
+  const updateMut = useUpdateFacility();
+  const deleteMut = useDeleteFacility();
+
+  const handleCreate = async (values: FacilityFormValues) => {
+    try {
+      await createMut.mutateAsync(values); // { name, city, state }
+      setDialogOpen(false);
+    } catch (e) {
+      console.error("Create facility failed:", e);
+      alert("Create failed. Check required fields and API route.");
+    }
+  };
+
+  const handleUpdate = async (values: FacilityFormValues) => {
+    if (!editing) return;
+    try {
+      await updateMut.mutateAsync({ ...editing, ...values });
+      setEditing(null);
+    } catch (e) {
+      console.error("Update facility failed:", e);
+      alert("Update failed.");
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          justifyContent="space-between"
+          alignItems={{ xs: "stretch", sm: "center" }}
+          gap={2}
+        >
+          <Typography variant="h5">Facilities</Typography>
+
+          <Stack direction={{ xs: "column", sm: "row" }} gap={1} alignItems="center">
+            <TextField
+              size="small"
+              placeholder="Search facilities"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setDialogOpen(true)}
+            >
+              New Facility
+            </Button>
+          </Stack>
+        </Stack>
+
+        <Divider sx={{ my: 2 }} />
+
+        {error && (
+          <Typography color="error" sx={{ mb: 2 }}>
+            {(error as any)?.message ?? "Failed to load facilities"}
+          </Typography>
+        )}
+
+        <Box sx={{ overflowX: "auto" }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>City</TableCell>
+                <TableCell>State</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {isLoading && (
+                <TableRow>
+                  <TableCell colSpan={4}>Loading…</TableCell>
+                </TableRow>
+              )}
+              {!isLoading && items.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4}>No facilities found</TableCell>
+                </TableRow>
+              )}
+              {items.map((f) => (
+                <TableRow key={f.id} hover>
+                  <TableCell>{f.name}</TableCell>
+                  <TableCell>{f.city}</TableCell>
+                  <TableCell>{f.state}</TableCell>
+                  <TableCell align="right">
+                    <IconButton aria-label="edit" onClick={() => setEditing(f)}>
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      aria-label="delete"
+                      onClick={() => deleteMut.mutate(f.id)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+      </CardContent>
+
+      {/* Create */}
+      <FacilityFormDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSubmit={handleCreate}
+        initial={null}
+      />
+
+      {/* Edit */}
+      <FacilityFormDialog
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        onSubmit={handleUpdate}
+        initial={editing}
+      />
+    </Card>
+  );
+}

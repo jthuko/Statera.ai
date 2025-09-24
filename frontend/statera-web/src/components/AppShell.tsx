@@ -8,6 +8,7 @@ import {
   Dashboard as DashboardIcon,
   CalendarMonth,
   Group,
+  LocalHospital,
 } from "@mui/icons-material";
 import { Outlet, NavLink } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -24,6 +25,7 @@ export default function AppShell() {
     { to: "/",          label: "Dashboard",       icon: <DashboardIcon /> },
     { to: "/scheduler", label: "Scheduler",       icon: <CalendarMonth /> },
     { to: "/staff",     label: "Staff Directory", icon: <Group /> },
+    { label: "Facilities", to: "/facilities", icon: <LocalHospital /> } // ← NEW
   ];
 
   const onKey = (e: React.KeyboardEvent) => {
