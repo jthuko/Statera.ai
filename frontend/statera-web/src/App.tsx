@@ -8,6 +8,8 @@ import StaffDetail from "./pages/StaffDetail";
 import RequireAuth from "./auth/RequireAuth";
 import AppShell from "./components/AppShell";
 import FacilitiesPage from "./pages/Facilities";
+import ConstraintsRulesPage from "./pages/constraints";
+
 
 export default function App() {
   return (
@@ -30,6 +32,7 @@ export default function App() {
         <Route path="staff" element={<Staff />} />
         <Route path="staff/:id" element={<StaffDetail />} />
         <Route path="facilities" element={<FacilitiesPage />} />
+        <Route path="constraints" element={<ConstraintsRulesPage />} />
         {/* redirect any old /dashboard links */}
         <Route path="dashboard" element={<Navigate to="/" replace />} />
 

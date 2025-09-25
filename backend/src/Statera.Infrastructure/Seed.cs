@@ -33,7 +33,7 @@ public static class DevDataSeeder
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<AppRole>>();
 
-        // 🔨 (optional) nuke → recreate from current model
+        // 🔨 (optional) nuke → recreate from current mnpm dodel
         if (resetDatabase)
         {
             logger.LogWarning("DevDataSeeder: resetting database via EnsureDeleted/EnsureCreated...");
