@@ -3,14 +3,6 @@ using System;
 
 namespace Statera.Api.Contracts;
 
-// ---------- Facilities ----------
-public record CreateFacilityRequest(string Name, string Address, string City, string State, string Zip);
-public record UpdateFacilityRequest(string? Name, string? Address, string? City, string? State, string? Zip);
-
-// ---------- Units (replaces Departments) ----------
-public record CreateUnitRequest(Guid FacilityId, string Name);
-public record UpdateUnitRequest(Guid? FacilityId, string? Name);
-
 // ---------- Staff ----------
 public record CreateStaffRequest(
     string FirstName,

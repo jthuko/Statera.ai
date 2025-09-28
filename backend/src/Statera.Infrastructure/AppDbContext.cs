@@ -114,6 +114,25 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
                   .HasForeignKey(s => s.FacilityId);
         });
 
+        b.Entity<Unit>(entity => {
+            entity.ToTable("Units");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Type).HasMaxLength(100);
+            entity.Property(x => x.Floor).HasMaxLength(50);
+            entity.Property(x => x.Capacity);
+            entity.Property(x => x.Notes).HasMaxLength(1000);
+            entity.Property(x => x.IsActive).HasDefaultValue(true);
+
+            entity.HasOne(x => x.Facility)
+                .WithMany(f => f.Units)
+                .HasForeignKey(x => x.FacilityId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => new { x.FacilityId, x.Name });
+        });
+
         b.Entity<OvertimeRule>();
         b.Entity<ShiftSwap>();
         b.Entity<AuditLog>();

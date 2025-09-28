@@ -1,4 +1,4 @@
-// backend/src/Statera.Api/Domain/Entities.cs
+﻿// backend/src/Statera.Api/Domain/Entities.cs
 using System;
 using System.Collections.Generic;
 
@@ -144,8 +144,14 @@ public class Unit
     public Facility Facility { get; set; } = default!;
 
     public string Name { get; set; } = default!;
-}
 
+    // ✅ New fields used by the frontend
+    public string? Type { get; set; }
+    public string? Floor { get; set; }
+    public int? Capacity { get; set; }
+    public string? Notes { get; set; }
+    public bool IsActive { get; set; } = true;
+}
 public class ShiftTemplate
 {
     public Guid Id { get; set; }
@@ -159,7 +165,7 @@ public class ShiftTemplate
     // store as SQL 'time'
     public TimeSpan StartLocal { get; set; }
     public TimeSpan EndLocal { get; set; }
-
+    
     public int RequiredCount { get; set; }
 
     // keep simple; if you want qualifications later, add a JSON-converted property

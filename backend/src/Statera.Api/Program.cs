@@ -54,15 +54,18 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
     o.SwaggerDoc("v1", new OpenApiInfo { Title = "Statera AI API", Version = "v1" });
+    // ✅ Prevent schema ID collisions when similar class names exist in different namespaces
+    o.CustomSchemaIds(t => t.FullName);
 });
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+// Serve Swagger in all environments (root redirects to /swagger below)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Statera AI API v1");
+});
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
@@ -78,7 +81,7 @@ v1.MapHealthEndpoints();
 v1.MapAuthEndpoints();            // your auth module (if implemented)
 v1.MapUsersEndpoints();           // Identity-backed users
 v1.MapFacilitiesEndpoints();
-v1.MapUnitsEndpoints();           // <-- replaces Departments
+v1.MapUnitsEndpoints();           // <-- Units (keep only this one)
 v1.MapStaffEndpoints();
 v1.MapAssignmentsEndpoints();     // <-- replaces Shifts
 v1.MapSchedulesEndpoints();       // (uses UnitId)
@@ -86,6 +89,7 @@ v1.MapTemplatesEndpoints();       // Shift templates (TimeSpan times)
 v1.MapRequestsEndpoints();        // Time-off / requests
 v1.MapConstraintsEndpoints();
 v1.MapForecastEndpoints();
+v1.MapRolesEndpoints();           // <-- Roles
 
 // Convenience: root -> Swagger
 app.MapGet("/", () => Results.Redirect("/swagger"));

@@ -1,5 +1,6 @@
 // src/App.tsx
 import { Routes, Route, Navigate } from "react-router-dom";
+
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Scheduler from "./pages/Scheduler";
@@ -9,7 +10,8 @@ import RequireAuth from "./auth/RequireAuth";
 import AppShell from "./components/AppShell";
 import FacilitiesPage from "./pages/Facilities";
 import ConstraintsRulesPage from "./pages/constraints";
-
+import UnitsPage from "./pages/units/_Page";
+import { FacilityProvider } from "./context/facility"; // ✅ add
 
 export default function App() {
   return (
@@ -22,7 +24,10 @@ export default function App() {
         path="/"
         element={
           <RequireAuth>
-            <AppShell />
+            {/* ✅ wrap the shell + its children so useFacility is available */}
+            <FacilityProvider>
+              <AppShell />
+            </FacilityProvider>
           </RequireAuth>
         }
       >
@@ -33,6 +38,8 @@ export default function App() {
         <Route path="staff/:id" element={<StaffDetail />} />
         <Route path="facilities" element={<FacilitiesPage />} />
         <Route path="constraints" element={<ConstraintsRulesPage />} />
+        <Route path="units" element={<UnitsPage />} />
+
         {/* redirect any old /dashboard links */}
         <Route path="dashboard" element={<Navigate to="/" replace />} />
 

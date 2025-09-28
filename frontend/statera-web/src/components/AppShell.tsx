@@ -9,26 +9,46 @@ import {
   CalendarMonth,
   Group,
   LocalHospital,
-  RuleSharp,
   Policy,
+  Apartment, // Units
 } from "@mui/icons-material";
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, Link as RouterLink, useMatch, useResolvedPath } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 
 const drawerWidth = 260;
 
 type NavItem = { to: string; label: string; icon: JSX.Element; show?: boolean };
 
+/** Helper that works with MUI typing: uses RouterLink + selected state via useMatch */
+function DrawerNavItem({ to, label, icon }: NavItem) {
+  const resolved = useResolvedPath(to);
+  const match = useMatch({ path: resolved.pathname, end: to === "/" }); // exact match for "/"
+  return (
+    <ListItemButton
+      component={RouterLink}
+      to={to}
+      selected={!!match}
+      sx={{
+        "&.Mui-selected, &.Mui-selected:hover": { backgroundColor: "rgba(255,255,255,0.08)" },
+      }}
+    >
+      <ListItemIcon sx={{ color: "inherit" }}>{icon}</ListItemIcon>
+      <ListItemText primary={label} />
+    </ListItemButton>
+  );
+}
+
 export default function AppShell() {
   const [q, setQ] = useState("");
   const { logout } = useAuth();
 
   const items: NavItem[] = [
-    { to: "/",          label: "Dashboard",       icon: <DashboardIcon /> },
-    { to: "/scheduler", label: "Scheduler",       icon: <CalendarMonth /> },
-    { to: "/staff",     label: "Staff Directory", icon: <Group /> },
-    { label: "Facilities", to: "/facilities", icon: <LocalHospital /> },
-    { to: "/constraints", label: "Constraints & Rules", icon: <Policy /> },
+    { to: "/",           label: "Dashboard",         icon: <DashboardIcon /> },
+    { to: "/scheduler",  label: "Scheduler",         icon: <CalendarMonth /> },
+    { to: "/staff",      label: "Staff Directory",   icon: <Group /> },
+    { to: "/facilities", label: "Facilities",        icon: <LocalHospital /> },
+    { to: "/units",      label: "Units",             icon: <Apartment /> }, // ✅ added
+    { to: "/constraints",label: "Constraints & Rules", icon: <Policy /> },
   ];
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -88,23 +108,11 @@ export default function AppShell() {
         <Toolbar />
         <Divider />
         <List>
-          {items.map((i) => (
-            <ListItemButton
-              key={i.to}
-              // Use NavLink for navigation + active state
-              component={NavLink}
-              to={i.to}
-              // MUI selected style when route is active
-              sx={{
-                "&.active": {
-                  backgroundColor: "rgba(255,255,255,0.08)",
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: "inherit" }}>{i.icon}</ListItemIcon>
-              <ListItemText primary={i.label} />
-            </ListItemButton>
-          ))}
+          {items
+            .filter((i) => i.show !== false)
+            .map((i) => (
+              <DrawerNavItem key={i.to} {...i} />
+            ))}
         </List>
       </Drawer>
 

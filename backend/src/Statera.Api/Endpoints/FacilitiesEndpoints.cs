@@ -1,12 +1,12 @@
-﻿// backend/src/Statera.Api/Endpoints/FacilitiesEndpoints.cs
-using System;
+﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
-using Statera.Infrastructure;           // AppDbContext
-using Statera.Api.Contracts;           // DTOs
-using DomFacility = Statera.Domain.Facility; // <<< add this alias
+using Statera.Infrastructure;            // AppDbContext
+using Statera.Api.Contracts;            // DTOs
+using DomFacility = Statera.Domain.Facility;
 
 namespace Statera.Api.Endpoints;
 
@@ -19,7 +19,12 @@ public static class FacilitiesEndpoints
         // GET /api/v1/facilities
         g.MapGet("/", async ([FromServices] AppDbContext db) =>
         {
-            var rows = await db.Facilities.AsNoTracking().ToListAsync();
+            var rows = await db.Facilities
+                .AsNoTracking()
+                .OrderBy(f => f.Name)
+                .Select(f => new FacilityItemResponse(f.Id, f.Name, f.Address, f.City, f.State, f.Zip))
+                .ToListAsync();
+
             return Results.Ok(rows);
         });
 
@@ -27,7 +32,9 @@ public static class FacilitiesEndpoints
         g.MapGet("/{id:guid}", async (Guid id, [FromServices] AppDbContext db) =>
         {
             var e = await db.Facilities.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
-            return e is null ? Results.NotFound() : Results.Ok(e);
+            return e is null
+                ? Results.NotFound()
+                : Results.Ok(new FacilityItemResponse(e.Id, e.Name, e.Address, e.City, e.State, e.Zip));
         });
 
         // POST /api/v1/facilities
@@ -52,10 +59,13 @@ public static class FacilitiesEndpoints
                 Zip = req.Zip.Trim()
             };
 
-
             db.Facilities.Add(e);
             await db.SaveChangesAsync();
-            return Results.Created($"/api/v1/facilities/{e.Id}", e);
+
+            return Results.Created(
+                $"/api/v1/facilities/{e.Id}",
+                new FacilityItemResponse(e.Id, e.Name, e.Address, e.City, e.State, e.Zip)
+            );
         });
 
         // PUT /api/v1/facilities/{id}
@@ -71,7 +81,8 @@ public static class FacilitiesEndpoints
             if (req.Zip is not null) e.Zip = req.Zip.Trim();
 
             await db.SaveChangesAsync();
-            return Results.Ok(e);
+
+            return Results.Ok(new FacilityItemResponse(e.Id, e.Name, e.Address, e.City, e.State, e.Zip));
         });
 
         // DELETE /api/v1/facilities/{id}
