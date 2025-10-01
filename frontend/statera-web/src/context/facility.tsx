@@ -1,19 +1,30 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import api from "../api/axios";
 import type { Facility } from "../api/facilities/types";
 
 interface FacilityContextValue {
   facilities: Facility[];
-  selected?: Facility | null;
+  selected: Facility | null;
   setSelectedId: (id: string) => void;
   reload: () => Promise<void>;
   loading: boolean;
-  error?: string | null;
+  error: string | null;
 }
 
-const FacilityContext = createContext<FacilityContextValue | undefined>(undefined);
+const FacilityContext = createContext<FacilityContextValue | undefined>(
+  undefined
+);
 
-export const FacilityProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
+export const FacilityProvider: React.FC<React.PropsWithChildren> = ({
+  children,
+}) => {
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(
     localStorage.getItem("statera:facilityId")
@@ -28,7 +39,8 @@ export const FacilityProvider: React.FC<React.PropsWithChildren> = ({ children }
       const res = await api.get<Facility[]>("/facilities");
       setFacilities(res.data);
 
-      if (!selectedId || !res.data.some(f => f.id === selectedId)) {
+      // Ensure we have a valid selection
+      if (!selectedId || !res.data.some((f) => f.id === selectedId)) {
         const first = res.data[0];
         if (first) {
           setSelectedId(first.id);
@@ -53,7 +65,7 @@ export const FacilityProvider: React.FC<React.PropsWithChildren> = ({ children }
   };
 
   const selected = useMemo(
-    () => facilities.find(f => f.id === selectedId) ?? null,
+    () => facilities.find((f) => f.id === selectedId) ?? null,
     [facilities, selectedId]
   );
 
@@ -63,14 +75,20 @@ export const FacilityProvider: React.FC<React.PropsWithChildren> = ({ children }
     setSelectedId: setSelectedIdPersist,
     reload,
     loading,
-    error
+    error,
   };
 
-  return <FacilityContext.Provider value={value}>{children}</FacilityContext.Provider>;
+  return (
+    <FacilityContext.Provider value={value}>
+      {children}
+    </FacilityContext.Provider>
+  );
 };
 
-export const useFacility = () => {
+export const useFacility = (): FacilityContextValue => {
   const ctx = useContext(FacilityContext);
-  if (!ctx) throw new Error("useFacility must be used within FacilityProvider");
+  if (!ctx) {
+    throw new Error("useFacility must be used within FacilityProvider");
+  }
   return ctx;
 };

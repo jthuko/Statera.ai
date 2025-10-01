@@ -12,6 +12,7 @@ import FacilitiesPage from "./pages/Facilities";
 import ConstraintsRulesPage from "./pages/constraints";
 import UnitsPage from "./pages/units/_Page";
 import { FacilityProvider } from "./context/facility"; // ✅ add
+import AssignmentsPage from "./pages/assignments";
 
 export default function App() {
   return (
@@ -39,6 +40,8 @@ export default function App() {
         <Route path="facilities" element={<FacilitiesPage />} />
         <Route path="constraints" element={<ConstraintsRulesPage />} />
         <Route path="units" element={<UnitsPage />} />
+        <Route path="/assignments" element={<AssignmentsPage />} />
+        <Route path="*" element={<Navigate to="/assignments" replace />} />
 
         {/* redirect any old /dashboard links */}
         <Route path="dashboard" element={<Navigate to="/" replace />} />

@@ -1,0 +1,320 @@
+// src/pages/assignments/_Page.tsx
+import * as React from "react";
+import {
+  Box, Button, Container, Divider, MenuItem, Stack, TextField, Typography,
+  CircularProgress, Snackbar, Alert
+} from "@mui/material";
+import dayjs, { Dayjs } from "dayjs";
+import isoWeek from "dayjs/plugin/isoWeek";
+dayjs.extend(isoWeek);
+
+import { useFacility } from "../../context/facility";
+import { listStaff, StaffDto } from "../../api/staff";
+import { listUnits, UNIT_TYPES } from "../../api/units"; // assuming you already have this from Units page
+import type { UnitDto } from "../../api/units";
+
+import WeekGrid from "../../components/scheduler/WeekGrid";
+import AssignmentFormDialog, { FormValues } from "../../components/scheduler/AssignmentFormDialog";
+import {
+  listAssignments, createAssignment, updateAssignment, deleteAssignment,
+  AssignmentDto
+} from "../../api/assignments";
+
+
+interface RoleOption { id: string; name: string; }
+// If you already have roles elsewhere, switch to your source.
+// For now, define a small static set you can replace with your Roles API.
+const ROLE_OPTIONS: RoleOption[] = [
+  { id: "rn", name: "RN" },
+  { id: "lpn", name: "LPN" },
+  { id: "cna", name: "CNA" },
+];
+
+function startOfWeekMonday(d: Dayjs) {
+  // dayjs.isoWeek starts on Monday; ensure exact day start
+  return d.isoWeekday(1).startOf("day");
+}
+
+export default function AssignmentsPage() {
+  const { selected } = useFacility();
+  const facilityId = selected?.id;
+
+  const [weekStart, setWeekStart] = React.useState<Dayjs>(startOfWeekMonday(dayjs()));
+  const [units, setUnits] = React.useState<UnitDto[]>([]);
+  const [staff, setStaff] = React.useState<StaffDto[]>([]);
+  const [unitId, setUnitId] = React.useState<string>("");
+  const [roleId, setRoleId] = React.useState<string>("");
+
+  const [loading, setLoading] = React.useState(false);
+  const [assignments, setAssignments] = React.useState<AssignmentDto[]>([]);
+  const [error, setError] = React.useState<string | null>(null);
+  const [toast, setToast] = React.useState<string | null>(null);
+
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [dialogTitle, setDialogTitle] = React.useState("Create Assignment");
+  const [dialogInitial, setDialogInitial] = React.useState<FormValues>({
+    unitId: "",
+    staffId: "",
+    roleId: "",
+    start: dayjs().toISOString(),
+    end: dayjs().add(8, "hour").toISOString(),
+    notes: ""
+  });
+  const [editingId, setEditingId] = React.useState<string | undefined>(undefined);
+
+  const loadLookups = React.useCallback(async () => {
+    if (!facilityId) return;
+    try {
+      setLoading(true);
+      const [u, st] = await Promise.all([
+        listUnits(facilityId),
+        listStaff(facilityId)
+      ]);
+      setUnits(u);
+      setStaff(st.filter(s => s.active));
+      if (!unitId && u.length) setUnitId(u[0].id);
+    } catch (e: any) {
+      setError("Failed to load lookups");
+    } finally {
+      setLoading(false);
+    }
+  }, [facilityId, unitId]);
+
+  const loadAssignments = React.useCallback(async () => {
+    if (!facilityId) return;
+    try {
+      setLoading(true);
+      const start = weekStart.startOf("day").toISOString();
+      const end = weekStart.add(7, "day").startOf("day").toISOString();
+      const data = await listAssignments(facilityId, {
+        start, end, unitId: unitId || undefined, roleId: roleId || undefined
+      });
+      setAssignments(data);
+    } catch (e: any) {
+      setError("Failed to load assignments");
+    } finally {
+      setLoading(false);
+    }
+  }, [facilityId, weekStart, unitId, roleId]);
+
+  React.useEffect(() => {
+    loadLookups();
+  }, [loadLookups]);
+
+  React.useEffect(() => {
+    loadAssignments();
+  }, [loadAssignments]);
+
+  const staffRows = React.useMemo(
+    () =>
+      staff.map(s => ({
+        id: s.id,
+        label: s.displayName ?? `${s.firstName} ${s.lastName}`
+      })),
+    [staff]
+  );
+
+  const assignmentCells = React.useMemo(() => {
+    // Map each assignment to a cell (staff+day)
+    return assignments.map(a => {
+      const start = dayjs(a.start);
+      const dayISO = start.startOf("day").toISOString();
+      const roleName = ROLE_OPTIONS.find(r => r.id === a.roleId)?.name ?? a.roleId;
+      const unitName = units.find(u => u.id === a.unitId)?.name;
+      return {
+        id: a.id,
+        staffId: a.staffId,
+        dayISO,
+        startISO: a.start,
+        endISO: a.end,
+        roleName,
+        unitName,
+        notes: a.notes ?? null
+      };
+    });
+  }, [assignments, units]);
+
+  const openCreate = (staffId: string, dayISO: string) => {
+    const start = dayjs(dayISO).hour(7).minute(0).second(0).millisecond(0);
+    const end = start.add(8, "hour");
+    setDialogTitle("Create Assignment");
+    setEditingId(undefined);
+    setDialogInitial({
+      unitId: unitId || (units[0]?.id ?? ""),
+      staffId,
+      roleId: roleId || ROLE_OPTIONS[0].id,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      notes: ""
+    });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (assignmentId: string) => {
+    const a = assignments.find(x => x.id === assignmentId);
+    if (!a) return;
+    setDialogTitle("Edit Assignment");
+    setEditingId(a.id);
+    setDialogInitial({
+      id: a.id,
+      unitId: a.unitId,
+      staffId: a.staffId,
+      roleId: a.roleId,
+      start: a.start,
+      end: a.end,
+      notes: a.notes ?? ""
+    });
+    setDialogOpen(true);
+  };
+
+  const submitAssignment = async (values: FormValues) => {
+    if (!facilityId) return;
+    try {
+      setLoading(true);
+      if (!editingId) {
+        await createAssignment(facilityId, {
+          unitId: values.unitId,
+          staffId: values.staffId,
+          roleId: values.roleId,
+          start: values.start,
+          end: values.end,
+          notes: values.notes
+        });
+        setToast("Assignment created");
+      } else {
+        await updateAssignment(facilityId, editingId, {
+          id: editingId,
+          unitId: values.unitId,
+          staffId: values.staffId,
+          roleId: values.roleId,
+          start: values.start,
+          end: values.end,
+          notes: values.notes
+        });
+        setToast("Assignment updated");
+      }
+      setDialogOpen(false);
+      await loadAssignments();
+    } catch (e: any) {
+      setError("Failed to save assignment");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteCurrent = async () => {
+    if (!facilityId || !editingId) return;
+    try {
+      setLoading(true);
+      await deleteAssignment(facilityId, editingId);
+      setDialogOpen(false);
+      setToast("Assignment deleted");
+      await loadAssignments();
+    } catch (e: any) {
+      setError("Failed to delete assignment");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const moveWeek = (delta: number) => {
+    setWeekStart(prev => startOfWeekMonday(prev.add(delta, "week")));
+  };
+
+  const unitsOptions = units.map(u => ({ id: u.id, name: u.name }));
+  const rolesOptions = ROLE_OPTIONS;
+
+  const staffOptions = staffRows.map(s => ({ id: s.id, label: s.label }));
+
+  return (
+    <Container maxWidth="xl" sx={{ py: 3 }}>
+      <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
+        Assignments (Scheduler)
+      </Typography>
+
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center" sx={{ mb: 2 }}>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" onClick={() => moveWeek(-1)}>Prev</Button>
+          <Button variant="outlined" onClick={() => setWeekStart(startOfWeekMonday(dayjs()))}>Today</Button>
+          <Button variant="outlined" onClick={() => moveWeek(1)}>Next</Button>
+        </Stack>
+
+        <TextField
+          label="Week of"
+          type="date"
+          value={weekStart.format("YYYY-MM-DD")}
+          onChange={e => setWeekStart(startOfWeekMonday(dayjs(e.target.value)))}
+          InputLabelProps={{ shrink: true }}
+          sx={{ width: 200 }}
+        />
+
+        <TextField
+          select
+          label="Unit"
+          value={unitId}
+          onChange={e => setUnitId(e.target.value)}
+          sx={{ minWidth: 220 }}
+        >
+          {unitsOptions.map(u => (
+            <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
+          ))}
+          <MenuItem value="">All Units</MenuItem>
+        </TextField>
+
+        <TextField
+          select
+          label="Role"
+          value={roleId}
+          onChange={e => setRoleId(e.target.value)}
+          sx={{ minWidth: 180 }}
+        >
+          {rolesOptions.map(r => (
+            <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
+          ))}
+          <MenuItem value="">All Roles</MenuItem>
+        </TextField>
+
+        {loading && <CircularProgress size={24} />}
+      </Stack>
+
+      <Divider sx={{ mb: 2 }} />
+
+      <WeekGrid
+        weekStart={weekStart}
+        staff={staffRows}
+        assignments={assignmentCells}
+        onCreate={openCreate}
+        onEdit={openEdit}
+      />
+
+      <AssignmentFormDialog
+        open={dialogOpen}
+        title={dialogTitle}
+        initial={dialogInitial}
+        units={unitsOptions}
+        roles={rolesOptions}
+        staff={staffOptions}
+        onCancel={() => setDialogOpen(false)}
+        onSubmit={submitAssignment}
+      />
+
+      <Snackbar
+        open={!!toast}
+        autoHideDuration={2500}
+        onClose={() => setToast(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity="success" onClose={() => setToast(null)}>{toast}</Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={!!error}
+        autoHideDuration={4000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>
+      </Snackbar>
+    </Container>
+  );
+}

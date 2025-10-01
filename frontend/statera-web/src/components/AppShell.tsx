@@ -10,10 +10,12 @@ import {
   Group,
   LocalHospital,
   Policy,
-  Apartment, // Units
+  Apartment,
+  Assignment, // Units
 } from "@mui/icons-material";
 import { Outlet, Link as RouterLink, useMatch, useResolvedPath } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
+
 
 const drawerWidth = 260;
 
@@ -49,6 +51,7 @@ export default function AppShell() {
     { to: "/facilities", label: "Facilities",        icon: <LocalHospital /> },
     { to: "/units",      label: "Units",             icon: <Apartment /> }, // ✅ added
     { to: "/constraints",label: "Constraints & Rules", icon: <Policy /> },
+    { to: "/assignments", label: "Assignments", icon: <Assignment/> }, // ✅ new
   ];
 
   const onKey = (e: React.KeyboardEvent) => {

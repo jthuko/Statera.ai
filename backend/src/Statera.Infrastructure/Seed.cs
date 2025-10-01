@@ -6,16 +6,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Statera.Domain;
+using Statera.Domain; // make sure this points to your Domain entities (Staff, Facility, Unit, Assignment, etc.)
 
 namespace Statera.Infrastructure;
 
 public static class DevDataSeeder
 {
-    /// <summary>
-    /// Drops and recreates the DB (optional) and seeds development data.
-    /// Hard-guarded to run only in Development.
-    /// </summary>
     public static async Task ResetAndSeedAsync(
         IServiceProvider sp,
         ILogger logger,
@@ -33,7 +29,7 @@ public static class DevDataSeeder
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<AppRole>>();
 
-        // 🔨 (optional) nuke → recreate from current mnpm dodel
+        // 🔨 (optional) reset DB
         if (resetDatabase)
         {
             logger.LogWarning("DevDataSeeder: resetting database via EnsureDeleted/EnsureCreated...");
@@ -62,11 +58,7 @@ public static class DevDataSeeder
         {
             admin = new AppUser { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
             var created = await userManager.CreateAsync(admin, "Password123!");
-            if (!created.Succeeded)
-            {
-                logger.LogWarning("Failed creating admin user: {Errors}", string.Join(", ", created.Errors.Select(e => e.Description)));
-            }
-            else
+            if (created.Succeeded)
             {
                 var addToRole = await userManager.AddToRoleAsync(admin, "Admin");
                 if (!addToRole.Succeeded)
@@ -87,25 +79,25 @@ public static class DevDataSeeder
             });
         }
 
-        // Facilities (+ Address, City, State, Zip) and Units
+        // Facilities + Units
         Facility stateraFacility, hudsonFacility;
         if (!await db.Facilities.AnyAsync())
         {
             stateraFacility = new Facility
             {
                 Name = "Statera Care Center",
-                Address = "100 Demo Rd",     // REQUIRED
-                City = "Wichita",            // REQUIRED
-                State = "KS",                // REQUIRED
-                Zip = "67202"                // REQUIRED
+                Address = "100 Demo Rd",
+                City = "Wichita",
+                State = "KS",
+                Zip = "67202"
             };
             hudsonFacility = new Facility
             {
                 Name = "Hudson Home Care",
-                Address = "200 River Ave",   // REQUIRED
-                City = "Albany",             // REQUIRED
-                State = "NY",                // REQUIRED
-                Zip = "12207"                // REQUIRED
+                Address = "200 River Ave",
+                City = "Albany",
+                State = "NY",
+                Zip = "12207"
             };
 
             db.Facilities.AddRange(stateraFacility, hudsonFacility);
@@ -120,12 +112,11 @@ public static class DevDataSeeder
         }
         else
         {
-            // Use existing rows if present
             stateraFacility = await db.Facilities.FirstAsync();
             hudsonFacility = await db.Facilities.OrderBy(f => f.Id).Skip(1).FirstOrDefaultAsync() ?? stateraFacility;
         }
 
-        // Staff (+ required Role) with Licenses and Availabilities (explicit Staff back-link)
+        // Staff
         if (!await db.Staff.AnyAsync())
         {
             var credentialOptions = new[] { CredentialType.RN, CredentialType.LPN, CredentialType.CNA };
@@ -143,9 +134,8 @@ public static class DevDataSeeder
                     FirstName = first,
                     LastName = "Demo",
                     EmploymentType = i % 3 == 0 ? EmploymentType.Contract : EmploymentType.FullTime,
-
-                    // REQUIRED in your schema
-                    Role = cred.ToString() // "RN" | "LPN" | "CNA"
+                    Role = cred.ToString(),
+                    Active = true // ✅ make seeded staff active
                 };
 
                 staff.Licenses = new List<StaffLicense>
@@ -174,6 +164,96 @@ public static class DevDataSeeder
         }
 
         await db.SaveChangesAsync();
+
+        // ---- Assignments ----
+        try
+        {
+            var primaryFacility = await db.Facilities.OrderBy(f => f.Name).FirstAsync();
+            string facilityState = (primaryFacility.State ?? "KS").Trim().ToUpperInvariant();
+            if (facilityState.Length > 2) facilityState = facilityState[..2];
+
+            var unit = await db.Units
+                .Where(u => u.FacilityId == primaryFacility.Id)
+                .OrderBy(u => u.Name)
+                .FirstOrDefaultAsync();
+
+            var staff = await db.Staff
+                .OrderBy(s => s.FirstName)
+                .Take(6)
+                .ToListAsync();
+
+            bool hasAssignments = await db.Assignments.AnyAsync(a => a.FacilityId == primaryFacility.Id);
+            if (!hasAssignments && staff.Any())
+            {
+                DateTime utcToday = DateTime.UtcNow.Date;
+                int daysFromMonday = ((int)utcToday.DayOfWeek + 6) % 7; // Monday=0
+                DateTime weekStartUtc = utcToday.AddDays(-daysFromMonday);
+
+                Assignment Shift(Guid staffId, int dayOffset, int startHourUtc, int durationHours, string note)
+                {
+                    var start = weekStartUtc.AddDays(dayOffset).AddHours(startHourUtc);
+                    var end = start.AddHours(durationHours);
+                    return new Assignment
+                    {
+                        Id = Guid.NewGuid(),
+                        StaffId = staffId,
+                        FacilityId = primaryFacility.Id,
+                        UnitId = unit?.Id,
+                        FacilityState = facilityState,
+                        StartUtc = start,
+                        EndUtc = end,
+                        Notes = note,
+                        RowVersion = Array.Empty<byte>()
+                    };
+                }
+
+                var items = new List<Assignment>();
+
+                // s0: Mon–Fri 07–15
+                if (staff.Count >= 1)
+                    for (int d = 0; d < 5; d++) items.Add(Shift(staff[0].Id, d, 7, 8, "Day shift"));
+
+                // s1: Mon–Fri 15–23
+                if (staff.Count >= 2)
+                    for (int d = 0; d < 5; d++) items.Add(Shift(staff[1].Id, d, 15, 8, "Evening shift"));
+
+                // s2: Mon–Fri 23–07
+                if (staff.Count >= 3)
+                    for (int d = 0; d < 5; d++) items.Add(Shift(staff[2].Id, d, 23, 8, "Night shift"));
+
+                // s3: Sat–Sun 07–19
+                if (staff.Count >= 4)
+                {
+                    items.Add(Shift(staff[3].Id, 5, 7, 12, "Weekend long day"));
+                    items.Add(Shift(staff[3].Id, 6, 7, 12, "Weekend long day"));
+                }
+
+                // s4: Tue/Thu 06–14
+                if (staff.Count >= 5)
+                {
+                    items.Add(Shift(staff[4].Id, 1, 6, 8, "Tue AM"));
+                    items.Add(Shift(staff[4].Id, 3, 6, 8, "Thu AM"));
+                }
+
+                // s5: Wed/Fri 10–18
+                if (staff.Count >= 6)
+                {
+                    items.Add(Shift(staff[5].Id, 2, 10, 8, "Wed mid"));
+                    items.Add(Shift(staff[5].Id, 4, 10, 8, "Fri mid"));
+                }
+
+                db.Assignments.AddRange(items);
+                await db.SaveChangesAsync();
+
+                logger.LogInformation("DevDataSeeder: seeded {Count} assignments for {Facility}.",
+                    items.Count, primaryFacility.Name);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "DevDataSeeder: error while seeding assignments.");
+        }
+
         logger.LogInformation("DevDataSeeder: seeding complete.");
     }
 }

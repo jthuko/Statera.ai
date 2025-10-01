@@ -14,8 +14,51 @@ namespace Statera.Api.Endpoints;
 
 public static class StaffEndpoints
 {
+    /// <summary>
+    /// Maps staff endpoints under the provided v1 route group (e.g., /api/v1).
+    /// </summary>
     public static RouteGroupBuilder MapStaffEndpoints(this RouteGroupBuilder v1)
     {
+        // ----- Facility-scoped shorthand: /api/v1/facilities/{facilityId}/staff  -----
+        // Mirrors GET /api/v1/staff?facilityId=...
+        v1.MapGet("/facilities/{facilityId:guid}/staff", async (
+            Guid facilityId,
+            Guid? unitId,
+            bool? active,
+            string? role,
+            string? q,
+            [FromServices] AppDbContext db) =>
+        {
+            var query = db.Staff.AsNoTracking().AsQueryable();
+
+            // Required facility filter for this route:
+            query = query.Where(s => s.FacilityId == facilityId);
+
+            if (unitId.HasValue) query = query.Where(s => s.UnitId == unitId.Value);
+            if (active.HasValue) query = query.Where(s => s.Active == active.Value);
+            if (!string.IsNullOrWhiteSpace(role))
+            {
+                var r = role.Trim();
+                query = query.Where(s => s.Role == r);
+            }
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim();
+                query = query.Where(s =>
+                    (s.FirstName != null && s.FirstName.Contains(term)) ||
+                    (s.LastName != null && s.LastName.Contains(term)) ||
+                    (s.Email != null && s.Email.Contains(term)));
+            }
+
+            var rows = await query
+                .OrderBy(s => s.LastName).ThenBy(s => s.FirstName)
+                .ToListAsync();
+
+            return Results.Ok(rows);
+        })
+        .WithTags("Staff");
+
+        // ----- Original /api/v1/staff group -----
         var g = v1.MapGroup("/staff").WithTags("Staff");
 
         // GET /api/v1/staff?facilityId=&unitId=&active=&role=&q=
@@ -32,11 +75,13 @@ public static class StaffEndpoints
             if (facilityId.HasValue) query = query.Where(s => s.FacilityId == facilityId.Value);
             if (unitId.HasValue) query = query.Where(s => s.UnitId == unitId.Value);
             if (active.HasValue) query = query.Where(s => s.Active == active.Value);
+
             if (!string.IsNullOrWhiteSpace(role))
             {
                 var r = role.Trim();
                 query = query.Where(s => s.Role == r);
             }
+
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var term = q.Trim();
