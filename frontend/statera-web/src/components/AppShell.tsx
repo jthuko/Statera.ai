@@ -11,7 +11,8 @@ import {
   LocalHospital,
   Policy,
   Apartment,
-  Assignment, // Units
+  Assignment,
+  AccessAlarm, // Units
 } from "@mui/icons-material";
 import { Outlet, Link as RouterLink, useMatch, useResolvedPath } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -52,6 +53,7 @@ export default function AppShell() {
     { to: "/units",      label: "Units",             icon: <Apartment /> }, // ✅ added
     { to: "/constraints",label: "Constraints & Rules", icon: <Policy /> },
     { to: "/assignments", label: "Assignments", icon: <Assignment/> }, // ✅ new
+    { to: "/timeoff",     label: "Time Off", icon: <AccessAlarm /> },
   ];
 
   const onKey = (e: React.KeyboardEvent) => {

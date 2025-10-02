@@ -1,5 +1,7 @@
 // src/App.tsx
 import { Routes, Route, Navigate } from "react-router-dom";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -11,8 +13,13 @@ import AppShell from "./components/AppShell";
 import FacilitiesPage from "./pages/Facilities";
 import ConstraintsRulesPage from "./pages/constraints";
 import UnitsPage from "./pages/units/_Page";
-import { FacilityProvider } from "./context/facility"; // ✅ add
 import AssignmentsPage from "./pages/assignments";
+import { FacilityProvider } from "./context/facility";
+import TimeOffPage from "./pages/timeoff";
+
+
+// If you already created the Time Off page, uncomment the next line:
+// import TimeOffPage from "./pages/timeoff";
 
 export default function App() {
   return (
@@ -25,14 +32,17 @@ export default function App() {
         path="/"
         element={
           <RequireAuth>
-            {/* ✅ wrap the shell + its children so useFacility is available */}
-            <FacilityProvider>
-              <AppShell />
-            </FacilityProvider>
+            {/* Date/time pickers need this provider at or above the pages that use them */}
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              {/* Facility context available to all nested routes */}
+              <FacilityProvider>
+                <AppShell />
+              </FacilityProvider>
+            </LocalizationProvider>
           </RequireAuth>
         }
       >
-        {/* children use RELATIVE paths */}
+        {/* Children (relative paths) */}
         <Route index element={<Dashboard />} />
         <Route path="scheduler" element={<Scheduler />} />
         <Route path="staff" element={<Staff />} />
@@ -40,15 +50,20 @@ export default function App() {
         <Route path="facilities" element={<FacilitiesPage />} />
         <Route path="constraints" element={<ConstraintsRulesPage />} />
         <Route path="units" element={<UnitsPage />} />
-        <Route path="/assignments" element={<AssignmentsPage />} />
-        <Route path="*" element={<Navigate to="/assignments" replace />} />
+        <Route path="assignments" element={<AssignmentsPage />} />
+        <Route path="timeoff" element={<TimeOffPage/>} />
+        {/* If you have Time Off page, add it here: */}
+        {/* <Route path="timeoff" element={<TimeOffPage />} /> */}
 
-        {/* redirect any old /dashboard links */}
+        {/* Redirect any old /dashboard links */}
         <Route path="dashboard" element={<Navigate to="/" replace />} />
 
-        {/* fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Fallback for unknown routes under the shell */}
+        <Route path="*" element={<Navigate to="/assignments" replace />} />
       </Route>
+
+      {/* Final catch-all for anything outside "/" tree */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

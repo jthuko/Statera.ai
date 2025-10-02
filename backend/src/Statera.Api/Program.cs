@@ -90,6 +90,8 @@ v1.MapRequestsEndpoints();        // Time-off / requests
 v1.MapConstraintsEndpoints();
 v1.MapForecastEndpoints();
 v1.MapRolesEndpoints();           // <-- Roles
+v1.MapTimeOffEndpoints();
+
 
 // Convenience: root -> Swagger
 app.MapGet("/", () => Results.Redirect("/swagger"));
