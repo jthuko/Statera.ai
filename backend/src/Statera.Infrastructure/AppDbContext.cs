@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Statera.Domain;
+using Statera.Domain.Staffing;
 
 namespace Statera.Infrastructure;
 
@@ -25,7 +26,9 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
     public DbSet<Schedule> Schedules => Set<Schedule>();
     public DbSet<OvertimeRule> OvertimeRules => Set<OvertimeRule>();
     public DbSet<ShiftSwap> ShiftSwaps => Set<ShiftSwap>();
-    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>(); 
+    public DbSet<RuleConstraint> RuleConstraints => Set<RuleConstraint>();
+
 
     protected override void OnModelCreating(ModelBuilder b)
     {

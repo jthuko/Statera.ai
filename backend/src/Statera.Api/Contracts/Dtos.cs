@@ -78,9 +78,6 @@ public record UpdateScheduleRequest(Guid? FacilityId, Guid? UnitId, string? Name
 public record CreateTimeOffRequest(Guid StaffId, string Type, DateTime StartUtc, DateTime EndUtc, string? Reason);
 public record UpdateTimeOffRequest(Guid? StaffId, string? Type, string? Status, DateTime? StartUtc, DateTime? EndUtc, string? Reason);
 
-// ---------- Constraints ----------
-public record CreateConstraintRequest(Guid? FacilityId, Guid? UnitId, string Code, string Value);
-public record UpdateConstraintRequest(Guid? FacilityId, Guid? UnitId, string? Code, string? Value);
 
 // ---------- Users (ASP.NET Identity) ----------
 public record CreateIdentityUserRequest(string Email, string Password, string? UserName);

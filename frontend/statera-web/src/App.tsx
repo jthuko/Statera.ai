@@ -16,7 +16,8 @@ import UnitsPage from "./pages/units/_Page";
 import AssignmentsPage from "./pages/assignments";
 import { FacilityProvider } from "./context/facility";
 import TimeOffPage from "./pages/timeoff";
-
+import ConstraintsPage from "./pages/constraints";
+import CoveragePage from "./pages/coverage";
 
 // If you already created the Time Off page, uncomment the next line:
 // import TimeOffPage from "./pages/timeoff";
@@ -52,10 +53,8 @@ export default function App() {
         <Route path="units" element={<UnitsPage />} />
         <Route path="assignments" element={<AssignmentsPage />} />
         <Route path="timeoff" element={<TimeOffPage/>} />
-        {/* If you have Time Off page, add it here: */}
-        {/* <Route path="timeoff" element={<TimeOffPage />} /> */}
-
-        {/* Redirect any old /dashboard links */}
+        <Route path="/constraints" element={<ConstraintsPage />} />
+        <Route path="/coverage" element={<CoveragePage/>} />                           
         <Route path="dashboard" element={<Navigate to="/" replace />} />
 
         {/* Fallback for unknown routes under the shell */}

@@ -1,15 +1,9 @@
 ﻿// backend/src/Statera.Api/Endpoints/ConstraintsEndpoints.cs
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Statera.Api.Contracts;
+using Statera.Domain.Staffing;
 using Statera.Infrastructure;
-
-// If your domain type is named differently, adjust this alias:
-using DomainConstraint = Statera.Domain.Constraint;
 
 namespace Statera.Api.Endpoints;
 
@@ -17,81 +11,120 @@ public static class ConstraintsEndpoints
 {
     public static RouteGroupBuilder MapConstraintsEndpoints(this RouteGroupBuilder v1)
     {
-        var g = v1.MapGroup("/constraints").WithTags("Constraints");
+        var g = v1.MapGroup("/facilities/{facilityId:guid}/constraints")
+                  .WithTags("Constraints");
 
-        // GET /api/v1/constraints?facilityId=&unitId=
-        g.MapGet("/", async (Guid? facilityId, Guid? unitId, [FromServices] AppDbContext db) =>
+        // GET /api/v1/facilities/{facilityId}/constraints
+        g.MapGet("/", async ([FromRoute] Guid facilityId, [FromServices] AppDbContext db) =>
         {
-            var q = db.Set<DomainConstraint>().AsNoTracking().AsQueryable();
-            if (facilityId.HasValue) q = q.Where(c => c.FacilityId == facilityId.Value);
-            if (unitId.HasValue) q = q.Where(c => c.UnitId == unitId.Value);
+            var list = await db.RuleConstraints
+                .AsNoTracking()
+                .Where(x => x.FacilityId == facilityId)
+                .OrderByDescending(x => x.UpdatedOn ?? x.CreatedOn)
+                .Select(x => new ConstraintDto(
+                    x.Id, x.FacilityId, x.Scope, x.UnitId, x.Role, x.Type,
+                    x.Value, x.IsActive, x.Notes, x.CreatedOn, x.UpdatedOn))
+                .ToListAsync();
 
-            var rows = await q.OrderBy(c => c.Code).ToListAsync();
-            return Results.Ok(rows.Select(c => new
+            return Results.Ok(list);
+        })
+        .Produces<List<ConstraintDto>>(StatusCodes.Status200OK);
+
+        // POST /api/v1/facilities/{facilityId}/constraints
+        g.MapPost("/", async (
+            [FromRoute] Guid facilityId,
+            [FromBody] CreateConstraintRequest req,
+            [FromServices] AppDbContext db) =>
+        {
+            // Basic validation based on scope
+            if (req.Scope == RuleScope.Unit && (req.UnitId is null || req.UnitId == Guid.Empty))
+                return Results.BadRequest(new { error = "UnitId is required for Unit scope" });
+            if (req.Scope == RuleScope.Role && string.IsNullOrWhiteSpace(req.Role))
+                return Results.BadRequest(new { error = "Role is required for Role scope" });
+
+            var entity = new RuleConstraint
             {
-                c.Id,
-                c.FacilityId,
-                c.UnitId,
-                c.Code,
-                c.Value
-            }));
-        });
-
-        // GET /api/v1/constraints/{id}
-        g.MapGet("/{id:guid}", async (Guid id, [FromServices] AppDbContext db) =>
-        {
-            var c = await db.Set<DomainConstraint>().AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
-            return c is null ? Results.NotFound() : Results.Ok(new { c.Id, c.FacilityId, c.UnitId, c.Code, c.Value });
-        });
-
-        // POST /api/v1/constraints
-        g.MapPost("/", async ([FromBody] CreateConstraintRequest req, [FromServices] AppDbContext db) =>
-        {
-            if (string.IsNullOrWhiteSpace(req.Code))
-                return Results.BadRequest(new { error = "Code is required" });
-            if (string.IsNullOrWhiteSpace(req.Value))
-                return Results.BadRequest(new { error = "Value is required" });
-
-            var e = new DomainConstraint
-            {
-                Id = Guid.NewGuid(),
-                FacilityId = req.FacilityId,
-                UnitId = req.UnitId,
-                Code = req.Code.Trim(),
-                Value = req.Value.Trim()
+                FacilityId = facilityId,                 // from route
+                Scope = req.Scope,
+                UnitId = req.Scope == RuleScope.Unit ? req.UnitId : null,
+                Role = req.Scope == RuleScope.Role ? req.Role?.Trim() : null,
+                Type = req.Type,
+                Value = req.Value?.Trim() ?? "",
+                IsActive = req.IsActive,
+                Notes = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes!.Trim(),
+                CreatedOn = DateTime.UtcNow
             };
 
-            db.Add(e);
+            db.RuleConstraints.Add(entity);
             await db.SaveChangesAsync();
-            return Results.Created($"/api/v1/constraints/{e.Id}", new { e.Id, e.FacilityId, e.UnitId, e.Code, e.Value });
-        });
 
-        // PUT /api/v1/constraints/{id}
-        g.MapPut("/{id:guid}", async (Guid id, [FromBody] UpdateConstraintRequest req, [FromServices] AppDbContext db) =>
+            var dto = new ConstraintDto(
+                entity.Id, entity.FacilityId, entity.Scope, entity.UnitId, entity.Role,
+                entity.Type, entity.Value, entity.IsActive, entity.Notes, entity.CreatedOn, entity.UpdatedOn);
+
+            return Results.Created($"/api/v1/facilities/{facilityId}/constraints/{entity.Id}", dto);
+        })
+        .Produces<ConstraintDto>(StatusCodes.Status201Created)
+        .Produces(StatusCodes.Status400BadRequest);
+
+        // PUT /api/v1/facilities/{facilityId}/constraints/{id}
+        g.MapPut("/{id:guid}", async (
+            [FromRoute] Guid facilityId,
+            [FromRoute] Guid id,
+            [FromBody] UpdateConstraintRequest req,
+            [FromServices] AppDbContext db) =>
         {
-            var e = await db.Set<DomainConstraint>().FirstOrDefaultAsync(x => x.Id == id);
-            if (e is null) return Results.NotFound();
+            var entity = await db.RuleConstraints
+                .Where(x => x.Id == id && x.FacilityId == facilityId)
+                .FirstOrDefaultAsync();
 
-            if (!string.IsNullOrWhiteSpace(req.Code)) e.Code = req.Code!.Trim();
-            if (!string.IsNullOrWhiteSpace(req.Value)) e.Value = req.Value!.Trim();
-            e.FacilityId = req.FacilityId ?? e.FacilityId;
-            e.UnitId = req.UnitId ?? e.UnitId;
+            if (entity is null) return Results.NotFound();
+
+            if (req.Scope == RuleScope.Unit && (req.UnitId is null || req.UnitId == Guid.Empty))
+                return Results.BadRequest(new { error = "UnitId is required for Unit scope" });
+            if (req.Scope == RuleScope.Role && string.IsNullOrWhiteSpace(req.Role))
+                return Results.BadRequest(new { error = "Role is required for Role scope" });
+
+            entity.Scope = req.Scope;
+            entity.UnitId = req.Scope == RuleScope.Unit ? req.UnitId : null;
+            entity.Role = req.Scope == RuleScope.Role ? req.Role?.Trim() : null;
+            entity.Type = req.Type;
+            entity.Value = req.Value?.Trim() ?? "";
+            entity.IsActive = req.IsActive;
+            entity.Notes = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes!.Trim();
+            entity.UpdatedOn = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
-            return Results.Ok(new { e.Id, e.FacilityId, e.UnitId, e.Code, e.Value });
-        });
 
-        // DELETE /api/v1/constraints/{id}
-        g.MapDelete("/{id:guid}", async (Guid id, [FromServices] AppDbContext db) =>
+            var dto = new ConstraintDto(
+                entity.Id, entity.FacilityId, entity.Scope, entity.UnitId, entity.Role,
+                entity.Type, entity.Value, entity.IsActive, entity.Notes, entity.CreatedOn, entity.UpdatedOn);
+
+            return Results.Ok(dto);
+        })
+        .Produces<ConstraintDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status400BadRequest);
+
+        // DELETE /api/v1/facilities/{facilityId}/constraints/{id}
+        g.MapDelete("/{id:guid}", async (
+            [FromRoute] Guid facilityId,
+            [FromRoute] Guid id,
+            [FromServices] AppDbContext db) =>
         {
-            var e = await db.Set<DomainConstraint>().FirstOrDefaultAsync(x => x.Id == id);
-            if (e is null) return Results.NotFound();
+            var entity = await db.RuleConstraints
+                .Where(x => x.Id == id && x.FacilityId == facilityId)
+                .FirstOrDefaultAsync();
 
-            db.Remove(e);
+            if (entity is null) return Results.NotFound();
+
+            db.RuleConstraints.Remove(entity);
             await db.SaveChangesAsync();
             return Results.NoContent();
-        });
+        })
+        .Produces(StatusCodes.Status204NoContent)
+        .Produces(StatusCodes.Status404NotFound);
 
-        return v1;
+        return g;
     }
 }
