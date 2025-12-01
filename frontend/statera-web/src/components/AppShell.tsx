@@ -56,7 +56,8 @@ export default function AppShell() {
     { to: "/assignments", label: "Assignments", icon: <Assignment/> }, // ✅ new
     { to: "/timeoff",     label: "Time Off", icon: <AccessAlarm /> },
     { to: "/constraints", label: "Constraints & Rules", icon: <Rule /> },
-    { to: "/coverage", label: "Coverage", icon: <Work /> }
+    { to: "/coverage", label: "Coverage", icon: <Work /> },
+    { to: "/demand-templates", label: "Demand Templates", icon: <ListItemIcon /> },
   ];
 
   const onKey = (e: React.KeyboardEvent) => {

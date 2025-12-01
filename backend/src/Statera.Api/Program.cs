@@ -1,4 +1,4 @@
-﻿// backend/src/Statera.Api/Program.cs
+﻿
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -6,7 +6,7 @@ using Statera.Api.Endpoints;
 using Statera.Application;
 using Statera.Application.Services;
 using Statera.Endpoints;
-using Statera.Infrastructure;   // AppDbContext, AppUser, AppRole
+using Statera.Infrastructure;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,8 +18,6 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
-// EF Core (use your connection string "DefaultConnection" from appsettings.*)
-// 🔧 Read the connection string once, with a fallback between common keys
 var conn = builder.Configuration.GetConnectionString("DefaultConnection")
            ?? builder.Configuration.GetConnectionString("Default");
 
@@ -36,8 +34,7 @@ builder.Services.AddDbContext<AppDbContext>(opts => opts.UseSqlServer(conn));
 builder.Services
     .AddIdentityCore<AppUser>(options =>
     {
-        options.User.RequireUniqueEmail = true;
-        // tweak password/lockout options here if desired
+        options.User.RequireUniqueEmail = true;    
     })
     .AddRoles<AppRole>()
     .AddEntityFrameworkStores<AppDbContext>()
@@ -78,38 +75,39 @@ var v1 = app.MapGroup("/api/v1");
 v1.MapPingEndpoints();
 v1.MapHealthEndpoints();
 
-v1.MapAuthEndpoints();            // your auth module (if implemented)
-v1.MapUsersEndpoints();           // Identity-backed users
+v1.MapAuthEndpoints();            
+v1.MapUsersEndpoints();           
 v1.MapFacilitiesEndpoints();
-v1.MapUnitsEndpoints();           // <-- Units (keep only this one)
+v1.MapUnitsEndpoints();           
 v1.MapStaffEndpoints();
-v1.MapAssignmentsEndpoints();     // <-- replaces Shifts
-v1.MapSchedulesEndpoints();       // (uses UnitId)
-v1.MapTemplatesEndpoints();       // Shift templates (TimeSpan times)
-v1.MapRequestsEndpoints();        // Time-off / requests
+v1.MapAssignmentsEndpoints();    
+v1.MapSchedulesEndpoints();    
+v1.MapTemplatesEndpoints();      
+v1.MapRequestsEndpoints();        
 v1.MapConstraintsEndpoints();
 v1.MapForecastEndpoints();
-v1.MapRolesEndpoints();           // <-- Roles
+v1.MapRolesEndpoints();           
 v1.MapTimeOffEndpoints();
+v1.MapDemandTemplatesEndpoints();
 
 
 // Convenience: root -> Swagger
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
 // Apply pending migrations on startup (dev-friendly; remove if you want manual control)
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+//using (var scope = app.Services.CreateScope())
+//{
+//    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+//   // await db.Database.MigrateAsync();
 
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    await DevDataSeeder.ResetAndSeedAsync(
-        scope.ServiceProvider,
-        logger,
-        app.Environment.IsDevelopment(),
-        resetDatabase: true
-    );
-}
+//    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+//    await DevDataSeeder.ResetAndSeedAsync(
+//        scope.ServiceProvider,
+//        logger,
+//        app.Environment.IsDevelopment(),
+//        resetDatabase: true
+//    );
+//}
 
 app.Run();
 

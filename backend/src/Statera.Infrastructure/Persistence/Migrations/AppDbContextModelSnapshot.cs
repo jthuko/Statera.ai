@@ -8,7 +8,7 @@ using Statera.Infrastructure;
 
 #nullable disable
 
-namespace Statera.Api.Migrations
+namespace Statera.Api.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     partial class AppDbContextModelSnapshot : ModelSnapshot
@@ -506,6 +506,72 @@ namespace Statera.Api.Migrations
                     b.ToTable("StaffLicenses");
                 });
 
+            modelBuilder.Entity("Statera.Domain.Staffing.DemandTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("FacilityId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Role")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DemandTemplates", (string)null);
+                });
+
+            modelBuilder.Entity("Statera.Domain.Staffing.DemandTemplateDay", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Day")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("DemandTemplateId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Required")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DemandTemplateId", "Day")
+                        .IsUnique();
+
+                    b.ToTable("DemandTemplateDays", (string)null);
+                });
+
             modelBuilder.Entity("Statera.Domain.Staffing.RuleConstraint", b =>
                 {
                     b.Property<Guid>("Id")
@@ -808,6 +874,17 @@ namespace Statera.Api.Migrations
                     b.Navigation("Staff");
                 });
 
+            modelBuilder.Entity("Statera.Domain.Staffing.DemandTemplateDay", b =>
+                {
+                    b.HasOne("Statera.Domain.Staffing.DemandTemplate", "Template")
+                        .WithMany("Days")
+                        .HasForeignKey("DemandTemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Template");
+                });
+
             modelBuilder.Entity("Statera.Domain.TimeOffRequest", b =>
                 {
                     b.HasOne("Statera.Domain.Staff", "Staff")
@@ -840,6 +917,11 @@ namespace Statera.Api.Migrations
                     b.Navigation("Availabilities");
 
                     b.Navigation("Licenses");
+                });
+
+            modelBuilder.Entity("Statera.Domain.Staffing.DemandTemplate", b =>
+                {
+                    b.Navigation("Days");
                 });
 #pragma warning restore 612, 618
         }

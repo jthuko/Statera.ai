@@ -18,6 +18,8 @@ import { FacilityProvider } from "./context/facility";
 import TimeOffPage from "./pages/timeoff";
 import ConstraintsPage from "./pages/constraints";
 import CoveragePage from "./pages/coverage";
+import DemandTemplatesListPage from "./pages/demand-templates";
+import DemandTemplateEditorPage from "./pages/demand-templates/editor";
 
 // If you already created the Time Off page, uncomment the next line:
 // import TimeOffPage from "./pages/timeoff";
@@ -56,6 +58,8 @@ export default function App() {
         <Route path="/constraints" element={<ConstraintsPage />} />
         <Route path="/coverage" element={<CoveragePage/>} />                           
         <Route path="dashboard" element={<Navigate to="/" replace />} />
+        <Route path="/demand-templates" element={<DemandTemplatesListPage />} />
+        <Route path="/demand-templates/:id" element={<DemandTemplateEditorPage />} />
 
         {/* Fallback for unknown routes under the shell */}
         <Route path="*" element={<Navigate to="/assignments" replace />} />

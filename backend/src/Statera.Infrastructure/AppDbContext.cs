@@ -1,4 +1,4 @@
-// backend/src/Statera.Infrastructure/AppDbContext.cs
+﻿// backend/src/Statera.Infrastructure/AppDbContext.cs
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -26,14 +26,18 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
     public DbSet<Schedule> Schedules => Set<Schedule>();
     public DbSet<OvertimeRule> OvertimeRules => Set<OvertimeRule>();
     public DbSet<ShiftSwap> ShiftSwaps => Set<ShiftSwap>();
-    public DbSet<AuditLog> AuditLogs => Set<AuditLog>(); 
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<RuleConstraint> RuleConstraints => Set<RuleConstraint>();
 
+    // Demand Templates (rich)
+    public DbSet<DemandTemplate> DemandTemplates => Set<DemandTemplate>();
+    public DbSet<DemandTemplateDay> DemandTemplateDays => Set<DemandTemplateDay>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
 
+        // Staff
         b.Entity<Staff>(entity =>
         {
             entity.Property(s => s.EmploymentType).HasConversion<string>().HasMaxLength(20);
@@ -43,12 +47,14 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
             entity.HasIndex(s => s.UnitId);
         });
 
+        // Role catalog (domain role)
         b.Entity<Role>(entity =>
         {
             entity.Property(r => r.Position).HasMaxLength(50).IsRequired();
             entity.HasIndex(r => r.Position).IsUnique();
         });
 
+        // StaffLicense
         b.Entity<StaffLicense>(entity =>
         {
             entity.Property(l => l.IssuingState).HasMaxLength(2).IsRequired();
@@ -57,6 +63,7 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
             entity.HasIndex(l => new { l.StaffId, l.IssuingState, l.LicenseType, l.IsActive });
         });
 
+        // StaffAvailability
         b.Entity<StaffAvailability>(entity =>
         {
             entity.Property(a => a.StartLocal);
@@ -65,6 +72,7 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
             entity.HasIndex(a => new { a.StaffId, a.DayOfWeek, a.StartLocal });
         });
 
+        // Assignment
         b.Entity<Assignment>(entity =>
         {
             entity.Property(a => a.FacilityState).HasMaxLength(2).IsRequired();
@@ -75,49 +83,23 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
             entity.HasIndex(a => new { a.StaffId, a.StartUtc });
         });
 
+        // TimeOffRequest
         b.Entity<TimeOffRequest>(entity =>
         {
             entity.ToTable(t => t.HasCheckConstraint("CK_TimeOff_EndAfterStart", "[EndUtc] > [StartUtc]"));
             entity.HasIndex(t => new { t.StaffId, t.StartUtc });
         });
 
+        // Facility
         b.Entity<Facility>(entity =>
         {
             entity.Property(f => f.Name).IsRequired();
             entity.Property(f => f.State).IsRequired();
         });
 
+        // Unit (single, consolidated mapping)
         b.Entity<Unit>(entity =>
         {
-            entity.Property(u => u.Name).IsRequired();
-            entity.HasOne(u => u.Facility)
-                  .WithMany(f => f.Units)
-                  .HasForeignKey(u => u.FacilityId);
-        });
-
-        b.Entity<ShiftTemplate>(entity =>
-        {
-            entity.Property(t => t.Name).IsRequired();
-            entity.Property(t => t.Type).IsRequired();
-            entity.Property(t => t.StartLocal);
-            entity.Property(t => t.EndLocal);
-            entity.HasIndex(t => t.UnitId);
-            entity.HasOne<Unit>()
-                  .WithMany()
-                  .HasForeignKey(t => t.UnitId)
-                  .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        b.Entity<Schedule>(entity =>
-        {
-            entity.Property(s => s.Name).IsRequired();
-            entity.HasIndex(s => s.UnitId);
-            entity.HasOne<Facility>()
-                  .WithMany()
-                  .HasForeignKey(s => s.FacilityId);
-        });
-
-        b.Entity<Unit>(entity => {
             entity.ToTable("Units");
             entity.HasKey(x => x.Id);
 
@@ -136,6 +118,55 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
             entity.HasIndex(x => new { x.FacilityId, x.Name });
         });
 
+        // ShiftTemplate
+        b.Entity<ShiftTemplate>(entity =>
+        {
+            entity.Property(t => t.Name).IsRequired();
+            entity.Property(t => t.Type).IsRequired();
+            entity.Property(t => t.StartLocal);
+            entity.Property(t => t.EndLocal);
+            entity.HasIndex(t => t.UnitId);
+
+            entity.HasOne<Unit>()
+                .WithMany()
+                .HasForeignKey(t => t.UnitId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Schedule
+        b.Entity<Schedule>(entity =>
+        {
+            entity.Property(s => s.Name).IsRequired();
+            entity.HasIndex(s => s.UnitId);
+
+            entity.HasOne<Facility>()
+                .WithMany()
+                .HasForeignKey(s => s.FacilityId);
+        });
+
+        // DemandTemplate (rich, single mapping; no V2)
+        b.Entity<DemandTemplate>(e =>
+        {
+            e.ToTable("DemandTemplates");                       // keep same table name
+            e.Property(x => x.Status).HasConversion<int>();
+            e.Property(x => x.RowVersion).IsRowVersion();
+            e.Property(x => x.Role).HasMaxLength(100);
+            e.Property(x => x.Notes).HasMaxLength(1000);
+
+            e.HasMany(x => x.Days)
+             .WithOne(d => d.Template)
+             .HasForeignKey(d => d.DemandTemplateId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // DemandTemplateDay
+        b.Entity<DemandTemplateDay>(e =>
+        {
+            e.ToTable("DemandTemplateDays");
+            e.HasIndex(x => new { x.DemandTemplateId, x.Day }).IsUnique();
+        });
+
+        // Simple registrations for these domain types (defaults are fine)
         b.Entity<OvertimeRule>();
         b.Entity<ShiftSwap>();
         b.Entity<AuditLog>();
