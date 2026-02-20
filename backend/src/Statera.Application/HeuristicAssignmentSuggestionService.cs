@@ -26,7 +26,7 @@ public class HeuristicAssignmentSuggestionService
 
     /// <param name="startUtc">Candidate assignment start (UTC).</param>
     /// <param name="endUtc">Candidate assignment end (UTC).</param>
-    /// <param name="unitId">Target Unit (Guid) — was int.</param>
+    /// <param name="unitId">Target Unit (Guid) ï¿½ was int.</param>
     /// <param name="requiredCredential">Credential required (enum).</param>
     public async Task<IReadOnlyList<(Guid StaffId, double Score)>> SuggestAsync(
         DateTime startUtc,
@@ -48,14 +48,19 @@ public class HeuristicAssignmentSuggestionService
         var startDay = DateOnly.FromDateTime(startUtc);
         var nowDay = DateOnly.FromDateTime(DateTime.UtcNow);
 
+        // Determine facility state for the target unit (preferred) so license checks use the facility's issuing state.
+        var facilityStateForUnit = await _repo.GetFacilityStateForUnitAsync(unitId, ct);
+
         // Candidates: active, in unit (or no unit filter), valid license, no approved time off, no overlap
         var candidates = staff
             .Where(s => s.Active && (!s.UnitId.HasValue || s.UnitId.Value == unitId))
             .Where(s =>
             {
-                // LicenseValidation: StaffLicense has string LicenseType + DateOnly? ExpiresOn
-                // Use the policy service you already have
-                return _license.HasValidLicense(s, facilityState: "TX", requiredType: requiredCredential, onDate: startDay);
+                // LicenseValidation: prefer the facility's state (real scenario).
+                // Fall back to the staff license issuing state if the facility state is not available.
+                var fallbackState = s.Licenses?.FirstOrDefault()?.IssuingState?.Trim().ToUpperInvariant() ?? string.Empty;
+                var stateToUse = !string.IsNullOrWhiteSpace(facilityStateForUnit) ? facilityStateForUnit : fallbackState;
+                return _license.HasValidLicense(s, facilityState: stateToUse, requiredType: requiredCredential, onDate: startDay);
             })
             .Where(s =>
             {

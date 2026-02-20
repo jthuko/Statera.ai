@@ -7,7 +7,7 @@ public sealed record CreateUnitUnderFacilityRequest(
     string? Floor,
     int? Capacity,
     string? Notes,
-    bool IsActive = true
+    bool? IsActive = null
 );
 
 // PUT /api/v1/units/{id}

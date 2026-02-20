@@ -64,12 +64,12 @@ export const normalizeUnitPayload = (form: {
 /* ---------- API calls ---------- */
 
 export async function listUnits(facilityId: string): Promise<UnitDto[]> {
-  const { data } = await api.get(`/api/v1/facilities/${facilityId}/units`);
+  const { data } = await api.get(`/facilities/${facilityId}/units`);
   return data;
 }
 
 export async function getUnit(id: string): Promise<UnitDto> {
-  const { data } = await api.get(`/api/v1/units/${id}`);
+  const { data } = await api.get(`/units/${id}`);
   return data;
 }
 
@@ -77,7 +77,7 @@ export async function createUnit(
   facilityId: string,
   payload: CreateUnitUnderFacilityRequest
 ): Promise<UnitDto> {
-  const { data } = await api.post(`/api/v1/facilities/${facilityId}/units`, payload);
+  const { data } = await api.post(`/facilities/${facilityId}/units`, payload);
   return data;
 }
 
@@ -85,12 +85,12 @@ export async function updateUnit(
   id: string,
   payload: UpdateUnitRequest
 ): Promise<UnitDto> {
-  const { data } = await api.put(`/api/v1/units/${id}`, payload);
+  const { data } = await api.put(`/units/${id}`, payload);
   return data;
 }
 
 export async function deleteUnit(id: string): Promise<void> {
-  await api.delete(`/api/v1/units/${id}`);
+  await api.delete(`/units/${id}`);
 }
 
 /** Friendly alias so components can import `Unit` */

@@ -17,19 +17,21 @@ public static class TimeOffEndpoints
 
         // GET /api/v1/timeoff?facilityId=&unitId=&staffId=&status=&from=&to=&q=&page=1&pageSize=25
         g.MapGet("/", async (
-            [FromQuery] Guid? facilityId,
-            [FromQuery] Guid? unitId,
-            [FromQuery] Guid? staffId,
-            [FromQuery] string? status,
-            [FromQuery] DateTime? from,
-            [FromQuery] DateTime? to,
-            [FromQuery] string? q,
-            [FromQuery] int page,
-            [FromQuery] int pageSize,
-            [FromServices] AppDbContext db) =>
+            [FromServices] AppDbContext db,
+            [FromQuery] Guid? facilityId = null,
+            [FromQuery] Guid? unitId = null,
+            [FromQuery] Guid? staffId = null,
+            [FromQuery] string? status = null,
+            [FromQuery] DateTime? from = null,
+            [FromQuery] DateTime? to = null,
+            [FromQuery] string? q = null,
+            [FromQuery] int? page = null,
+            [FromQuery] int? pageSize = null) =>
         {
-            page = page <= 0 ? 1 : page;
-            pageSize = pageSize <= 0 || pageSize > 200 ? 25 : pageSize;
+            var pageVal = (page ?? 1);
+            var pageSizeVal = (pageSize ?? 25);
+            var pageSafe = pageVal <= 0 ? 1 : pageVal;
+            var pageSizeSafe = pageSizeVal <= 0 || pageSizeVal > 200 ? 25 : pageSizeVal;
 
             // Left-join Staff so filters & projection are safe even if Staff is missing
             var query =
@@ -63,8 +65,8 @@ public static class TimeOffEndpoints
 
             var items = await query
                 .OrderByDescending(x => x.t.StartUtc)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
+                .Skip((pageSafe - 1) * pageSizeSafe)
+                .Take(pageSizeSafe)
                 .Select(x => new TimeOffRequestDto(
                     x.t.Id,
                     x.t.StaffId,

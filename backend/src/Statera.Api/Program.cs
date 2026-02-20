@@ -82,6 +82,7 @@ v1.MapUnitsEndpoints();
 v1.MapStaffEndpoints();
 v1.MapAssignmentsEndpoints();    
 v1.MapSchedulesEndpoints();    
+v1.MapSchedulerEndpoints();
 v1.MapTemplatesEndpoints();      
 v1.MapRequestsEndpoints();        
 v1.MapConstraintsEndpoints();
@@ -95,19 +96,19 @@ v1.MapDemandTemplatesEndpoints();
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
 // Apply pending migrations on startup (dev-friendly; remove if you want manual control)
-//using (var scope = app.Services.CreateScope())
-//{
-//    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-//   // await db.Database.MigrateAsync();
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+   // await db.Database.MigrateAsync();
 
-//    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-//    await DevDataSeeder.ResetAndSeedAsync(
-//        scope.ServiceProvider,
-//        logger,
-//        app.Environment.IsDevelopment(),
-//        resetDatabase: true
-//    );
-//}
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    await DevDataSeeder.ResetAndSeedAsync(
+        scope.ServiceProvider,
+        logger,
+        app.Environment.IsDevelopment(),
+        resetDatabase: true
+    );
+}
 
 app.Run();
 

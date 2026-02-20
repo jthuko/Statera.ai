@@ -42,6 +42,9 @@ public interface IRepository
 
     Task<List<ShiftTemplate>> GetShiftTemplatesAsync(Guid facilityId, Guid unitId, CancellationToken ct);
     Task<List<Schedule>> GetSchedulesAsync(Guid facilityId, Guid unitId, DateOnly from, DateOnly to, CancellationToken ct);
+    // Returns the two-letter state (e.g. "TX") for the facility that owns the given unit,
+    // or null if not found. Used by license validation in suggestion logic.
+    Task<string?> GetFacilityStateForUnitAsync(Guid unitId, CancellationToken ct);
 }
 
 public interface IAssignmentSuggestionService

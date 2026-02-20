@@ -132,4 +132,13 @@ public class EfRepository : IRepository
 
         return q.ToListAsync(ct);
     }
+
+    public Task<string?> GetFacilityStateForUnitAsync(Guid unitId, CancellationToken ct)
+    {
+        return _db.Units
+            .AsNoTracking()
+            .Where(u => u.Id == unitId)
+            .Select(u => u.Facility.State)
+            .SingleOrDefaultAsync(ct);
+    }
 }

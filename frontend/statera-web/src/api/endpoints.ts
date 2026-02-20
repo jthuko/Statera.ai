@@ -23,7 +23,7 @@ export async function login(email: string, password: string): Promise<TokenPair>
 /* =================== SCHEDULER =================== */
 
 export const Suggestion = z.object({
-  staffId: z.number(),
+  staffId: z.string(),
   score: z.number(),
   reasoning: z.string(),
 });
@@ -33,7 +33,7 @@ export type Suggestion = z.infer<typeof Suggestion>;
 export async function suggestAssignments(payload: {
   startUtc: string;
   endUtc: string;
-  unitId: number;
+  unitId: string;
   requiredCredential: "RN" | "LPN" | "CNA";
 }): Promise<Suggestion[]> {
   const res = await api.post(

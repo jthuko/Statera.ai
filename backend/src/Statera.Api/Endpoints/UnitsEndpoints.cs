@@ -7,15 +7,16 @@ namespace Statera.Api.Endpoints;
 
 public static class UnitsEndpoints
 {
-    public static IEndpointRouteBuilder MapUnitsEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapUnitsEndpoints(this RouteGroupBuilder v1)
     {
-        var g = app.MapGroup("/api/v1").WithTags("Units");
+        var g = v1.WithTags("Units");
         // .RequireAuthorization();
 
         // ---------- LIST (by facility) ----------
         g.MapGet("/facilities/{facilityId:guid}/units",
             async Task<Ok<List<UnitDto>>> (Guid facilityId, AppDbContext db, CancellationToken ct) =>
             {
+
                 var items = await db.Units
                     .AsNoTracking()
                     .Where(u => u.FacilityId == facilityId)
@@ -24,7 +25,12 @@ public static class UnitsEndpoints
                     {
                         Id = u.Id,
                         FacilityId = u.FacilityId,
-                        Name = u.Name
+                        Name = u.Name,
+                        Type = u.Type,
+                        Floor = u.Floor,
+                        Capacity = u.Capacity,
+                        Notes = u.Notes,
+                        IsActive = u.IsActive
                     })
                     .ToListAsync(ct);
 
@@ -40,27 +46,31 @@ public static class UnitsEndpoints
                 if (string.IsNullOrWhiteSpace(req.Name))
                     return TypedResults.BadRequest("Name is required.");
 
+                // Ensure facility exists so we can return a friendly message instead of FK errors
+                var facilityExists = await db.Facilities.AsNoTracking().AnyAsync(f => f.Id == facilityId, ct);
+                if (!facilityExists)
+                    return TypedResults.BadRequest("Facility not found.");
+
                 var id = Guid.NewGuid();
 
-                // Parameterized INSERT, no dependency on CLR entity type
-                await db.Database.ExecuteSqlInterpolatedAsync($@"
-                    INSERT INTO [Units] ([Id], [FacilityId], [Name])
-                    VALUES ({id}, {facilityId}, {req.Name.Trim()});
-                ", ct);
+                // Create using EF to ensure proper typing / relationships
+                var unit = new Statera.Domain.Unit
+                {
+                    Id = id,
+                    FacilityId = facilityId,
+                    Name = req.Name.Trim(),
+                    Type = req.Type,
+                    Floor = req.Floor,
+                    Capacity = req.Capacity,
+                    Notes = req.Notes,
+                    IsActive = req.IsActive ?? true
+                };
 
-                // Read back just-created row via EF LINQ
-                var dto = await db.Units
-                    .AsNoTracking()
-                    .Where(u => u.Id == id)
-                    .Select(u => new UnitDto
-                    {
-                        Id = u.Id,
-                        FacilityId = u.FacilityId,
-                        Name = u.Name
-                    })
-                    .SingleAsync(ct);
+                db.Units.Add(unit);
+                await db.SaveChangesAsync(ct);
 
-                return TypedResults.Created($"/api/v1/units/{id}", dto);
+                var dto = new UnitDto { Id = unit.Id, FacilityId = unit.FacilityId, Name = unit.Name, Type = unit.Type, Floor = unit.Floor, Capacity = unit.Capacity, Notes = unit.Notes, IsActive = unit.IsActive };
+                return TypedResults.Created($"/facilities/{facilityId}/units/{id}", dto);
             });
 
         // ---------- READ (by unit id) ----------
@@ -156,6 +166,6 @@ public static class UnitsEndpoints
                 return TypedResults.NoContent();
             });
 
-        return app;
+        return v1;
     }
 }
