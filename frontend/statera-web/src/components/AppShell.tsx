@@ -45,18 +45,19 @@ function DrawerNavItem({ to, label, icon }: NavItem) {
 
 export default function AppShell() {
   const [q, setQ] = useState("");
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const isOwner = user?.systemRole === "Owner";
 
   const items: NavItem[] = [
     { to: "/",           label: "Dashboard",         icon: <DashboardIcon /> },
     { to: "/scheduler",  label: "Scheduler",         icon: <CalendarMonth /> },
     { to: "/staff",      label: "Staff Directory",   icon: <Group /> },
     { to: "/facilities", label: "Facilities",        icon: <LocalHospital /> },
-    { to: "/units",      label: "Units",             icon: <Apartment /> }, // ✅ added
-    { to: "/assignments", label: "Assignments", icon: <Assignment/> }, // ✅ new
-    { to: "/timeoff",     label: "Time Off", icon: <AccessAlarm /> },
+    { to: "/units",      label: "Units",             icon: <Apartment /> },
+    { to: "/assignments", label: "Assignments",      icon: <Assignment /> },
+    { to: "/timeoff",     label: "Time Off",         icon: <AccessAlarm /> },
     { to: "/constraints", label: "Constraints & Rules", icon: <Rule /> },
-    { to: "/coverage", label: "Coverage", icon: <Work /> },
+    { to: "/coverage",    label: "Coverage",         icon: <Work /> },
     { to: "/demand-templates", label: "Demand Templates", icon: <ListItemIcon /> },
   ];
 

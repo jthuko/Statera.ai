@@ -50,6 +50,7 @@ export default function App() {
         <Route path="scheduler" element={<Scheduler />} />
         <Route path="staff" element={<Staff />} />
         <Route path="staff/:id" element={<StaffDetail />} />
+        {/* Facilities — Owner sees all + full controls; FacilityAdmin sees only their facility + Manage Admins */}
         <Route path="facilities" element={<FacilitiesPage />} />
         <Route path="constraints" element={<ConstraintsRulesPage />} />
         <Route path="units" element={<UnitsPage />} />

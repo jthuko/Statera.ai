@@ -12,7 +12,8 @@ public record CreateStaffRequest(
     Guid? UnitId,
     string Role,
     string EmploymentType, // "FullTime","PartTime","PerDiem","Contract"
-    bool Active
+    bool Active,
+    bool AdminAccess = false  // when true + email provided, creates a FacilityAdmin login account
 );
 
 public record UpdateStaffRequest(

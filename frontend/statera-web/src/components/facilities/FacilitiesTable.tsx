@@ -14,12 +14,14 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
+import PeopleIcon from "@mui/icons-material/People";
 import type { Facility } from "../../api/facilities";
 import {
   useFacilities,
@@ -28,11 +30,17 @@ import {
   useDeleteFacility,
 } from "../../api/facilities";
 import FacilityFormDialog, { FacilityFormValues } from "./FacilityFormDialog";
+import FacilityAdminsDialog from "./FacilityAdminsDialog";
+import { useAuth } from "../../auth/useAuth";
 
 export default function FacilitiesTable() {
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Facility | null>(null);
+  const [managingAdminsFor, setManagingAdminsFor] = useState<Facility | null>(null);
+
+  const { user } = useAuth();
+  const isOwner = user?.systemRole === "Owner";
 
   const { data, isLoading, error } = useFacilities(query);
   const items: Facility[] = data ?? []; // hook normalizes to Facility[]
@@ -87,13 +95,15 @@ export default function FacilitiesTable() {
                 ),
               }}
             />
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setDialogOpen(true)}
-            >
-              New Facility
-            </Button>
+            {isOwner && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setDialogOpen(true)}
+              >
+                New Facility
+              </Button>
+            )}
           </Stack>
         </Stack>
 
@@ -132,15 +142,29 @@ export default function FacilitiesTable() {
                   <TableCell>{f.city}</TableCell>
                   <TableCell>{f.state}</TableCell>
                   <TableCell align="right">
-                    <IconButton aria-label="edit" onClick={() => setEditing(f)}>
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      aria-label="delete"
-                      onClick={() => deleteMut.mutate(f.id)}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                    <Tooltip title="Manage Admins">
+                      <IconButton
+                        aria-label="manage admins"
+                        onClick={() => setManagingAdminsFor(f)}
+                      >
+                        <PeopleIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Edit">
+                      <IconButton aria-label="edit" onClick={() => setEditing(f)}>
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                    {isOwner && (
+                      <Tooltip title="Delete">
+                        <IconButton
+                          aria-label="delete"
+                          onClick={() => deleteMut.mutate(f.id)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -164,6 +188,16 @@ export default function FacilitiesTable() {
         onSubmit={handleUpdate}
         initial={editing}
       />
+
+      {/* Manage Admins */}
+      {managingAdminsFor && (
+        <FacilityAdminsDialog
+          open={!!managingAdminsFor}
+          facilityId={managingAdminsFor.id}
+          facilityName={managingAdminsFor.name}
+          onClose={() => setManagingAdminsFor(null)}
+        />
+      )}
     </Card>
   );
 }

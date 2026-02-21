@@ -52,11 +52,12 @@ public static class DevDataSeeder
             }
         }
 
+        // Owner user — global super-admin
         var adminEmail = "admin@statera.local";
         var admin = await userManager.FindByEmailAsync(adminEmail);
         if (admin is null)
         {
-            admin = new AppUser { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
+            admin = new AppUser { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true, SystemRole = "Owner" };
             var created = await userManager.CreateAsync(admin, "Password123!");
             if (created.Succeeded)
             {
@@ -64,6 +65,22 @@ public static class DevDataSeeder
                 if (!addToRole.Succeeded)
                     logger.LogWarning("Failed adding admin to Admin role: {Errors}", string.Join(", ", addToRole.Errors.Select(e => e.Description)));
             }
+        }
+        else if (admin.SystemRole != "Owner")
+        {
+            admin.SystemRole = "Owner";
+            await userManager.UpdateAsync(admin);
+        }
+
+        // Demo FacilityAdmin — scoped to one facility (Statera Care Center)
+        var fadminEmail = "fadmin@statera.local";
+        var fadmin = await userManager.FindByEmailAsync(fadminEmail);
+        if (fadmin is null)
+        {
+            fadmin = new AppUser { UserName = fadminEmail, Email = fadminEmail, EmailConfirmed = true, SystemRole = "FacilityAdmin" };
+            var created = await userManager.CreateAsync(fadmin, "Password123!");
+            if (!created.Succeeded)
+                logger.LogWarning("Failed creating fadmin: {Errors}", string.Join(", ", created.Errors.Select(e => e.Description)));
         }
 
         // ---- Domain seeds ----
@@ -164,6 +181,22 @@ public static class DevDataSeeder
         }
 
         await db.SaveChangesAsync();
+
+        // ---- UserFacilityRole: assign fadmin to Statera Care Center ----
+        if (fadmin is not null && !await db.UserFacilityRoles.AnyAsync(ufr => ufr.UserId == fadmin.Id))
+        {
+            db.UserFacilityRoles.Add(new UserFacilityRole
+            {
+                Id = Guid.NewGuid(),
+                UserId = fadmin.Id,
+                FacilityId = stateraFacility.Id,
+                FacilityRole = "FacilityAdmin",
+                AssignedByUserId = admin?.Id,
+                AssignedUtc = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: assigned fadmin to '{Facility}'.", stateraFacility.Name);
+        }
 
         // ---- Assignments ----
         try

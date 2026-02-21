@@ -2,10 +2,11 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
-using Statera.Infrastructure;          // AppDbContext
+using Statera.Infrastructure;          // AppDbContext, AppUser
 using Statera.Api.Contracts;          // CreateStaffRequest, UpdateStaffRequest
 using Statera.Domain;                 // Staff, EmploymentType
 using DomStaff = Statera.Domain.Staff;
@@ -102,11 +103,34 @@ public static class StaffEndpoints
         g.MapGet("/{id:guid}", async (Guid id, [FromServices] AppDbContext db) =>
         {
             var e = await db.Staff.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
-            return e is null ? Results.NotFound() : Results.Ok(e);
+            if (e is null) return Results.NotFound();
+
+            // hasAdminAccount = they have an AppUser AND an active UserFacilityRole for this facility
+            var hasAdminAccount = false;
+            if (!string.IsNullOrWhiteSpace(e.Email))
+            {
+                var appUser = await db.Users.AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Email == e.Email);
+                if (appUser is not null)
+                {
+                    hasAdminAccount = await db.UserFacilityRoles
+                        .AnyAsync(ufr => ufr.UserId == appUser.Id && ufr.FacilityId == e.FacilityId);
+                }
+            }
+
+            return Results.Ok(new
+            {
+                e.Id, e.FirstName, e.LastName, e.Email,
+                e.FacilityId, e.UnitId, e.Role, e.EmploymentType, e.Active,
+                HasAdminAccount = hasAdminAccount
+            });
         });
 
         // POST /api/v1/staff
-        g.MapPost("/", async ([FromBody] CreateStaffRequest req, [FromServices] AppDbContext db) =>
+        g.MapPost("/", async (
+            [FromBody] CreateStaffRequest req,
+            [FromServices] AppDbContext db,
+            [FromServices] UserManager<AppUser> um) =>
         {
             if (req.FacilityId == Guid.Empty)
                 return Results.BadRequest(new { error = "FacilityId is required" });
@@ -131,7 +155,7 @@ public static class StaffEndpoints
                 return Results.BadRequest(new { error = $"EmploymentType must be one of: {allowed}" });
             }
 
-            // Optional: enforce unique email if provided
+            // Enforce unique email if provided
             if (!string.IsNullOrWhiteSpace(req.Email))
             {
                 var email = req.Email.Trim();
@@ -155,7 +179,38 @@ public static class StaffEndpoints
             db.Staff.Add(e);
             await db.SaveChangesAsync();
 
-            return Results.Created($"/api/v1/staff/{e.Id}", e);
+            // Only create a login account when AdminAccess is explicitly requested
+            string? tempPassword = null;
+            if (req.AdminAccess && !string.IsNullOrWhiteSpace(e.Email))
+            {
+                var existingUser = await um.FindByEmailAsync(e.Email);
+                if (existingUser is null)
+                {
+                    tempPassword = "TempPass123!";
+                    var appUser = new AppUser
+                    {
+                        UserName       = e.Email,
+                        Email          = e.Email,
+                        EmailConfirmed = true,
+                        SystemRole     = "FacilityAdmin"
+                    };
+                    await um.CreateAsync(appUser, tempPassword);
+                }
+            }
+
+            return Results.Created($"/api/v1/staff/{e.Id}", new
+            {
+                e.Id,
+                e.FirstName,
+                e.LastName,
+                e.Email,
+                e.FacilityId,
+                e.UnitId,
+                e.Role,
+                e.Active,
+                LoginCreated = tempPassword is not null,
+                TempPassword = tempPassword
+            });
         });
 
         // PUT /api/v1/staff/{id}
@@ -216,6 +271,88 @@ public static class StaffEndpoints
 
             db.Staff.Remove(e);
             await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
+
+        // POST /api/v1/staff/{id}/grant-admin
+        // Creates a FacilityAdmin login account for an existing staff member
+        // and auto-assigns them to their facility. Safe to call multiple times.
+        g.MapPost("/{id:guid}/grant-admin", async (
+            Guid id,
+            [FromServices] AppDbContext db,
+            [FromServices] UserManager<AppUser> um) =>
+        {
+            var staff = await db.Staff.FirstOrDefaultAsync(s => s.Id == id);
+            if (staff is null) return Results.NotFound();
+
+            if (string.IsNullOrWhiteSpace(staff.Email))
+                return Results.BadRequest(new { error = "Staff member must have an email to grant admin access." });
+
+            var existingUser = await um.FindByEmailAsync(staff.Email);
+            if (existingUser is not null)
+                return Results.Conflict(new { error = "A login account already exists for this email." });
+
+            var tempPassword = "TempPass123!";
+            var appUser = new AppUser
+            {
+                UserName       = staff.Email,
+                Email          = staff.Email,
+                EmailConfirmed = true,
+                SystemRole     = "FacilityAdmin"
+            };
+            var result = await um.CreateAsync(appUser, tempPassword);
+            if (!result.Succeeded)
+            {
+                var errs = string.Join(", ", result.Errors.Select(e => e.Description));
+                return Results.BadRequest(new { error = errs });
+            }
+
+            // Auto-assign to the staff member's facility
+            var alreadyAssigned = await db.UserFacilityRoles
+                .AnyAsync(ufr => ufr.UserId == appUser.Id && ufr.FacilityId == staff.FacilityId);
+            if (!alreadyAssigned)
+            {
+                db.UserFacilityRoles.Add(new UserFacilityRole
+                {
+                    Id           = Guid.NewGuid(),
+                    UserId       = appUser.Id,
+                    FacilityId   = staff.FacilityId,
+                    FacilityRole = "FacilityAdmin",
+                    AssignedUtc  = DateTime.UtcNow
+                });
+                await db.SaveChangesAsync();
+            }
+
+            return Results.Ok(new { email = staff.Email, tempPassword });
+        });
+
+        // DELETE /api/v1/staff/{id}/grant-admin
+        // Revokes facility admin access for a staff member (removes their UserFacilityRole).
+        // The AppUser login account is kept so history/audit trail is preserved.
+        g.MapDelete("/{id:guid}/grant-admin", async (
+            Guid id,
+            [FromServices] AppDbContext db,
+            [FromServices] UserManager<AppUser> um) =>
+        {
+            var staff = await db.Staff.FirstOrDefaultAsync(s => s.Id == id);
+            if (staff is null) return Results.NotFound();
+
+            if (string.IsNullOrWhiteSpace(staff.Email))
+                return Results.BadRequest(new { error = "Staff member has no email." });
+
+            var appUser = await um.FindByEmailAsync(staff.Email);
+            if (appUser is null)
+                return Results.BadRequest(new { error = "No login account found for this staff member." });
+
+            var ufr = await db.UserFacilityRoles
+                .FirstOrDefaultAsync(r => r.UserId == appUser.Id && r.FacilityId == staff.FacilityId);
+
+            if (ufr is not null)
+            {
+                db.UserFacilityRoles.Remove(ufr);
+                await db.SaveChangesAsync();
+            }
+
             return Results.NoContent();
         });
 

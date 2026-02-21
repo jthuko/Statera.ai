@@ -1,13 +1,17 @@
 ﻿
+using System.Text;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Statera.Api.Authorization;
 using Statera.Api.Endpoints;
 using Statera.Application;
 using Statera.Application.Services;
 using Statera.Endpoints;
 using Statera.Infrastructure;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,14 +38,49 @@ builder.Services.AddDbContext<AppDbContext>(opts => opts.UseSqlServer(conn));
 builder.Services
     .AddIdentityCore<AppUser>(options =>
     {
-        options.User.RequireUniqueEmail = true;    
+        options.User.RequireUniqueEmail = true;
     })
     .AddRoles<AppRole>()
+    .AddSignInManager()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-builder.Services.AddAuthentication();
-builder.Services.AddAuthorization();
+// JWT configuration
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddScoped<IJwtService, JwtService>();
+
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? "dev-secret-please-change-to-32-bytes-minimum";
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        // Keep JWT claim names as-is ("sub", "email", etc.) — prevents mapping to ClaimTypes URIs
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "statera",
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "statera-web",
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+    });
+
+// Authorization policies
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, FacilityAccessHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Authenticated", policy => policy.RequireAuthenticatedUser());
+    options.AddPolicy("OwnerOnly", policy =>
+        policy.RequireAuthenticatedUser().RequireClaim("system_role", "Owner"));
+    options.AddPolicy("FacilityAccess", policy =>
+        policy.RequireAuthenticatedUser().AddRequirements(new FacilityAccessRequirement()));
+});
 
 builder.Services.AddScoped<IRepository, EfRepository>();
 builder.Services.AddScoped<LicensePolicyService>();
@@ -51,8 +90,24 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
     o.SwaggerDoc("v1", new OpenApiInfo { Title = "Statera AI API", Version = "v1" });
-    // ✅ Prevent schema ID collisions when similar class names exist in different namespaces
     o.CustomSchemaIds(t => t.FullName);
+    // Enable Bearer token auth in Swagger UI
+    o.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter your JWT token (without 'Bearer ' prefix)"
+    });
+    o.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
+            Array.Empty<string>()
+        }
+    });
 });
 
 var app = builder.Build();

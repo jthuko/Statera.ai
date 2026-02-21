@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -10,6 +11,7 @@ import {
   FormControlLabel,
   Switch,
   MenuItem,
+  Tooltip,
 } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -21,11 +23,12 @@ import { listUnits, UnitDto } from "../../api/units";
 const Schema = z.object({
   firstName: z.string().min(1, "First name required"),
   lastName: z.string().min(1, "Last name required"),
-  email: z.string().email().optional(),
+  email: z.string().email().optional().or(z.literal("")),
   unitId: z.string().optional(),
   role: z.string().min(1, "Role required"),
   employmentType: z.enum(["FullTime", "PartTime", "PerDiem", "Contract"]),
   active: z.boolean(),
+  adminAccess: z.boolean(),
 });
 
 export type StaffFormValues = z.infer<typeof Schema>;
@@ -36,15 +39,18 @@ export default function StaffFormDialog(props: {
   onSave: (values: StaffFormValues) => Promise<void> | void;
   defaultFacilityId: string;
   defaultUnitId?: string | null;
+  duplicateError?: boolean;
 }) {
-  const { open, onClose, onSave, defaultFacilityId, defaultUnitId } = props;
-  // All hooks must be at the top level
+  const { open, onClose, onSave, defaultFacilityId, defaultUnitId, duplicateError } = props;
   const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<StaffFormValues & { roleOther?: string }>({
     resolver: zodResolver(Schema),
-    defaultValues: { firstName: "", lastName: "", email: "", unitId: "", role: "CNA", roleOther: "", employmentType: "FullTime", active: true }
+    defaultValues: { firstName: "", lastName: "", email: "", unitId: "", role: "CNA", roleOther: "", employmentType: "FullTime", active: true, adminAccess: false }
   });
   const { selected: facility } = useFacility();
   const [units, setUnits] = React.useState<UnitDto[]>([]);
+
+  const emailValue = watch("email");
+  const hasEmail = !!emailValue && emailValue.trim().length > 0;
 
   React.useEffect(() => {
     if (facility?.id) {
@@ -56,7 +62,7 @@ export default function StaffFormDialog(props: {
 
   React.useEffect(() => {
     if (open) {
-      reset({ firstName: "", lastName: "", email: "", unitId: defaultUnitId ?? "", role: "CNA", roleOther: "", employmentType: "FullTime", active: true });
+      reset({ firstName: "", lastName: "", email: "", unitId: defaultUnitId ?? "", role: "CNA", roleOther: "", employmentType: "FullTime", active: true, adminAccess: false });
     }
   }, [open, reset, defaultUnitId]);
 
@@ -70,6 +76,11 @@ export default function StaffFormDialog(props: {
       <DialogTitle>New Staff</DialogTitle>
       <form onSubmit={handleSubmit(submit)}>
         <DialogContent>
+          {duplicateError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              Cannot add staff: a staff member with that email already exists.
+            </Alert>
+          )}
           <Stack spacing={2} mt={1}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField label="First name" fullWidth {...register('firstName')} error={!!errors.firstName} helperText={errors.firstName?.message} />
@@ -85,13 +96,10 @@ export default function StaffFormDialog(props: {
               <MenuItem value="Receptionist">Receptionist</MenuItem>
               <MenuItem value="Other">Other</MenuItem>
             </TextField>
-            {watch('role') === 'Other' && (
-              <TextField label="Other role" fullWidth {...register('roleOther')} />
-            )}
-            <TextField select label="Employment" fullWidth defaultValue={"FullTime"} {...register('employmentType') }>
-              <MenuItem value="FullTime">FullTime</MenuItem>
-              <MenuItem value="PartTime">PartTime</MenuItem>
-              <MenuItem value="PerDiem">PerDiem</MenuItem>
+            <TextField select label="Employment Type" fullWidth defaultValue={"FullTime"} {...register('employmentType')} error={!!errors.employmentType} helperText={errors.employmentType?.message}>
+              <MenuItem value="FullTime">Full Time</MenuItem>
+              <MenuItem value="PartTime">Part Time</MenuItem>
+              <MenuItem value="PerDiem">Per Diem</MenuItem>
               <MenuItem value="Contract">Contract</MenuItem>
             </TextField>
             <TextField select label="Unit (optional)" fullWidth {...register('unitId')}>
@@ -101,6 +109,15 @@ export default function StaffFormDialog(props: {
               ))}
             </TextField>
             <FormControlLabel control={<Switch defaultChecked {...register('active') as any} />} label="Active" />
+            <Tooltip title={!hasEmail ? "An email address is required to grant admin access" : ""} placement="top-start">
+              <span>
+                <FormControlLabel
+                  control={<Switch {...register('adminAccess') as any} disabled={!hasEmail} />}
+                  label="Grant Facility Admin Access"
+                  sx={{ opacity: hasEmail ? 1 : 0.5 }}
+                />
+              </span>
+            </Tooltip>
           </Stack>
         </DialogContent>
         <DialogActions>

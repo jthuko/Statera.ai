@@ -1,19 +1,21 @@
 import React, { createContext, useEffect, useState } from "react";
 import api from "../api/axios";
 
-type Role = "Owner" | "Admin" | "Manager" | "Scheduler" | "Viewer";
+type SystemRole = "Owner" | "FacilityAdmin";
 
 interface User {
   id: string;
   email: string;
-  role: Role;
+  systemRole: SystemRole;
+  facilityIds: string[];
 }
 
 interface AuthContextValue {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  isAuthorized: (roles?: Role[]) => boolean;
+  isAuthorized: (roles?: SystemRole[]) => boolean;
+  hasFacilityAccess: (facilityId: string) => boolean;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -33,7 +35,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function login(email: string, password: string) {
-    // Ensure leading slash so the axios base "/api/v1" resolves correctly
     const res = await api.post("/auth/login", { email, password });
     const { accessToken, refreshToken } = res.data ?? {};
 
@@ -45,22 +46,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("statera:refreshToken", refreshToken);
     }
 
-    // Prefer any existing user in storage
-    const existing = localStorage.getItem("statera:user");
-    if (existing && existing !== "undefined" && existing !== "null") {
-      try {
-        const parsed = JSON.parse(existing) as User;
-        setUser(parsed);
-        return;
-      } catch {
-        localStorage.removeItem("statera:user");
-      }
-    }
+    // Fetch the user's identity from the server using the newly stored token
+    try {
+      const meRes = await api.get<{
+        id: string;
+        email: string;
+        systemRole: string;
+        facilityIds: string[];
+      }>("/auth/me");
 
-    // Fallback: set a minimal user so guards depending on `user` pass
-    const fallback: User = { id: "self", email, role: "Viewer" };
-    localStorage.setItem("statera:user", JSON.stringify(fallback));
-    setUser(fallback);
+      const { id, email: userEmail, systemRole, facilityIds } = meRes.data;
+      const parsed: User = {
+        id,
+        email: userEmail,
+        systemRole: (systemRole as SystemRole) ?? "FacilityAdmin",
+        facilityIds: facilityIds ?? [],
+      };
+
+      localStorage.setItem("statera:user", JSON.stringify(parsed));
+      setUser(parsed);
+    } catch {
+      // Fallback: minimal user so auth guards still pass
+      const fallback: User = {
+        id: "self",
+        email,
+        systemRole: "FacilityAdmin",
+        facilityIds: [],
+      };
+      localStorage.setItem("statera:user", JSON.stringify(fallback));
+      setUser(fallback);
+    }
   }
 
   function logout() {
@@ -70,13 +85,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }
 
-  function isAuthorized(roles?: Role[]) {
+  function isAuthorized(roles?: SystemRole[]) {
     if (!roles?.length) return true;
-    return !!user && roles.includes(user.role);
+    return !!user && roles.includes(user.systemRole);
+  }
+
+  function hasFacilityAccess(facilityId: string): boolean {
+    if (!user) return false;
+    if (user.systemRole === "Owner") return true;
+    return user.facilityIds.includes(facilityId);
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthorized }}>
+    <AuthContext.Provider
+      value={{ user, login, logout, isAuthorized, hasFacilityAccess }}
+    >
       {children}
     </AuthContext.Provider>
   );

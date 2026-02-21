@@ -35,10 +35,12 @@ export interface AssignmentFormDialogProps {
   staff: StaffOption[];
   onCancel: () => void;
   onSubmit: (values: FormValues) => void;
+  /** Provided only in edit mode — shows a Delete button */
+  onDelete?: () => void;
 }
 
 export default function AssignmentFormDialog(props: AssignmentFormDialogProps) {
-  const { open, title, initial, units, roles, staff, onCancel, onSubmit } = props;
+  const { open, title, initial, units, roles, staff, onCancel, onSubmit, onDelete } = props;
 
   const [values, setValues] = React.useState<FormValues>(initial);
 
@@ -139,6 +141,11 @@ export default function AssignmentFormDialog(props: AssignmentFormDialogProps) {
         </Stack>
       </DialogContent>
       <DialogActions>
+        {onDelete && (
+          <Button onClick={onDelete} variant="contained" color="error" sx={{ mr: "auto" }}>
+            Delete
+          </Button>
+        )}
         <Button onClick={onCancel} variant="text">Cancel</Button>
         <Button onClick={submit} variant="contained">Save</Button>
       </DialogActions>

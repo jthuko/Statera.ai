@@ -15,3 +15,13 @@ public sealed record UpdateFacilityRequest(
     string? State,
     string? Zip
 );
+
+// Admin management contracts
+public sealed record AssignFacilityAdminRequest(string UserId, string FacilityRole = "FacilityAdmin");
+
+public sealed record FacilityAdminResponse(
+    string UserId,
+    string Email,
+    string FacilityRole,
+    DateTime AssignedUtc
+);

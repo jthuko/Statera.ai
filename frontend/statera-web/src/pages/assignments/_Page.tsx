@@ -9,8 +9,9 @@ import isoWeek from "dayjs/plugin/isoWeek";
 dayjs.extend(isoWeek);
 
 import { useFacility } from "../../context/facility";
+import { useAuth } from "../../auth/useAuth";
 import { listStaff, StaffDto } from "../../api/staff";
-import { listUnits, UNIT_TYPES } from "../../api/units"; // assuming you already have this from Units page
+import { listUnits } from "../../api/units";
 import type { UnitDto } from "../../api/units";
 
 import WeekGrid from "../../components/scheduler/WeekGrid";
@@ -20,10 +21,7 @@ import {
   AssignmentDto
 } from "../../api/assignments";
 
-
 interface RoleOption { id: string; name: string; }
-// If you already have roles elsewhere, switch to your source.
-// For now, define a small static set you can replace with your Roles API.
 const ROLE_OPTIONS: RoleOption[] = [
   { id: "rn", name: "RN" },
   { id: "lpn", name: "LPN" },
@@ -31,12 +29,13 @@ const ROLE_OPTIONS: RoleOption[] = [
 ];
 
 function startOfWeekMonday(d: Dayjs) {
-  // dayjs.isoWeek starts on Monday; ensure exact day start
   return d.isoWeekday(1).startOf("day");
 }
 
 export default function AssignmentsPage() {
-  const { selected } = useFacility();
+  const { facilities, selected, setSelectedId } = useFacility();
+  const { user } = useAuth();
+  const isOwner = user?.systemRole === "Owner";
   const facilityId = selected?.id;
 
   const [weekStart, setWeekStart] = React.useState<Dayjs>(startOfWeekMonday(dayjs()));
@@ -72,13 +71,13 @@ export default function AssignmentsPage() {
       ]);
       setUnits(u);
       setStaff(st.filter(s => s.active));
-      if (!unitId && u.length) setUnitId(u[0].id);
-    } catch (e: any) {
+      setUnitId(prev => prev || "");
+    } catch {
       setError("Failed to load lookups");
     } finally {
       setLoading(false);
     }
-  }, [facilityId, unitId]);
+  }, [facilityId]);
 
   const loadAssignments = React.useCallback(async () => {
     if (!facilityId) return;
@@ -90,47 +89,38 @@ export default function AssignmentsPage() {
         start, end, unitId: unitId || undefined, roleId: roleId || undefined
       });
       setAssignments(data);
-    } catch (e: any) {
+    } catch {
       setError("Failed to load assignments");
     } finally {
       setLoading(false);
     }
   }, [facilityId, weekStart, unitId, roleId]);
 
+  // Reload lookups when facility changes
   React.useEffect(() => {
+    setUnitId("");
+    setStaff([]);
+    setUnits([]);
+    setAssignments([]);
     loadLookups();
-  }, [loadLookups]);
+  }, [facilityId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => {
     loadAssignments();
   }, [loadAssignments]);
 
   const staffRows = React.useMemo(
-    () =>
-      staff.map(s => ({
-        id: s.id,
-        label: s.displayName ?? `${s.firstName} ${s.lastName}`
-      })),
+    () => staff.map(s => ({ id: s.id, label: s.displayName ?? `${s.firstName} ${s.lastName}` })),
     [staff]
   );
 
   const assignmentCells = React.useMemo(() => {
-    // Map each assignment to a cell (staff+day)
     return assignments.map(a => {
       const start = dayjs(a.start);
       const dayISO = start.startOf("day").toISOString();
       const roleName = ROLE_OPTIONS.find(r => r.id === a.roleId)?.name ?? a.roleId;
       const unitName = units.find(u => u.id === a.unitId)?.name;
-      return {
-        id: a.id,
-        staffId: a.staffId,
-        dayISO,
-        startISO: a.start,
-        endISO: a.end,
-        roleName,
-        unitName,
-        notes: a.notes ?? null
-      };
+      return { id: a.id, staffId: a.staffId, dayISO, startISO: a.start, endISO: a.end, roleName, unitName, notes: a.notes ?? null };
     });
   }, [assignments, units]);
 
@@ -155,15 +145,7 @@ export default function AssignmentsPage() {
     if (!a) return;
     setDialogTitle("Edit Assignment");
     setEditingId(a.id);
-    setDialogInitial({
-      id: a.id,
-      unitId: a.unitId,
-      staffId: a.staffId,
-      roleId: a.roleId,
-      start: a.start,
-      end: a.end,
-      notes: a.notes ?? ""
-    });
+    setDialogInitial({ id: a.id, unitId: a.unitId, staffId: a.staffId, roleId: a.roleId, start: a.start, end: a.end, notes: a.notes ?? "" });
     setDialogOpen(true);
   };
 
@@ -172,30 +154,15 @@ export default function AssignmentsPage() {
     try {
       setLoading(true);
       if (!editingId) {
-        await createAssignment(facilityId, {
-          unitId: values.unitId,
-          staffId: values.staffId,
-          roleId: values.roleId,
-          start: values.start,
-          end: values.end,
-          notes: values.notes
-        });
+        await createAssignment(facilityId, { unitId: values.unitId, staffId: values.staffId, roleId: values.roleId, start: values.start, end: values.end, notes: values.notes });
         setToast("Assignment created");
       } else {
-        await updateAssignment(facilityId, editingId, {
-          id: editingId,
-          unitId: values.unitId,
-          staffId: values.staffId,
-          roleId: values.roleId,
-          start: values.start,
-          end: values.end,
-          notes: values.notes
-        });
+        await updateAssignment(facilityId, editingId, { id: editingId, unitId: values.unitId, staffId: values.staffId, roleId: values.roleId, start: values.start, end: values.end, notes: values.notes });
         setToast("Assignment updated");
       }
       setDialogOpen(false);
       await loadAssignments();
-    } catch (e: any) {
+    } catch {
       setError("Failed to save assignment");
     } finally {
       setLoading(false);
@@ -210,21 +177,14 @@ export default function AssignmentsPage() {
       setDialogOpen(false);
       setToast("Assignment deleted");
       await loadAssignments();
-    } catch (e: any) {
+    } catch {
       setError("Failed to delete assignment");
     } finally {
       setLoading(false);
     }
   };
 
-  const moveWeek = (delta: number) => {
-    setWeekStart(prev => startOfWeekMonday(prev.add(delta, "week")));
-  };
-
-  const unitsOptions = units.map(u => ({ id: u.id, name: u.name }));
-  const rolesOptions = ROLE_OPTIONS;
-
-  const staffOptions = staffRows.map(s => ({ id: s.id, label: s.label }));
+  const moveWeek = (delta: number) => setWeekStart(prev => startOfWeekMonday(prev.add(delta, "week")));
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
@@ -232,7 +192,23 @@ export default function AssignmentsPage() {
         Assignments (Scheduler)
       </Typography>
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center" sx={{ mb: 2 }}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center" sx={{ mb: 2 }} flexWrap="wrap">
+        {/* Facility selector — only shown to Owners who manage multiple facilities */}
+        {isOwner && (
+          <TextField
+            select
+            label="Facility"
+            value={facilityId ?? ""}
+            onChange={e => setSelectedId(e.target.value)}
+            sx={{ minWidth: 260 }}
+            size="small"
+          >
+            {facilities.map(f => (
+              <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+            ))}
+          </TextField>
+        )}
+
         <Stack direction="row" spacing={1}>
           <Button variant="outlined" onClick={() => moveWeek(-1)}>Prev</Button>
           <Button variant="outlined" onClick={() => setWeekStart(startOfWeekMonday(dayjs()))}>Today</Button>
@@ -246,6 +222,7 @@ export default function AssignmentsPage() {
           onChange={e => setWeekStart(startOfWeekMonday(dayjs(e.target.value)))}
           InputLabelProps={{ shrink: true }}
           sx={{ width: 200 }}
+          size="small"
         />
 
         <TextField
@@ -254,11 +231,12 @@ export default function AssignmentsPage() {
           value={unitId}
           onChange={e => setUnitId(e.target.value)}
           sx={{ minWidth: 220 }}
+          size="small"
         >
-          {unitsOptions.map(u => (
+          <MenuItem value="">All Units</MenuItem>
+          {units.map(u => (
             <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
           ))}
-          <MenuItem value="">All Units</MenuItem>
         </TextField>
 
         <TextField
@@ -267,52 +245,48 @@ export default function AssignmentsPage() {
           value={roleId}
           onChange={e => setRoleId(e.target.value)}
           sx={{ minWidth: 180 }}
+          size="small"
         >
-          {rolesOptions.map(r => (
+          <MenuItem value="">All Roles</MenuItem>
+          {ROLE_OPTIONS.map(r => (
             <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
           ))}
-          <MenuItem value="">All Roles</MenuItem>
         </TextField>
 
         {loading && <CircularProgress size={24} />}
       </Stack>
 
-      <Divider sx={{ mb: 2 }} />
-
-      <WeekGrid
-        weekStart={weekStart}
-        staff={staffRows}
-        assignments={assignmentCells}
-        onCreate={openCreate}
-        onEdit={openEdit}
-      />
+      {!facilityId ? (
+        <Alert severity="info">Select a facility to view assignments.</Alert>
+      ) : (
+        <>
+          <Divider sx={{ mb: 2 }} />
+          <WeekGrid
+            weekStart={weekStart}
+            staff={staffRows}
+            assignments={assignmentCells}
+            onCreate={openCreate}
+            onEdit={openEdit}
+          />
+        </>
+      )}
 
       <AssignmentFormDialog
         open={dialogOpen}
         title={dialogTitle}
         initial={dialogInitial}
-        units={unitsOptions}
-        roles={rolesOptions}
-        staff={staffOptions}
+        units={units.map(u => ({ id: u.id, name: u.name }))}
+        roles={ROLE_OPTIONS}
+        staff={staffRows.map(s => ({ id: s.id, label: s.label }))}
         onCancel={() => setDialogOpen(false)}
         onSubmit={submitAssignment}
+        onDelete={editingId ? deleteCurrent : undefined}
       />
 
-      <Snackbar
-        open={!!toast}
-        autoHideDuration={2500}
-        onClose={() => setToast(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
+      <Snackbar open={!!toast} autoHideDuration={2500} onClose={() => setToast(null)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
         <Alert severity="success" onClose={() => setToast(null)}>{toast}</Alert>
       </Snackbar>
-
-      <Snackbar
-        open={!!error}
-        autoHideDuration={4000}
-        onClose={() => setError(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
+      <Snackbar open={!!error} autoHideDuration={4000} onClose={() => setError(null)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
         <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>
       </Snackbar>
     </Container>

@@ -8,6 +8,7 @@ import React, {
 
 import api from "../api/axios";
 import type { Facility } from "../api/facilities/types";
+import { useAuth } from "../auth/useAuth";
 
 interface FacilityContextValue {
   facilities: Facility[];
@@ -25,6 +26,7 @@ const FacilityContext = createContext<FacilityContextValue | undefined>(
 export const FacilityProvider: React.FC<React.PropsWithChildren> = ({
   children,
 }) => {
+  const { user } = useAuth();
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(
     localStorage.getItem("statera:facilityId")
@@ -37,11 +39,16 @@ export const FacilityProvider: React.FC<React.PropsWithChildren> = ({
     setError(null);
     try {
       const res = await api.get<Facility[]>("/facilities");
-      setFacilities(res.data);
+      // Backend already filters by the user's JWT claims; this is a client-side safety net
+      const visible =
+        !user || user.systemRole === "Owner"
+          ? res.data
+          : res.data.filter((f) => user.facilityIds.includes(f.id));
+      setFacilities(visible);
 
       // Ensure we have a valid selection
-      if (!selectedId || !res.data.some((f) => f.id === selectedId)) {
-        const first = res.data[0];
+      if (!selectedId || !visible.some((f) => f.id === selectedId)) {
+        const first = visible[0];
         if (first) {
           setSelectedId(first.id);
           localStorage.setItem("statera:facilityId", first.id);

@@ -16,22 +16,41 @@ public static class UsersEndpoints
     {
         var g = v1.MapGroup("/users").WithTags("Users");
 
-        // LIST
-        g.MapGet("/", async ([FromServices] UserManager<AppUser> um) =>
+        // LIST — supports ?excludeFacilityId=guid to filter out already-assigned users
+        g.MapGet("/", async (
+            Guid? excludeFacilityId,
+            [FromServices] UserManager<AppUser> um,
+            [FromServices] AppDbContext db,
+            CancellationToken ct) =>
         {
-            // Identity stores users in the manager's store; use Users IQueryable if supported
-            var q = um.Users; // IQueryable<AppUser> when using EF store
-            var rows = await q.AsNoTracking().ToListAsync();
-            return Results.Ok(rows.Select(u => new
+            var rows = await um.Users.AsNoTracking().ToListAsync(ct);
+
+            HashSet<string>? excludedUserIds = null;
+            if (excludeFacilityId.HasValue)
             {
-                u.Id,
-                u.UserName,
-                u.Email,
-                u.EmailConfirmed,
-                u.LockoutEnabled,
-                u.LockoutEnd
-            }));
-        });
+                excludedUserIds = (await db.UserFacilityRoles
+                    .Where(ufr => ufr.FacilityId == excludeFacilityId.Value)
+                    .Select(ufr => ufr.UserId)
+                    .ToListAsync(ct))
+                    .ToHashSet();
+            }
+
+            var result = rows
+                .Where(u => excludedUserIds is null || !excludedUserIds.Contains(u.Id))
+                .Select(u => new
+                {
+                    u.Id,
+                    u.UserName,
+                    u.Email,
+                    u.EmailConfirmed,
+                    u.LockoutEnabled,
+                    u.LockoutEnd,
+                    u.SystemRole
+                });
+
+            return Results.Ok(result);
+        })
+        .RequireAuthorization("Authenticated");
 
         // GET by id
         g.MapGet("/{id}", async (string id, [FromServices] UserManager<AppUser> um) =>

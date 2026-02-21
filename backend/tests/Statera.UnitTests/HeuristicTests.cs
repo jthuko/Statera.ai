@@ -27,6 +27,8 @@ public class HeuristicTests
 
         public Task<List<Staff>> GetAllStaffAsync(CancellationToken ct)
         {
+            public Task<string?> GetFacilityStateForUnitAsync(Guid unitId, CancellationToken ct)
+                => Task.FromResult<string?>("TX"); // stub: always returns TX
             var unitId = Guid.Parse("00000000-0000-0000-0000-000000000001");
             var staff = new Staff
             {

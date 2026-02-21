@@ -20,7 +20,7 @@ namespace Statera.Infrastructure
 
     public interface IJwtService
     {
-        Task<TokenPair> CreateAsync(IdentityUser user, CancellationToken ct);
+        Task<TokenPair> CreateAsync(AppUser user, IList<Guid> facilityIds, CancellationToken ct);
     }
 
     public class JwtService : IJwtService
@@ -32,7 +32,7 @@ namespace Statera.Infrastructure
             _opts = opts.Value;
         }
 
-        public Task<TokenPair> CreateAsync(IdentityUser user, CancellationToken ct)
+        public Task<TokenPair> CreateAsync(AppUser user, IList<Guid> facilityIds, CancellationToken ct)
         {
             // signing key & creds
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_opts.Key));
@@ -42,8 +42,15 @@ namespace Statera.Infrastructure
             var claims = new List<Claim>
             {
                 new(JwtRegisteredClaimNames.Sub, user.Id),
-                new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty)
+                new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                // Drives Owner vs FacilityAdmin gate throughout the API
+                new("system_role", user.SystemRole ?? "FacilityAdmin"),
             };
+
+            // One claim per facility this user is allowed to access
+            foreach (var fid in facilityIds)
+                claims.Add(new Claim("facility_id", fid.ToString()));
 
             // jwt
             var jwt = new JwtSecurityToken(
@@ -57,7 +64,7 @@ namespace Statera.Infrastructure
 
             var accessToken = new JwtSecurityTokenHandler().WriteToken(jwt);
 
-            // opaque refresh token (if you later persist refresh tokens, store & validate this server-side)
+            // opaque refresh token (persist & validate server-side for production)
             var refreshToken = Guid.NewGuid().ToString("N");
 
             return Task.FromResult(new TokenPair(accessToken, refreshToken));

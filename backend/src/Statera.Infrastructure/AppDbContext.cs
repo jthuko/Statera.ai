@@ -7,8 +7,34 @@ using Statera.Domain.Staffing;
 
 namespace Statera.Infrastructure;
 
-public class AppUser : IdentityUser { }
+public class AppUser : IdentityUser
+{
+    // "Owner" = global super-admin, "FacilityAdmin" = scoped to assigned facilities
+    public string SystemRole { get; set; } = "FacilityAdmin";
+}
+
 public class AppRole : IdentityRole { }
+
+public class UserFacilityRole
+{
+    public Guid Id { get; set; }
+
+    // FK → AspNetUsers (string PK)
+    public string UserId { get; set; } = default!;
+    public AppUser User { get; set; } = default!;
+
+    // FK → Facilities
+    public Guid FacilityId { get; set; }
+    public Facility Facility { get; set; } = default!;
+
+    // "FacilityAdmin" for now; extensible to "Scheduler", "Viewer" later
+    public string FacilityRole { get; set; } = "FacilityAdmin";
+
+    public DateTime AssignedUtc { get; set; } = DateTime.UtcNow;
+
+    // Who assigned this (null = seeded by system)
+    public string? AssignedByUserId { get; set; }
+}
 
 public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
 {
@@ -33,9 +59,40 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
     public DbSet<DemandTemplate> DemandTemplates => Set<DemandTemplate>();
     public DbSet<DemandTemplateDay> DemandTemplateDays => Set<DemandTemplateDay>();
 
+    // User-Facility permission assignments
+    public DbSet<UserFacilityRole> UserFacilityRoles => Set<UserFacilityRole>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
+
+        // AppUser – SystemRole column
+        b.Entity<AppUser>(entity =>
+        {
+            entity.Property(u => u.SystemRole).HasMaxLength(20).HasDefaultValue("FacilityAdmin");
+        });
+
+        // UserFacilityRole – maps a user to a facility with a role
+        b.Entity<UserFacilityRole>(entity =>
+        {
+            entity.HasKey(ufr => ufr.Id);
+
+            entity.HasOne(ufr => ufr.User)
+                  .WithMany()
+                  .HasForeignKey(ufr => ufr.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(ufr => ufr.Facility)
+                  .WithMany()
+                  .HasForeignKey(ufr => ufr.FacilityId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(ufr => ufr.FacilityRole).HasMaxLength(30).IsRequired();
+            entity.Property(ufr => ufr.AssignedByUserId).HasMaxLength(450);
+
+            // One role entry per user per facility
+            entity.HasIndex(ufr => new { ufr.UserId, ufr.FacilityId }).IsUnique();
+        });
 
         // Staff
         b.Entity<Staff>(entity =>
