@@ -3,8 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Statera.Domain;   // Staff, Assignment, TimeOffRequest, OvertimeRule, ShiftTemplate, Schedule
-// CredentialType enum
+using Statera.Domain;          // Staff, Assignment, TimeOffRequest, OvertimeRule, ShiftTemplate, Schedule
+using Statera.Domain.Staffing; // RuleConstraint
 
 namespace Statera.Application;
 
@@ -30,12 +30,14 @@ public record ScheduleContextDto(
     DateTime StartUtc,
     DateTime EndUtc,
     Guid UnitId,
-     string RequiredLicenseType
+    string RequiredLicenseType,
+    Guid? FacilityId = null
 );
 
 public interface IRepository
 {
     Task<List<Staff>> GetAllStaffAsync(CancellationToken ct);
+    Task<List<Staff>> GetStaffByFacilityAsync(Guid facilityId, CancellationToken ct);
     Task<List<Assignment>> GetAssignmentsInRangeAsync(DateTime startUtc, DateTime endUtc, CancellationToken ct);
     Task<List<TimeOffRequest>> GetTimeOffInRangeAsync(DateTime startUtc, DateTime endUtc, CancellationToken ct);
     Task<OvertimeRule?> GetOvertimeRuleAsync(CancellationToken ct);
@@ -45,6 +47,9 @@ public interface IRepository
     // Returns the two-letter state (e.g. "TX") for the facility that owns the given unit,
     // or null if not found. Used by license validation in suggestion logic.
     Task<string?> GetFacilityStateForUnitAsync(Guid unitId, CancellationToken ct);
+
+    // Returns all active RuleConstraints for the given facility.
+    Task<List<RuleConstraint>> GetConstraintsByFacilityAsync(Guid facilityId, CancellationToken ct);
 }
 
 public interface IAssignmentSuggestionService

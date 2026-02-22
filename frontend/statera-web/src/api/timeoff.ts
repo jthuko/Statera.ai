@@ -1,8 +1,6 @@
-import axios from "axios";
+import api from "./axios";
 
-
-const baseURL = import.meta.env.VITE_API_BASEURL ?? "http://localhost:5199/api/v1";
-const http = axios.create({ baseURL });
+const http = api;
 
 
 export type TimeOffStatus = "Pending" | "Approved" | "Denied" | "Cancelled";

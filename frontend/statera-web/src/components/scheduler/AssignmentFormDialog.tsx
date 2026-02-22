@@ -77,8 +77,8 @@ export default function AssignmentFormDialog(props: AssignmentFormDialogProps) {
             value={values.unitId}
             onChange={handleChange("unitId")}
             fullWidth
-            required
           >
+            <MenuItem value="">None</MenuItem>
             {units.map(u => (
               <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
             ))}

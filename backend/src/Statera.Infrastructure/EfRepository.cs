@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Statera.Application;
 using Statera.Domain;
+using Statera.Domain.Staffing;
 
 namespace Statera.Infrastructure;
 
@@ -20,6 +21,14 @@ public class EfRepository : IRepository
            .Include(s => s.Licenses)
            .Include(s => s.Availabilities)
            .AsNoTracking()
+           .ToListAsync(ct);
+
+    public Task<List<Staff>> GetStaffByFacilityAsync(Guid facilityId, CancellationToken ct) =>
+        _db.Staff
+           .Include(s => s.Licenses)
+           .Include(s => s.Availabilities)
+           .AsNoTracking()
+           .Where(s => s.FacilityId == facilityId)
            .ToListAsync(ct);
 
     public Task<List<Assignment>> GetAssignmentsInRangeAsync(DateTime startUtc, DateTime endUtc, CancellationToken ct)
@@ -141,4 +150,10 @@ public class EfRepository : IRepository
             .Select(u => u.Facility.State)
             .SingleOrDefaultAsync(ct);
     }
+
+    public Task<List<RuleConstraint>> GetConstraintsByFacilityAsync(Guid facilityId, CancellationToken ct) =>
+        _db.RuleConstraints
+           .AsNoTracking()
+           .Where(r => r.FacilityId == facilityId && r.IsActive)
+           .ToListAsync(ct);
 }

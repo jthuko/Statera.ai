@@ -96,6 +96,9 @@ public class Assignment
     // max len 2, required
     public string FacilityState { get; set; } = default!;  // e.g., "TX"
 
+    // optional role for this shift (e.g., "rn", "lpn", "cna")
+    public string? RoleId { get; set; }
+
     public DateTime StartUtc { get; set; } // check constraint EndUtc > StartUtc
     public DateTime EndUtc { get; set; }
 

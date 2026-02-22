@@ -1,267 +1,154 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  Button,
+  Box,
   Container,
-  Divider,
-  LinearProgress,
   Snackbar,
-  Stack,
-  TextField,
   Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
-import { z } from "zod";
 import {
-  getConstraints,
-  getRoles,
-  testRulesAgainstSample,
-  upsertConstraints,
-} from "../../api/rules";
-import {
-  ConstraintsPayload,
-  LicenseRequirement,
-  MaxHoursRule,
-  OvertimeRules,
-  RestRule,
-} from "../../api/rules/types";
-import LicenseRequirementEditor from "../../components/rules/LicenseRequirementEditor";
-import OvertimeRuleTable from "../../components/rules/OvertimeRuleTable";
-import MaxHoursRuleEditor from "../../components/rules/MaxHoursRuleEditor";
-import RestRuleEditor from "../../components/rules/RestRuleEditor";
-import RuleCard from "../../components/rules/RuleCard";
+  ConstraintDto,
+  CreateConstraintRequest,
+  UpdateConstraintRequest,
+  listConstraints,
+  createConstraint,
+  updateConstraint,
+  deleteConstraint,
+} from "../../api/constraints";
+import { listUnits } from "../../api/units";
+import ConstraintsTable from "../../components/constraints/ConstraintsTable";
+import ConstraintFormDialog from "../../components/constraints/ConstraintFormDialog";
+import { useFacility } from "../../context/facility";
 
-function useActiveFacilityId() {
-  return localStorage.getItem("statera:facilityId") ?? "";
-}
+type DialogState =
+  | { mode: "closed" }
+  | { mode: "create" }
+  | { mode: "edit"; row: ConstraintDto };
 
 export default function ConstraintsRulesPage() {
-  const facilityId = useActiveFacilityId();
+  const { facilities, selected: facility, setSelectedId } = useFacility();
+  const facilityId = facility?.id ?? "";
 
-  const initial: ConstraintsPayload = useMemo(
-    () => ({
-      facilityId,
-      maxHours: {
-        dailyMaxHours: 12,
-        weeklyMaxHours: 40,
-        biweeklyMaxHours: 80,
-        allowSelfOverride: false,
-      },
-      rest: {
-        minRestHoursBetweenShifts: 8,
-        minRestHoursAfterOvertime: 10,
-        consecutiveDaysMax: 6,
-        weeklyRestDayRequired: true,
-      },
-      overtime: {
-        basis: "weekly",
-        tiers: [{ thresholdHours: 40, multiplier: 1.5 }],
-        capHours: 60,
-        allowOvertimeOnDays: [
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday",
-          "Saturday",
-          "Sunday",
-        ],
-      },
-      licenseRequirements: [],
-      aiWeights: { hardViolations: 10, softViolations: 5, overtimePenalty: 2 },
-    }),
-    [facilityId]
-  );
+  const [rows, setRows]       = useState<ConstraintDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [units, setUnits]     = useState<{ id: string; name: string }[]>([]);
+  const [dialog, setDialog]   = useState<DialogState>({ mode: "closed" });
+  const [toast, setToast]     = useState<{ msg: string; sev: "success" | "error" } | null>(null);
 
-  const [data, setData] = useState<ConstraintsPayload>(initial);
-  const [loading, setLoading] = useState(true);
-  const [roles, setRoles] = useState<Array<{ id: string; name: string }>>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [snack, setSnack] = useState<{
-    open: boolean;
-    message: string;
-    severity: "success" | "error" | "info";
-  }>({
-    open: false,
-    message: "",
-    severity: "success",
-  });
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const [r, c] = await Promise.all([
-          getRoles(),
-          getConstraints(facilityId),
-        ]);
-        if (!mounted) return;
-        setRoles(r ?? []);
-        if (c) setData(c);
-      } catch (e: any) {
-        if (!mounted) return;
-        setError("Failed to load rules.");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
+  const reload = useCallback(async () => {
+    if (!facilityId) { setRows([]); return; }
+    setLoading(true);
+    try {
+      const data = await listConstraints(facilityId);
+      setRows(data);
+    } catch {
+      setToast({ msg: "Failed to load constraints", sev: "error" });
+    } finally {
+      setLoading(false);
+    }
   }, [facilityId]);
 
-  const setMaxHours = (next: MaxHoursRule) =>
-    setData((d) => ({ ...d, maxHours: next }));
-  const setRest = (next: RestRule) => setData((d) => ({ ...d, rest: next }));
-  const setOvertime = (next: OvertimeRules) =>
-    setData((d) => ({ ...d, overtime: next }));
-  const setLicReqs = (next: LicenseRequirement[]) =>
-    setData((d) => ({ ...d, licenseRequirements: next }));
+  useEffect(() => { reload(); }, [reload]);
 
-  async function save() {
-  try {
-    await upsertConstraints(data); // no need to parse
-    setSnack({
-      open: true,
-      message: "Constraints saved.",
-      severity: "success",
-    });
-  } catch (e: any) {
-    setSnack({
-      open: true,
-      message: e?.message ?? "Failed to save",
-      severity: "error",
-    });
+  useEffect(() => {
+    if (!facilityId) { setUnits([]); return; }
+    listUnits(facilityId)
+      .then(u => setUnits(u.map(x => ({ id: x.id, name: x.name }))))
+      .catch(() => setUnits([]));
+  }, [facilityId]);
+
+  async function handleCreate(payload: CreateConstraintRequest | UpdateConstraintRequest) {
+    await createConstraint(facilityId, payload as CreateConstraintRequest);
+    setToast({ msg: "Constraint created.", sev: "success" });
+    reload();
   }
-}
 
+  async function handleEdit(payload: CreateConstraintRequest | UpdateConstraintRequest) {
+    if (dialog.mode !== "edit") return;
+    await updateConstraint(facilityId, dialog.row.id, payload as UpdateConstraintRequest);
+    setToast({ msg: "Constraint updated.", sev: "success" });
+    reload();
+  }
 
-  async function validate() {
+  async function handleDelete(row: ConstraintDto) {
+    if (!confirm(`Delete this ${row.type} constraint?`)) return;
     try {
-      const res = await testRulesAgainstSample(facilityId);
-      setSnack({
-        open: true,
-        message: res.ok
-          ? res.message ?? "All constraints valid for sample week."
-          : res.message ?? "Issues found.",
-        severity: res.ok ? "success" : "error",
-      });
-    } catch (e: any) {
-      setSnack({
-        open: true,
-        message: e?.message ?? "Test failed",
-        severity: "error",
-      });
+      await deleteConstraint(facilityId, row.id);
+      setToast({ msg: "Constraint deleted.", sev: "success" });
+      reload();
+    } catch {
+      setToast({ msg: "Failed to delete constraint.", sev: "error" });
     }
   }
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
         <Typography variant="h5">Constraints & Rules</Typography>
-        <Stack direction="row" spacing={1}>
-          <Button variant="outlined" onClick={validate}>
-            Validate
-          </Button>
-          <Button variant="contained" onClick={save}>
-            Save
-          </Button>
-        </Stack>
-      </Stack>
+        <FormControl size="small" sx={{ minWidth: 240 }}>
+          <InputLabel>Facility</InputLabel>
+          <Select
+            label="Facility"
+            value={facilityId}
+            onChange={e => setSelectedId(String(e.target.value))}
+          >
+            {facilities.map(f => (
+              <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
 
-      {loading && <LinearProgress sx={{ mb: 2 }} />}
-      {error && <Alert severity="error">{error}</Alert>}
+      {!facilityId && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Select a facility above to view and manage its constraints.
+        </Alert>
+      )}
 
-      <Stack spacing={2}>
-        <MaxHoursRuleEditor value={data.maxHours} onChange={setMaxHours} />
-        <RestRuleEditor value={data.rest} onChange={setRest} />
-        <OvertimeRuleTable overtime={data.overtime} setOvertime={setOvertime} />
-        <LicenseRequirementEditor
-          items={data.licenseRequirements}
-          setItems={setLicReqs}
-          availableRoles={roles ?? []}
+      <ConstraintsTable
+        loading={loading}
+        rows={rows}
+        onCreate={() => setDialog({ mode: "create" })}
+        onEdit={row => setDialog({ mode: "edit", row })}
+        onDelete={handleDelete}
+      />
+
+      <ConstraintFormDialog
+        open={dialog.mode === "create"}
+        title="New Constraint"
+        submitLabel="Create"
+        units={units}
+        onClose={() => setDialog({ mode: "closed" })}
+        onSubmit={handleCreate}
+      />
+
+      {dialog.mode === "edit" && (
+        <ConstraintFormDialog
+          open
+          title="Edit Constraint"
+          submitLabel="Save"
+          units={units}
+          initial={dialog.row}
+          onClose={() => setDialog({ mode: "closed" })}
+          onSubmit={handleEdit}
         />
-
-        <RuleCard
-          title="AI Weights"
-          subheader="Influence the AI engine’s objective function."
-        >
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              label="Hard Violations Weight"
-              type="number"
-              value={data.aiWeights.hardViolations}
-              onChange={(e) =>
-                setData((d) => ({
-                  ...d,
-                  aiWeights: {
-                    ...d.aiWeights,
-                    hardViolations: Number(e.target.value),
-                  },
-                }))
-              }
-              inputProps={{ min: 0, max: 10, step: 1 }}
-            />
-            <TextField
-              label="Soft Violations Weight"
-              type="number"
-              value={data.aiWeights.softViolations}
-              onChange={(e) =>
-                setData((d) => ({
-                  ...d,
-                  aiWeights: {
-                    ...d.aiWeights,
-                    softViolations: Number(e.target.value),
-                  },
-                }))
-              }
-              inputProps={{ min: 0, max: 10, step: 1 }}
-            />
-            <TextField
-              label="Overtime Penalty"
-              type="number"
-              value={data.aiWeights.overtimePenalty}
-              onChange={(e) =>
-                setData((d) => ({
-                  ...d,
-                  aiWeights: {
-                    ...d.aiWeights,
-                    overtimePenalty: Number(e.target.value),
-                  },
-                }))
-              }
-              inputProps={{ min: 0, max: 10, step: 1 }}
-            />
-          </Stack>
-        </RuleCard>
-      </Stack>
-
-      <Divider sx={{ my: 3 }} />
-
-      <Stack direction="row" spacing={1} justifyContent="flex-end">
-        <Button variant="outlined" onClick={validate}>
-          Validate
-        </Button>
-        <Button variant="contained" onClick={save}>
-          Save
-        </Button>
-      </Stack>
+      )}
 
       <Snackbar
-        open={snack.open}
-        autoHideDuration={3000}
-        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        open={!!toast}
+        autoHideDuration={3500}
+        onClose={() => setToast(null)}
       >
         <Alert
-          onClose={() => setSnack((s) => ({ ...s, open: false }))}
-          severity={snack.severity}
+          severity={toast?.sev ?? "success"}
+          onClose={() => setToast(null)}
           sx={{ width: "100%" }}
         >
-          {snack.message}
+          {toast?.msg}
         </Alert>
       </Snackbar>
     </Container>

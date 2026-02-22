@@ -150,6 +150,7 @@ public static class DevDataSeeder
                     Email = $"{first.ToLower()}@statera.local",
                     FirstName = first,
                     LastName = "Demo",
+                    FacilityId = i % 2 == 0 ? stateraFacility.Id : hudsonFacility.Id,
                     EmploymentType = i % 3 == 0 ? EmploymentType.Contract : EmploymentType.FullTime,
                     Role = cred.ToString(),
                     Active = true // ✅ make seeded staff active

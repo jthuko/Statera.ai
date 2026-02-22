@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Statera.Infrastructure;            // AppDbContext
 using Statera.Api.Contracts;            // DTOs
 using DomFacility = Statera.Domain.Facility;
+using DomAssignment = Statera.Domain.Assignment;
 
 namespace Statera.Api.Endpoints;
 
@@ -217,6 +218,157 @@ public static class FacilitiesEndpoints
             return Results.NoContent();
         })
         .RequireAuthorization("OwnerOnly");
+
+        // ── Facility-Scoped Assignments ───────────────────────────────────────────
+
+        // GET /api/v1/facilities/{facilityId}/assignments
+        g.MapGet("/{facilityId:guid}/assignments", async (
+            Guid facilityId,
+            string? start,
+            string? end,
+            Guid? unitId,
+            string? roleId,
+            Guid? staffId,
+            [FromServices] AppDbContext db,
+            CancellationToken ct) =>
+        {
+            var q = db.Assignments.AsNoTracking().Where(a => a.FacilityId == facilityId);
+
+            if (staffId.HasValue) q = q.Where(a => a.StaffId == staffId.Value);
+            if (unitId.HasValue)  q = q.Where(a => a.UnitId == unitId.Value);
+            if (!string.IsNullOrWhiteSpace(roleId)) q = q.Where(a => a.RoleId == roleId);
+            if (!string.IsNullOrWhiteSpace(start) && DateTime.TryParse(start, out var fromUtc))
+                q = q.Where(a => a.EndUtc > fromUtc);
+            if (!string.IsNullOrWhiteSpace(end) && DateTime.TryParse(end, out var toUtc))
+                q = q.Where(a => a.StartUtc < toUtc);
+
+            var rows = await q.OrderBy(a => a.StartUtc).ToListAsync(ct);
+            return Results.Ok(rows.Select(a => new
+            {
+                id        = a.Id,
+                facilityId = a.FacilityId,
+                unitId    = a.UnitId,
+                staffId   = a.StaffId,
+                roleId    = a.RoleId,
+                start     = a.StartUtc,
+                end       = a.EndUtc,
+                notes     = a.Notes
+            }));
+        })
+        .RequireAuthorization("FacilityAccess");
+
+        // POST /api/v1/facilities/{facilityId}/assignments
+        g.MapPost("/{facilityId:guid}/assignments", async (
+            Guid facilityId,
+            [FromBody] FacilityAssignmentCreateRequest req,
+            [FromServices] AppDbContext db,
+            CancellationToken ct) =>
+        {
+            var facility = await db.Facilities.AsNoTracking().FirstOrDefaultAsync(f => f.Id == facilityId, ct);
+            if (facility is null) return Results.NotFound();
+
+            if (!await db.Staff.AnyAsync(s => s.Id == req.StaffId && s.FacilityId == facilityId, ct))
+                return Results.BadRequest(new { error = "Staff not found in this facility" });
+
+            if (!DateTime.TryParse(req.Start, null, System.Globalization.DateTimeStyles.RoundtripKind, out var startUtc))
+                return Results.BadRequest(new { error = "Invalid start date" });
+            if (!DateTime.TryParse(req.End, null, System.Globalization.DateTimeStyles.RoundtripKind, out var endUtc))
+                return Results.BadRequest(new { error = "Invalid end date" });
+            if (startUtc >= endUtc)
+                return Results.BadRequest(new { error = "start must be before end" });
+
+            var e = new DomAssignment
+            {
+                Id            = Guid.NewGuid(),
+                StaffId       = req.StaffId,
+                FacilityId    = facilityId,
+                UnitId        = req.UnitId == Guid.Empty ? null : req.UnitId,
+                FacilityState = facility.State,
+                RoleId        = req.RoleId,
+                StartUtc      = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc),
+                EndUtc        = DateTime.SpecifyKind(endUtc, DateTimeKind.Utc),
+                Notes         = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim()
+            };
+
+            db.Assignments.Add(e);
+            await db.SaveChangesAsync(ct);
+
+            return Results.Created($"/api/v1/facilities/{facilityId}/assignments/{e.Id}", new
+            {
+                id        = e.Id,
+                facilityId = e.FacilityId,
+                unitId    = e.UnitId,
+                staffId   = e.StaffId,
+                roleId    = e.RoleId,
+                start     = e.StartUtc,
+                end       = e.EndUtc,
+                notes     = e.Notes
+            });
+        })
+        .RequireAuthorization("FacilityAccess");
+
+        // PUT /api/v1/facilities/{facilityId}/assignments/{id}
+        g.MapPut("/{facilityId:guid}/assignments/{id:guid}", async (
+            Guid facilityId,
+            Guid id,
+            [FromBody] FacilityAssignmentUpdateRequest req,
+            [FromServices] AppDbContext db,
+            CancellationToken ct) =>
+        {
+            var e = await db.Assignments.FirstOrDefaultAsync(a => a.Id == id && a.FacilityId == facilityId, ct);
+            if (e is null) return Results.NotFound();
+
+            if (req.StaffId.HasValue)
+            {
+                if (!await db.Staff.AnyAsync(s => s.Id == req.StaffId.Value && s.FacilityId == facilityId, ct))
+                    return Results.BadRequest(new { error = "Staff not found in this facility" });
+                e.StaffId = req.StaffId.Value;
+            }
+            if (req.UnitId.HasValue) e.UnitId = req.UnitId.Value == Guid.Empty ? null : req.UnitId.Value;
+            if (!string.IsNullOrWhiteSpace(req.RoleId)) e.RoleId = req.RoleId;
+
+            if (!string.IsNullOrWhiteSpace(req.Start) &&
+                DateTime.TryParse(req.Start, null, System.Globalization.DateTimeStyles.RoundtripKind, out var startUtc))
+                e.StartUtc = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc);
+            if (!string.IsNullOrWhiteSpace(req.End) &&
+                DateTime.TryParse(req.End, null, System.Globalization.DateTimeStyles.RoundtripKind, out var endUtc))
+                e.EndUtc = DateTime.SpecifyKind(endUtc, DateTimeKind.Utc);
+
+            if (e.StartUtc >= e.EndUtc)
+                return Results.BadRequest(new { error = "start must be before end" });
+
+            if (req.Notes is not null) e.Notes = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim();
+
+            await db.SaveChangesAsync(ct);
+
+            return Results.Ok(new
+            {
+                id        = e.Id,
+                facilityId = e.FacilityId,
+                unitId    = e.UnitId,
+                staffId   = e.StaffId,
+                roleId    = e.RoleId,
+                start     = e.StartUtc,
+                end       = e.EndUtc,
+                notes     = e.Notes
+            });
+        })
+        .RequireAuthorization("FacilityAccess");
+
+        // DELETE /api/v1/facilities/{facilityId}/assignments/{id}
+        g.MapDelete("/{facilityId:guid}/assignments/{id:guid}", async (
+            Guid facilityId,
+            Guid id,
+            [FromServices] AppDbContext db,
+            CancellationToken ct) =>
+        {
+            var e = await db.Assignments.FirstOrDefaultAsync(a => a.Id == id && a.FacilityId == facilityId, ct);
+            if (e is null) return Results.NotFound();
+            db.Assignments.Remove(e);
+            await db.SaveChangesAsync(ct);
+            return Results.NoContent();
+        })
+        .RequireAuthorization("FacilityAccess");
 
         return v1;
     }

@@ -109,10 +109,12 @@ export default function AssignmentsPage() {
     loadAssignments();
   }, [loadAssignments]);
 
-  const staffRows = React.useMemo(
-    () => staff.map(s => ({ id: s.id, label: s.displayName ?? `${s.firstName} ${s.lastName}` })),
-    [staff]
-  );
+  const staffRows = React.useMemo(() => {
+    let filtered = staff;
+    if (unitId) filtered = filtered.filter(s => s.unitId === unitId);
+    if (roleId) filtered = filtered.filter(s => (s.role ?? "").toLowerCase() === roleId.toLowerCase());
+    return filtered.map(s => ({ id: s.id, label: s.displayName ?? `${s.firstName} ${s.lastName}` }));
+  }, [staff, unitId, roleId]);
 
   const assignmentCells = React.useMemo(() => {
     return assignments.map(a => {
@@ -154,10 +156,10 @@ export default function AssignmentsPage() {
     try {
       setLoading(true);
       if (!editingId) {
-        await createAssignment(facilityId, { unitId: values.unitId, staffId: values.staffId, roleId: values.roleId, start: values.start, end: values.end, notes: values.notes });
+        await createAssignment(facilityId, { unitId: values.unitId || undefined, staffId: values.staffId, roleId: values.roleId, start: values.start, end: values.end, notes: values.notes });
         setToast("Assignment created");
       } else {
-        await updateAssignment(facilityId, editingId, { id: editingId, unitId: values.unitId, staffId: values.staffId, roleId: values.roleId, start: values.start, end: values.end, notes: values.notes });
+        await updateAssignment(facilityId, editingId, { id: editingId, unitId: values.unitId || undefined, staffId: values.staffId, roleId: values.roleId, start: values.start, end: values.end, notes: values.notes });
         setToast("Assignment updated");
       }
       setDialogOpen(false);
@@ -215,15 +217,11 @@ export default function AssignmentsPage() {
           <Button variant="outlined" onClick={() => moveWeek(1)}>Next</Button>
         </Stack>
 
-        <TextField
-          label="Week of"
-          type="date"
-          value={weekStart.format("YYYY-MM-DD")}
-          onChange={e => setWeekStart(startOfWeekMonday(dayjs(e.target.value)))}
-          InputLabelProps={{ shrink: true }}
-          sx={{ width: 200 }}
-          size="small"
-        />
+        <Box sx={{ display: "flex", alignItems: "center", px: 1, border: "1px solid", borderColor: "divider", borderRadius: 1, height: 40, minWidth: 220 }}>
+          <Typography variant="body2" noWrap>
+            {weekStart.format("MMM D")} – {weekStart.add(6, "day").format("MMM D, YYYY")}
+          </Typography>
+        </Box>
 
         <TextField
           select

@@ -34,7 +34,8 @@ export async function suggestAssignments(payload: {
   startUtc: string;
   endUtc: string;
   unitId: string;
-  requiredCredential: "RN" | "LPN" | "CNA";
+  requiredCredential: string;
+  facilityId?: string;
 }): Promise<Suggestion[]> {
   const res = await api.post(
     "/scheduler/suggest-assignments",
@@ -64,9 +65,10 @@ function mapStaffItem(x: any): StaffRow {
   return { id, name, role, unit };
 }
 
-// Hits /api/v1/staff
-export async function listStaff(): Promise<StaffRow[]> {
-  const res = await api.get("/staff");
+// Hits /api/v1/facilities/{facilityId}/staff when facilityId provided, else /api/v1/staff
+export async function listStaff(facilityId?: string): Promise<StaffRow[]> {
+  const url = facilityId ? `/facilities/${facilityId}/staff` : "/staff";
+  const res = await api.get(url);
   const data = Array.isArray(res.data) ? res.data : res.data?.items ?? [];
   return data.map(mapStaffItem);
 }

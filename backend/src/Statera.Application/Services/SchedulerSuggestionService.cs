@@ -1,11 +1,11 @@
-﻿// backend/src/Statera.Application/Services/SchedulerSuggestionService.cs
+// backend/src/Statera.Application/Services/SchedulerSuggestionService.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Statera.Application;                // your DTOs (AssignmentSuggestionDto, ScheduleContextDto) + IRepository
-using Statera.Domain;                    // CredentialType
+using Statera.Application;
+using Statera.Domain;
 
 namespace Statera.Application.Services
 {
@@ -18,7 +18,6 @@ namespace Statera.Application.Services
             _heuristic = new HeuristicAssignmentSuggestionService(repo, license);
         }
 
-        // Uses your ScheduleContextDto (RequiredLicenseType is string)
         public async Task<IReadOnlyList<AssignmentSuggestionDto>> SuggestAsync(
             ScheduleContextDto ctx,
             CancellationToken ct = default)
@@ -26,25 +25,26 @@ namespace Statera.Application.Services
             if (!Enum.TryParse<CredentialType>(ctx.RequiredLicenseType, ignoreCase: true, out var cred))
                 throw new ArgumentException($"Unknown credential type '{ctx.RequiredLicenseType}'.", nameof(ctx.RequiredLicenseType));
 
-            var tuples = await _heuristic.SuggestAsync(ctx.StartUtc, ctx.EndUtc, ctx.UnitId, cred, ct);
+            var tuples = await _heuristic.SuggestAsync(
+                ctx.StartUtc, ctx.EndUtc, ctx.UnitId, cred,
+                facilityId: ctx.FacilityId,
+                ct: ct);
 
-            var list = tuples
-                .Select(t => new AssignmentSuggestionDto(t.StaffId, t.Score, Reasoning: "heuristic"))
+            return tuples
+                .Select(t => new AssignmentSuggestionDto(t.StaffId, t.Score, t.Reasoning))
                 .ToList();
-
-            return list; // List<T> is fine for IReadOnlyList<T>
         }
 
-        // Convenience overload that takes raw params and forwards to the context-based version
         public Task<IReadOnlyList<AssignmentSuggestionDto>> SuggestAsync(
             DateTime startUtc,
             DateTime endUtc,
             Guid unitId,
             string requiredLicenseType,
+            Guid? facilityId = null,
             CancellationToken ct = default)
         {
-            var ctx = new ScheduleContextDto(startUtc, endUtc, unitId, requiredLicenseType);
-            return SuggestAsync(ctx, ct); // already returns Task<IReadOnlyList<...>>
+            var ctx = new ScheduleContextDto(startUtc, endUtc, unitId, requiredLicenseType, facilityId);
+            return SuggestAsync(ctx, ct);
         }
     }
 }

@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
+import dayjs from "dayjs";
 import {
   Container,
-  TextField,
-  MenuItem,
-  Button,
   Typography,
+  Box,
+  Button,
   CircularProgress,
   Alert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   Table,
   TableBody,
   TableCell,
@@ -15,13 +19,16 @@ import {
   TableRow,
   Paper,
   TableSortLabel,
-  Select,
-  FormControl,
-  InputLabel,
-  Box
+  Chip,
+  Tooltip,
+  Snackbar,
+  TextField,
 } from "@mui/material";
-import { suggestAssignments, listStaff, Suggestion } from "../api/endpoints";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import { suggestAssignments, Suggestion } from "../api/endpoints";
 import { listUnits } from "../api/units";
+import { listStaff as listFacilityStaff } from "../api/staff";
+import { createAssignment } from "../api/assignments";
 import { useFacility } from "../context/facility";
 
 type Row = {
@@ -29,132 +36,299 @@ type Row = {
   name: string;
   role?: string | null;
   score: number;
-  reasoning?: string;
+  reasoning: string;
+  accepted?: boolean;
 };
 
-export default function Scheduler(){
-  const [startUtc,setStart]=useState<string>(new Date().toISOString());
-  const [endUtc,setEnd]=useState<string>(new Date(Date.now()+8*3600*1000).toISOString());
-  const [unitId,setUnitId]=useState<string>("");
-  const [cred,setCred]=useState<"RN"|"LPN"|"CNA">("RN");
-  const [rows,setRows]=useState<Row[]>([]);
-  const [loading,setLoading]=useState(false);
-  const [error,setError]=useState<string | null>(null);
-  const [units,setUnits]=useState<{id:string;name:string}[]>([]);
+const CREDENTIALS = ["RN", "LPN", "CNA", "MD", "PA", "NP", "CRNA", "RRT", "EMT", "Other"];
+
+export default function Scheduler() {
   const { facilities, selected: facility, setSelectedId } = useFacility();
+  const [units, setUnits]   = useState<{ id: string; name: string }[]>([]);
+  const [unitId, setUnitId] = useState<string>("");
+  const [cred, setCred]     = useState<string>("RN");
 
-  // load units when facility changes
+  // Default: today 07:00 – 15:00
+  const [startDt, setStartDt] = useState<string>(
+    dayjs().startOf("day").add(7, "hour").format("YYYY-MM-DDTHH:mm")
+  );
+  const [endDt, setEndDt] = useState<string>(
+    dayjs().startOf("day").add(15, "hour").format("YYYY-MM-DDTHH:mm")
+  );
+
+  const [rows, setRows]           = useState<Row[]>([]);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+  const [orderBy, setOrderBy]     = useState<"score" | "name">("score");
+  const [orderDesc, setOrderDesc] = useState(true);
+  const [toast, setToast]         = useState<string | null>(null);
+
+  // Load units when facility changes
   useEffect(() => {
-    let mounted = true;
-    async function load() {
-      if (!facility) return setUnits([]);
-      try {
-        const u = await listUnits(facility.id);
-        if (mounted) setUnits(u.map(x => ({ id: x.id, name: x.name })));
-      } catch (e) {
-        if (mounted) setUnits([]);
-      }
-    }
-    load();
-    return () => { mounted = false; };
+    let active = true;
+    setUnits([]);
+    setUnitId("");
+    if (!facility) return;
+    listUnits(facility.id)
+      .then(u => { if (active) setUnits(u.map(x => ({ id: x.id, name: x.name }))); })
+      .catch(() => { if (active) setUnits([]); });
+    return () => { active = false; };
   }, [facility]);
-  const [orderBy,setOrderBy]=useState<"score"|"name">("score");
-  const [orderDesc,setOrderDesc]=useState<boolean>(true);
 
-  async function run(){
+  async function run() {
+    if (!facility) { setError("Please select a facility first."); return; }
     setLoading(true);
     setError(null);
     setRows([]);
-    try{
-      const res: Suggestion[] = await suggestAssignments({ startUtc, endUtc, unitId, requiredCredential: cred });
+    try {
+      const startUtc = dayjs(startDt).toISOString();
+      const endUtc   = dayjs(endDt).toISOString();
 
-      // batch-fetch staff (optionally scoped to facility)
-      const facilityId = facility?.id ?? undefined;
-      const staffList = await listStaff(facilityId);
-      const map = new Map(staffList.map(s => [s.id, s]));
+      const [suggestions, staffList] = await Promise.all([
+        suggestAssignments({
+          startUtc,
+          endUtc,
+          unitId:             unitId || "",
+          requiredCredential: cred,
+          facilityId:         facility.id,
+        }),
+        listFacilityStaff(facility.id),
+      ]);
 
-      const details = res.map(s => {
-        const d = map.get(s.staffId);
-        const name = d?.name ?? s.staffId;
-        const role = d?.role ?? null;
-        return { staffId: s.staffId, name, role, score: s.score, reasoning: s.reasoning } as Row;
+      const staffMap = new Map(staffList.map(s => [s.id, s]));
+
+      const details: Row[] = suggestions.map((s: Suggestion) => {
+        const d    = staffMap.get(s.staffId);
+        const name = d
+          ? (`${d.firstName} ${d.lastName}`.trim() || d.displayName || s.staffId)
+          : s.staffId;
+        return {
+          staffId:   s.staffId,
+          name,
+          role:      d?.role ?? null,
+          score:     s.score,
+          reasoning: s.reasoning ?? "",
+          accepted:  false,
+        };
       });
 
       setRows(details);
-    }catch(e:any){
+    } catch (e: any) {
       setError(e?.response?.data?.error ?? e?.message ?? "Request failed");
-    }finally{
+    } finally {
       setLoading(false);
     }
   }
 
-  const sorted = [...rows].sort((a,b)=>{
+  async function acceptSuggestion(row: Row) {
+    if (!facility) return;
+    try {
+      await createAssignment(facility.id, {
+        staffId: row.staffId,
+        roleId:  row.role ?? cred,
+        unitId:  unitId || undefined,
+        start:   dayjs(startDt).toISOString(),
+        end:     dayjs(endDt).toISOString(),
+        notes:   `Auto-assigned via scheduler (score ${row.score.toFixed(0)})`,
+      });
+      setRows(prev =>
+        prev.map(r => r.staffId === row.staffId ? { ...r, accepted: true } : r)
+      );
+      setToast(`Assignment created for ${row.name}`);
+    } catch (e: any) {
+      setError(e?.response?.data?.error ?? e?.message ?? "Failed to create assignment");
+    }
+  }
+
+  const sorted = [...rows].sort((a, b) => {
     const dir = orderDesc ? -1 : 1;
-    if(orderBy === "score") return dir * (b.score - a.score);
+    if (orderBy === "score") return dir * (b.score - a.score);
     return dir * a.name.localeCompare(b.name);
   });
 
-  return (<Container sx={{ mt:3 }}>
-    <Typography variant="h5" gutterBottom>AI Suggestions</Typography>
-    <TextField fullWidth label="Start (UTC ISO)" margin="dense" value={startUtc} onChange={e=>setStart(e.target.value)} />
-    <TextField fullWidth label="End (UTC ISO)" margin="dense" value={endUtc} onChange={e=>setEnd(e.target.value)} />
-      <Box sx={{ display: 'flex', gap:2, alignItems: 'center', mt:1 }}>
-      <FormControl size="small" sx={{ minWidth:260 }}>
-        <InputLabel>Facility</InputLabel>
-        <Select label="Facility" value={facility?.id ?? ""} onChange={(e)=>setSelectedId(String(e.target.value))}>
-          {facilities.map(f => (<MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>))}
-        </Select>
-      </FormControl>
-      <FormControl size="small" sx={{ minWidth:220 }}>
-        <InputLabel>Unit</InputLabel>
-        <Select label="Unit" value={unitId} onChange={(e)=>setUnitId(String(e.target.value))}>
-          <MenuItem value="">(Any Unit)</MenuItem>
-          {units.map(u => (<MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>))}
-        </Select>
-      </FormControl>
-      <TextField select size="small" label="Credential" value={cred} onChange={(e)=>setCred(e.target.value as any)} sx={{ minWidth:120 }}>
-        <MenuItem value="RN">RN</MenuItem><MenuItem value="LPN">LPN</MenuItem><MenuItem value="CNA">CNA</MenuItem>
-      </TextField>
-      <Button variant="contained" onClick={run} disabled={loading}>Suggest</Button>
-    </Box>
+  function toggleSort(col: "score" | "name") {
+    if (orderBy === col) setOrderDesc(d => !d);
+    else { setOrderBy(col); setOrderDesc(col === "score"); }
+  }
 
-    {loading ? (
-      <CircularProgress sx={{ mt:2 }} />
-    ) : error ? (
-      <Alert severity="error" sx={{ mt:2 }}>{error}</Alert>
-    ) : rows.length === 0 ? (
-      <Typography sx={{ mt:2, color: 'text.secondary' }}>No suggestions returned</Typography>
-    ) : (
-      <TableContainer component={Paper} sx={{ mt:2 }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>
-                <TableSortLabel active={orderBy==='name'} direction={orderDesc? 'desc':'asc'} onClick={()=>{ if(orderBy==='name') setOrderDesc(!orderDesc); else { setOrderBy('name'); setOrderDesc(false); } }}>
-                  Name
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell align="right">
-                <TableSortLabel active={orderBy==='score'} direction={orderDesc? 'desc':'asc'} onClick={()=>{ if(orderBy==='score') setOrderDesc(!orderDesc); else { setOrderBy('score'); setOrderDesc(true); } }}>
-                  Score
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>Reasoning</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {sorted.map(r=> (
-              <TableRow key={r.staffId}>
-                <TableCell>{r.name}</TableCell>
-                <TableCell>{r.role ?? '—'}</TableCell>
-                <TableCell align="right">{r.score.toFixed(0)}</TableCell>
-                <TableCell>{r.reasoning}</TableCell>
+  function scoreColor(score: number): "success" | "warning" | "error" | "default" {
+    if (score >= 70) return "success";
+    if (score >= 40) return "warning";
+    return "error";
+  }
+
+  return (
+    <Container sx={{ mt: 3, pb: 4 }}>
+      <Typography variant="h5" gutterBottom>Scheduler — Staff Suggestions</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Select a shift window and credential, then click <strong>Suggest</strong>. Staff are
+        scored using weekly hours, facility constraints, rest rules, and role/license checks.
+        Click <strong>Accept</strong> to create the assignment directly.
+      </Typography>
+
+      {/* ── Controls ─────────────────────────────────────────── */}
+      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "flex-end" }}>
+          <FormControl size="small" sx={{ minWidth: 240 }}>
+            <InputLabel>Facility</InputLabel>
+            <Select
+              label="Facility"
+              value={facility?.id ?? ""}
+              onChange={e => setSelectedId(String(e.target.value))}
+            >
+              {facilities.map(f => (
+                <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>Unit</InputLabel>
+            <Select
+              label="Unit"
+              value={unitId}
+              onChange={e => setUnitId(String(e.target.value))}
+              disabled={units.length === 0}
+            >
+              <MenuItem value="">(Any unit)</MenuItem>
+              {units.map(u => (
+                <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 110 }}>
+            <InputLabel>Credential</InputLabel>
+            <Select
+              label="Credential"
+              value={cred}
+              onChange={e => setCred(e.target.value)}
+            >
+              {CREDENTIALS.map(c => (
+                <MenuItem key={c} value={c}>{c}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <TextField
+            size="small"
+            label="Shift start"
+            type="datetime-local"
+            value={startDt}
+            onChange={e => setStartDt(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 200 }}
+          />
+
+          <TextField
+            size="small"
+            label="Shift end"
+            type="datetime-local"
+            value={endDt}
+            onChange={e => setEndDt(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 200 }}
+          />
+
+          <Button
+            variant="contained"
+            onClick={run}
+            disabled={loading || !facility}
+            sx={{ height: 40 }}
+          >
+            {loading ? <CircularProgress size={20} color="inherit" /> : "Suggest"}
+          </Button>
+        </Box>
+      </Paper>
+
+      {/* ── Results ──────────────────────────────────────────── */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {!loading && rows.length === 0 && !error && (
+        <Typography color="text.secondary">
+          No suggestions yet — configure the shift above and click Suggest.
+        </Typography>
+      )}
+
+      {rows.length > 0 && (
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === "name"}
+                    direction={orderDesc ? "desc" : "asc"}
+                    onClick={() => toggleSort("name")}
+                  >
+                    Name
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>Role</TableCell>
+                <TableCell align="center">
+                  <TableSortLabel
+                    active={orderBy === "score"}
+                    direction={orderDesc ? "desc" : "asc"}
+                    onClick={() => toggleSort("score")}
+                  >
+                    Score
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>Reasoning</TableCell>
+                <TableCell align="center">Action</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    )}
-  </Container>);
+            </TableHead>
+            <TableBody>
+              {sorted.map(r => (
+                <TableRow key={r.staffId} sx={{ opacity: r.accepted ? 0.55 : 1 }}>
+                  <TableCell>{r.name}</TableCell>
+                  <TableCell>
+                    <Chip label={r.role ?? "—"} size="small" variant="outlined" />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip
+                      label={r.score.toFixed(0)}
+                      size="small"
+                      color={scoreColor(r.score)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="caption" color="text.secondary">
+                      {r.reasoning}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    {r.accepted ? (
+                      <Tooltip title="Assignment created">
+                        <CheckCircleOutlineIcon color="success" fontSize="small" />
+                      </Tooltip>
+                    ) : (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => acceptSuggestion(r)}
+                      >
+                        Accept
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      <Snackbar
+        open={!!toast}
+        autoHideDuration={3500}
+        onClose={() => setToast(null)}
+        message={toast}
+      />
+    </Container>
+  );
 }

@@ -133,6 +133,7 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
         b.Entity<Assignment>(entity =>
         {
             entity.Property(a => a.FacilityState).HasMaxLength(2).IsRequired();
+            entity.Property(a => a.RoleId).HasMaxLength(20);
             entity.Property(a => a.Notes).HasMaxLength(256);
             entity.Property(a => a.RowVersion).IsRowVersion();
             entity.ToTable(t => t.HasCheckConstraint("CK_Assignment_EndAfterStart", "[EndUtc] > [StartUtc]"));
