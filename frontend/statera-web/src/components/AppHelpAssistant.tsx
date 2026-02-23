@@ -2,7 +2,7 @@
 // Searchable help documentation loaded from the database
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box, CircularProgress, Chip, Dialog, DialogContent, DialogTitle, Divider,
+  Box, Button, CircularProgress, Chip, Dialog, DialogContent, DialogTitle, Divider,
   IconButton, InputAdornment, List, ListItemButton, ListItemText,
   Stack, TextField, Tooltip, Typography,
 } from "@mui/material";
@@ -80,6 +80,7 @@ export default function AppHelpAssistant() {
   const [open, setOpen] = useState(false);
   const [articles, setArticles] = useState<HelpArticleDto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<HelpArticleDto | null>(null);
 
@@ -87,9 +88,10 @@ export default function AppHelpAssistant() {
   useEffect(() => {
     if (!open || articles.length > 0) return;
     setLoading(true);
+    setLoadError(null);
     listHelpArticles()
       .then(setArticles)
-      .catch(() => {/* silently ignore — dialog will show empty state */})
+      .catch(() => setLoadError("Could not load help articles. Please try again."))
       .finally(() => setLoading(false));
   }, [open, articles.length]);
 
@@ -204,6 +206,13 @@ export default function AppHelpAssistant() {
           ) : loading ? (
             <Box sx={{ display: "flex", justifyContent: "center", pt: 4 }}>
               <CircularProgress size={32} />
+            </Box>
+          ) : loadError ? (
+            <Box sx={{ pt: 3, textAlign: "center" }}>
+              <Typography variant="body2" color="error">{loadError}</Typography>
+              <Button size="small" sx={{ mt: 1 }} onClick={() => { setArticles([]); setLoadError(null); }}>
+                Retry
+              </Button>
             </Box>
           ) : articles.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: "center" }}>

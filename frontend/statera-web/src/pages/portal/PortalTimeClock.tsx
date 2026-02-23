@@ -196,7 +196,7 @@ export default function PortalTimeClock() {
               {!isClockedIn && (
                 <Button variant="contained" color="success" size="large" disabled={busy}
                   startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <Login />}
-                  onClick={() => doAction(() => clockIn(user!.facilityIds![0], user?.staffId ?? undefined))}>
+                  onClick={() => doAction(() => clockIn(user?.facilityIds?.[0] ?? "", user?.staffId ?? undefined))}>
                   Clock In
                 </Button>
               )}

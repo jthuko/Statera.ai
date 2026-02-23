@@ -15,7 +15,10 @@ export default function LoginPage(){
     setLoading(true);
     try{
       await login(email, password);
-      nav("/"); // ← was "/dashboard"
+      // Read role from localStorage (setUser is async, but localStorage is sync)
+      const raw = localStorage.getItem("statera:user");
+      const role = raw ? (JSON.parse(raw) as { systemRole?: string }).systemRole : null;
+      nav(role === "Staff" ? "/portal" : "/");
     } finally { setLoading(false); }
   };
 
