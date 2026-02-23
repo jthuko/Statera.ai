@@ -4,14 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert, Box, CircularProgress, Divider, IconButton, InputAdornment,
   List, ListItemButton, ListItemText, Stack, TextField, Typography,
-  Badge,
+  Badge, Button, Dialog, DialogTitle, DialogContent, DialogActions,
+  Avatar,
 } from "@mui/material";
-import { Send as SendIcon } from "@mui/icons-material";
+import { Send as SendIcon, Add as AddIcon } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { useAuth } from "../../auth/useAuth";
 import {
-  listRooms, listMessages, sendMessage, markRoomRead,
-  type ChatRoomDto, type ChatMessageDto,
+  listRooms, listMessages, sendMessage, markRoomRead, createRoom, listUsers,
+  type ChatRoomDto, type ChatMessageDto, type AppUserDto,
 } from "../../api/chat";
 
 export default function PortalChat() {
@@ -25,6 +26,13 @@ export default function PortalChat() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // New message dialog
+  const [newMsgOpen, setNewMsgOpen] = useState(false);
+  const [allUsers, setAllUsers] = useState<AppUserDto[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [startingDm, setStartingDm] = useState(false);
 
   const loadRooms = useCallback(async () => {
     try {
@@ -81,6 +89,45 @@ export default function PortalChat() {
     }
   }
 
+  async function openNewMsgDialog() {
+    setNewMsgOpen(true);
+    setUserSearch("");
+    if (allUsers.length > 0) return;
+    setUsersLoading(true);
+    try {
+      const users = await listUsers();
+      setAllUsers(users.filter(u => u.id !== user?.id));
+    } catch {
+      setError("Could not load users.");
+    } finally {
+      setUsersLoading(false);
+    }
+  }
+
+  async function startDm(target: AppUserDto) {
+    setStartingDm(true);
+    try {
+      // Reuse existing DM if one already exists
+      const existing = rooms.find(
+        r => r.type === "Direct" && r.members.some(m => m.userId === target.id)
+      );
+      if (existing) {
+        setNewMsgOpen(false);
+        await selectRoom(existing);
+        return;
+      }
+      const facilityId = user?.facilityIds?.[0] ?? "";
+      const room = await createRoom({ facilityId, type: "Direct", memberUserIds: [target.id] });
+      setRooms(prev => [room, ...prev]);
+      setNewMsgOpen(false);
+      await selectRoom(room);
+    } catch {
+      setError("Could not start conversation.");
+    } finally {
+      setStartingDm(false);
+    }
+  }
+
   const roomName = (room: ChatRoomDto) => {
     if (room.name) return room.name;
     const other = room.members.find(m => m.userId !== user?.id);
@@ -94,10 +141,15 @@ export default function PortalChat() {
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)", zIndex: 10, minWidth: 300 }}>{error}</Alert>}
 
       {/* Room list */}
-      <Box sx={{ width: 200, borderRight: "1px solid rgba(255,255,255,0.1)", overflowY: "auto", flexShrink: 0 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ px: 1.5, py: 1, display: "block", fontWeight: 600 }}>
-          CONVERSATIONS
-        </Typography>
+      <Box sx={{ width: 200, borderRight: "1px solid rgba(255,255,255,0.1)", overflowY: "auto", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 1 }}>
+          <Typography variant="caption" color="text.secondary" fontWeight={600}>
+            CONVERSATIONS
+          </Typography>
+          <IconButton size="small" onClick={openNewMsgDialog} title="New message">
+            <AddIcon fontSize="small" />
+          </IconButton>
+        </Stack>
         <List dense disablePadding>
           {rooms.length === 0 && (
             <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
@@ -200,6 +252,54 @@ export default function PortalChat() {
           </>
         )}
       </Box>
+      {/* New Message dialog */}
+      <Dialog open={newMsgOpen} onClose={() => setNewMsgOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>New Message</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <TextField
+            autoFocus fullWidth size="small" placeholder="Search by name or email…"
+            value={userSearch} onChange={e => setUserSearch(e.target.value)}
+            sx={{ mb: 1 }}
+          />
+          {usersLoading ? (
+            <Box sx={{ textAlign: "center", py: 3 }}><CircularProgress size={24} /></Box>
+          ) : (
+            <List dense disablePadding sx={{ maxHeight: 320, overflowY: "auto" }}>
+              {allUsers
+                .filter(u => {
+                  const q = userSearch.toLowerCase();
+                  return q === "" || u.email.toLowerCase().includes(q);
+                })
+                .map(u => (
+                  <ListItemButton
+                    key={u.id}
+                    onClick={() => startDm(u)}
+                    disabled={startingDm}
+                  >
+                    <Avatar sx={{ width: 28, height: 28, mr: 1.5, fontSize: 13 }}>
+                      {u.email[0].toUpperCase()}
+                    </Avatar>
+                    <ListItemText
+                      primary={u.email}
+                      secondary={u.systemRole}
+                      primaryTypographyProps={{ variant: "body2" }}
+                      secondaryTypographyProps={{ variant: "caption" }}
+                    />
+                  </ListItemButton>
+                ))}
+              {allUsers.length > 0 && allUsers.filter(u => {
+                const q = userSearch.toLowerCase();
+                return q === "" || u.email.toLowerCase().includes(q);
+              }).length === 0 && (
+                <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>No users match your search.</Typography>
+              )}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNewMsgOpen(false)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
