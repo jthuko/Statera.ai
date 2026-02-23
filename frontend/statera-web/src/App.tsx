@@ -23,6 +23,7 @@ import DemandTemplatesListPage from "./pages/demand-templates";
 import DemandTemplateEditorPage from "./pages/demand-templates/editor";
 import FacilityAdminPage from "./pages/facilities/FacilityAdminPage";
 import ChatPage from "./pages/ChatPage";
+import AdminTimeClock from "./pages/AdminTimeClock";
 
 // Portal pages (staff)
 import PortalDashboard from "./pages/portal/PortalDashboard";
@@ -84,6 +85,7 @@ export default function App() {
         <Route path="/constraints" element={<ConstraintsPage />} />
         <Route path="/coverage" element={<CoveragePage/>} />
         <Route path="chat" element={<ChatPage />} />
+        <Route path="timeclock" element={<AdminTimeClock />} />
         <Route path="dashboard" element={<Navigate to="/" replace />} />
         <Route path="/demand-templates" element={<DemandTemplatesListPage />} />
         <Route path="/demand-templates/:id" element={<DemandTemplateEditorPage />} />

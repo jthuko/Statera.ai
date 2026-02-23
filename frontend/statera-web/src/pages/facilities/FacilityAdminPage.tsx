@@ -767,14 +767,15 @@ function TimeClockTab({ facilityId, setToast }: {
         await adjustTimeClockEntry(reviewing.id, {
           clockInUtc: dayjs(adjIn).toISOString(),
           clockOutUtc: adjOut ? dayjs(adjOut).toISOString() : undefined,
-          notes: reviewNote || undefined,
+          adminNotes: reviewNote || undefined,
         });
         setToast({ msg: "Entry adjusted.", sev: "success" });
       } else {
-        await reviewTimeClockEntry(reviewing.id, {
-          action: reviewMode,
-          adminNotes: reviewNote || undefined,
-        });
+        await reviewTimeClockEntry(
+          reviewing.id,
+          reviewMode as "Approved" | "Denied",
+          reviewNote || undefined,
+        );
         setToast({ msg: reviewMode === "Approve" ? "Entry approved." : "Entry denied.", sev: "success" });
       }
       setReviewing(null);

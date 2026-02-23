@@ -277,7 +277,15 @@ public static class FacilitiesEndpoints
             if (startUtc >= endUtc)
                 return Results.BadRequest(new { error = "start must be before end" });
 
-            var availError = await CheckAvailabilityAsync(db, req.StaffId, DateTime.SpecifyKind(startUtc, DateTimeKind.Utc), DateTime.SpecifyKind(endUtc, DateTimeKind.Utc), ct);
+            var sUtc = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc);
+            var eUtc = DateTime.SpecifyKind(endUtc, DateTimeKind.Utc);
+
+            var onLeave = await db.TimeOffRequests.AnyAsync(r =>
+                r.StaffId == req.StaffId && r.Status == "Approved" &&
+                r.StartUtc < eUtc && r.EndUtc > sUtc, ct);
+            if (onLeave) return Results.UnprocessableEntity(new { error = "Staff has approved time off during this shift.", code = "ON_TIME_OFF" });
+
+            var availError = await CheckAvailabilityAsync(db, req.StaffId, sUtc, eUtc, ct);
             if (availError is not null) return Results.UnprocessableEntity(new { error = availError, code = "AVAILABILITY_CONFLICT" });
 
             var e = new DomAssignment

@@ -21,6 +21,7 @@ import {
 import { Outlet, Link as RouterLink, useMatch, useResolvedPath } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import AppNotificationBell from "./AppNotificationBell";
+import AppHelpAssistant from "./AppHelpAssistant";
 
 
 const drawerWidth = 260;
@@ -62,6 +63,7 @@ export default function AppShell() {
     { to: "/constraints", label: "Constraints & Rules", icon: <Rule /> },
     { to: "/coverage",    label: "Coverage",         icon: <Work /> },
     { to: "/demand-templates", label: "Demand Templates", icon: <EventNote /> },
+    { to: "/timeclock",        label: "Time Clock",        icon: <AccessAlarm /> },
     { to: "/chat",             label: "Chat",             icon: <Chat /> },
   ];
 
@@ -102,6 +104,7 @@ export default function AppShell() {
             />
           </Box>
           <AppNotificationBell />
+          <AppHelpAssistant />
           <IconButton color="inherit" onClick={logout} title="Logout" sx={{ ml: 1 }}>
             ⎋
           </IconButton>

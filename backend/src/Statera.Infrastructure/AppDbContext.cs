@@ -70,6 +70,9 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
     public DbSet<ChatRoomMember> ChatRoomMembers => Set<ChatRoomMember>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
+    // Help documentation
+    public DbSet<HelpArticle> HelpArticles => Set<HelpArticle>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
@@ -267,6 +270,16 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
         {
             e.Property(x => x.Content).HasMaxLength(4000).IsRequired();
             e.HasIndex(x => new { x.RoomId, x.SentUtc });
+        });
+
+        // HelpArticle
+        b.Entity<HelpArticle>(e =>
+        {
+            e.Property(x => x.Category).HasMaxLength(80).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.TagsJson).HasColumnType("nvarchar(max)").HasDefaultValue("[]");
+            e.Property(x => x.SectionsJson).HasColumnType("nvarchar(max)").HasDefaultValue("[]");
+            e.HasIndex(x => new { x.Category, x.SortOrder });
         });
     }
 }

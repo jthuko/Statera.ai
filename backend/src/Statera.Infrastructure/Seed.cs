@@ -548,6 +548,212 @@ public static class DevDataSeeder
             logger.LogWarning(ex, "DevDataSeeder: error while seeding assignments.");
         }
 
+        // ── Help Articles ─────────────────────────────────────────────────────
+        if (!await db.HelpArticles.AnyAsync())
+        {
+            static string Tags(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+
+            static string Sections(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.AddRange(
+                // ── Scheduler ─────────────────────────────────────────────────
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Scheduler", Title = "Using the Scheduler", SortOrder = 1,
+                    TagsJson = Tags("schedule", "calendar", "shifts", "auto-generate", "week"),
+                    SectionsJson = Sections(
+                        (null, "The Scheduler gives you a weekly/monthly calendar view of all staff shifts. Select a facility at the top and use the arrows to navigate between weeks."),
+                        ("Auto-generating a schedule", "1. Set up Demand Templates for each unit first.\n2. Open Scheduler, choose a facility and date range.\n3. Click Auto-Generate. The system fills shifts based on templates, staff availability, credentials, and constraint rules."),
+                        ("Adding a shift manually", "Click any empty cell in the calendar grid. A dialog appears — pick the staff member, unit, start/end times, and save."),
+                        ("Editing or removing a shift", "Click an existing shift block to open the edit dialog. Modify times or click Delete to remove the shift."))
+                },
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Scheduler", Title = "Scheduling Conflicts & Blocks", SortOrder = 2,
+                    TagsJson = Tags("conflict", "availability", "time off", "vacation", "block", "error"),
+                    SectionsJson = Sections(
+                        (null, "The system prevents scheduling staff in these situations when assigning manually:"),
+                        ("Approved time off", "If a staff member has approved time off covering any part of the shift, the assignment is blocked with an error: 'Staff has approved time off during this shift.'"),
+                        ("Availability windows", "If a staff member has defined availability (e.g., Mon–Fri 7 am–3 pm only), shifts outside those windows are blocked. Auto-scheduling skips unavailable staff instead of blocking."),
+                        ("Overlapping shifts", "A staff member cannot be assigned to two shifts that overlap in time."))
+                },
+                // ── Staff ──────────────────────────────────────────────────────
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Staff", Title = "Managing Staff", SortOrder = 1,
+                    TagsJson = Tags("staff", "employee", "hire", "add", "edit", "deactivate", "profile"),
+                    SectionsJson = Sections(
+                        (null, "The Staff Directory lists all staff members. Use the search bar to filter by name or role. Click a row to open the full profile."),
+                        ("Adding a new staff member", "Click Add Staff. Fill in first name, last name, role (RN, CNA, etc.), facility, and unit. Save to create the profile."),
+                        ("Editing a profile", "Click on a staff member's name to open their detail page. Edit personal info, credentials, licenses, and availability windows."),
+                        ("Deactivating staff", "On the staff detail page, toggle the Active switch off. Inactive staff are hidden from scheduling suggestions but their history is preserved."))
+                },
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Staff", Title = "Setting Staff Availability", SortOrder = 2,
+                    TagsJson = Tags("availability", "schedule", "days", "hours", "windows"),
+                    SectionsJson = Sections(
+                        (null, "Availability windows define when a staff member is able to work. If no windows are set, the system treats them as available at any time."),
+                        ("Adding availability", "Open Staff Directory → click a staff member → Availability section → Add Window. Select day of week, start time, and end time."),
+                        ("How it affects scheduling", "Auto-Scheduling: staff outside their availability window are skipped silently.\nManual Assignment: blocked with an error message so you don't accidentally schedule them."))
+                },
+                // ── Time Off ───────────────────────────────────────────────────
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Time Off", Title = "Reviewing Time-Off Requests (Admin)", SortOrder = 1,
+                    TagsJson = Tags("time off", "approve", "deny", "vacation", "leave", "request"),
+                    SectionsJson = Sections(
+                        (null, "The Time Off page lists all staff requests. Filter by facility, status, or date range."),
+                        ("Approving or denying", "Find the request and click Approve or Deny. Approved time off is immediately enforced — the system will block any new assignments that overlap with the approved period."),
+                        ("Viewing by status", "Use the Status filter to see only Pending, Approved, or Denied requests."))
+                },
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Time Off", Title = "Requesting Time Off (Staff Portal)", SortOrder = 2,
+                    TagsJson = Tags("time off", "request", "vacation", "portal", "leave"),
+                    SectionsJson = Sections(
+                        (null, "From the Staff Portal, go to Time Off to submit and track your requests."),
+                        ("Submitting a request", "Click Request Time Off. Choose start date, end date, type (Vacation, Sick, etc.), and add a note if needed. Submit — your manager will be notified."),
+                        ("Checking status", "Your requests show as Pending until a manager acts. Once Approved or Denied you'll see the updated status on this page."))
+                },
+                // ── Time Clock ─────────────────────────────────────────────────
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Time Clock", Title = "Clocking In & Out (Staff Portal)", SortOrder = 1,
+                    TagsJson = Tags("clock in", "clock out", "lunch", "portal", "timeclock"),
+                    SectionsJson = Sections(
+                        (null, "The Clock page in the Staff Portal manages your daily time tracking."),
+                        ("Starting your shift", "Click Clock In when you arrive. Your start time is recorded automatically."),
+                        ("Lunch break", "Click Start Lunch when you leave for lunch. Click End Lunch when you return. This time is subtracted from your net hours."),
+                        ("Ending your shift", "Click Clock Out. Any open lunch break is automatically closed. Your net hours (excluding lunch) are calculated."),
+                        ("Viewing recent entries", "A calendar below the buttons shows daily hours for the current month. Click on a day to see details."))
+                },
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Time Clock", Title = "Submitting a Time Correction (Staff Portal)", SortOrder = 2,
+                    TagsJson = Tags("correction", "adjust", "fix", "wrong time", "timesheet", "portal"),
+                    SectionsJson = Sections(
+                        (null, "If your clock-in or clock-out time is wrong, you can submit a correction request for admin approval."),
+                        ("How to submit", "On the Clock page, find the completed entry. Click Request Correction. Enter the correct clock-in, clock-out, and lunch times, add a note explaining the reason, and submit."),
+                        ("What happens next", "The entry status changes to 'Pending Correction'. An admin will review it and either Approve (applying your corrected times) or Deny it."))
+                },
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Time Clock", Title = "Managing Time Entries (Admin)", SortOrder = 3,
+                    TagsJson = Tags("admin", "timeclock", "adjust", "approve", "deny", "correction", "payroll", "csv"),
+                    SectionsJson = Sections(
+                        (null, "The Time Clock admin page lets you view, adjust, and approve all staff time entries."),
+                        ("Filtering entries", "Use the Facility, Staff, Date Range, and Status filters to narrow down entries. Load up to 200 entries at once."),
+                        ("Adjusting an entry", "Click Adjust on any entry. You can edit clock-in, clock-out, lunch start, lunch end, and add an admin note. Save to apply changes — the entry becomes 'Adjusted'."),
+                        ("Approving corrections", "Entries with status 'Pending Correction' show the staff member's requested times and reason. Click Approve to apply those times, or Deny to reject them."),
+                        ("Downloading for payroll", "Click Download CSV. The file includes: Staff, Date, Day, Clock In, Clock Out, Lunch Start, Lunch End, Lunch (hrs), Net Hours, Status, and Admin Notes — ready for payroll processing."))
+                },
+                // ── Assignments ────────────────────────────────────────────────
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Assignments", Title = "Managing Assignments", SortOrder = 1,
+                    TagsJson = Tags("assignment", "shift", "manual", "add", "edit", "delete"),
+                    SectionsJson = Sections(
+                        (null, "The Assignments page lists every scheduled shift. You can filter by facility, unit, date range, or staff member."),
+                        ("Adding a manual assignment", "Click Add Assignment. Select staff, unit, start date/time, and end date/time. The system checks for time-off conflicts and availability before saving."),
+                        ("Editing or deleting", "Click the edit icon on a row to modify times or staff. Use the delete icon to remove an assignment."))
+                },
+                // ── Coverage ───────────────────────────────────────────────────
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Coverage", Title = "Filling Coverage Gaps", SortOrder = 1,
+                    TagsJson = Tags("coverage", "gap", "open shift", "understaffed", "fill"),
+                    SectionsJson = Sections(
+                        (null, "The Coverage page shows a daily heat map of your staffing level vs. demand by unit. Red cells mean you're understaffed."),
+                        ("Filling an open shift", "Click on an understaffed cell. A panel opens showing available staff for that unit and time. Click a staff member to assign them, or use the manual form to set custom times."),
+                        ("Understanding colors", "Green = fully staffed or over.\nYellow = slightly understaffed.\nRed = significantly understaffed.\nGray = no demand set."))
+                },
+                // ── Constraints ────────────────────────────────────────────────
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Constraints & Rules", Title = "Setting Up Constraint Rules", SortOrder = 1,
+                    TagsJson = Tags("constraints", "rules", "hours", "overtime", "rest", "consecutive", "preference"),
+                    SectionsJson = Sections(
+                        (null, "Constraints & Rules let you enforce scheduling policies. They are applied during auto-scheduling and manual assignments."),
+                        ("MaxHoursPerWeek", "Hard blocks a staff member from being scheduled if they've already worked this many hours in the past 7 days. Default: 40h."),
+                        ("MinRestBetweenShifts", "Requires a minimum number of hours off between two shifts. Default: 8h."),
+                        ("MaxConsecutiveDays", "Prevents scheduling staff for more than N consecutive days. Default: 6 days."),
+                        ("OvertimeCapHours", "A secondary hard cap — blocks scheduling once this overtime threshold is reached. Default: same as weekly hours threshold."),
+                        ("ShiftPreference", "A soft bonus applied to certain roles/shifts during auto-scheduling. Higher value = more likely to be selected."),
+                        ("Scope", "Rules can be scoped to the whole Facility, a specific Unit, or a specific Role. More specific scopes override broader ones."))
+                },
+                // ── Demand Templates ───────────────────────────────────────────
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Demand Templates", Title = "Creating Demand Templates", SortOrder = 1,
+                    TagsJson = Tags("demand", "template", "staffing plan", "rn", "cna", "auto-schedule"),
+                    SectionsJson = Sections(
+                        (null, "Demand Templates define how many staff of each role are needed per day and shift. They're the blueprint for auto-scheduling."),
+                        ("Creating a template", "Go to Demand Templates → New Template. Give it a name, select the facility, and fill in the daily demand grid (rows = days, columns = credential type)."),
+                        ("Status lifecycle", "Draft → Validated → Approved → Published.\nOnly Published templates are used by the auto-scheduler."),
+                        ("Validating and publishing", "Open a template and click Validate to check for inconsistencies. Once valid, click Approve then Publish to make it active."),
+                        ("Applying to a date range", "On a published template, click Apply to Range. Choose the start and end dates. The system generates shift demands for that period."))
+                },
+                // ── Facilities ─────────────────────────────────────────────────
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Facilities", Title = "Managing Facilities", SortOrder = 1,
+                    TagsJson = Tags("facility", "location", "admin", "owner", "facility admin"),
+                    SectionsJson = Sections(
+                        (null, "The Facilities page is available to Owners only. It lets you create and configure each physical location."),
+                        ("Adding a facility", "Click Add Facility. Enter name, address, state, and contact info."),
+                        ("Assigning Facility Admins", "Click on a facility → Admins tab → Add Admin. Enter the user's email. They'll have full management access to that facility."),
+                        ("Facility Admin vs Owner", "Owners can see and manage all facilities.\nFacility Admins only see their assigned facility and cannot manage other facilities or users."))
+                },
+                // ── Units ──────────────────────────────────────────────────────
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Units", Title = "Managing Units", SortOrder = 1,
+                    TagsJson = Tags("unit", "department", "ward", "floor", "icu"),
+                    SectionsJson = Sections(
+                        (null, "Units are departments within a facility (e.g., ICU, Med-Surg, ER). Staff and shifts are organized by unit."),
+                        ("Adding a unit", "Go to Units → Add Unit. Enter unit name and select the parent facility."),
+                        ("Assigning staff to units", "Open Staff Directory → staff profile → set the Unit field. Staff can be assigned to one primary unit."))
+                },
+                // ── Chat ───────────────────────────────────────────────────────
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Chat", Title = "Using Chat", SortOrder = 1,
+                    TagsJson = Tags("chat", "message", "dm", "direct message", "group", "communication"),
+                    SectionsJson = Sections(
+                        (null, "Chat lets staff and admins communicate within Statera without leaving the app."),
+                        ("Starting a direct message", "Open Chat → click New Message → search for a user by name → Start conversation."),
+                        ("Group rooms", "Click New Group Room → give it a name and add members. All members can send and read messages."),
+                        ("Sending messages", "Type in the input box and press Enter to send. Messages are ordered by most recent."))
+                },
+                // ── Staff Portal ───────────────────────────────────────────────
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Staff Portal", Title = "Staff Portal Overview", SortOrder = 1,
+                    TagsJson = Tags("portal", "staff", "schedule", "timeoff", "clock", "timesheet", "chat"),
+                    SectionsJson = Sections(
+                        (null, "The Staff Portal (/portal) is the staff-facing side of Statera. It provides everything a staff member needs to manage their work."),
+                        ("Navigation", "Use the bottom navigation bar to switch between:\n• Schedule — view your upcoming shifts\n• Time Off — request and track leave\n• Clock — clock in/out and lunch\n• Timesheet — monthly summary + payroll download\n• Chat — messaging"),
+                        ("Logging out", "Tap the logout icon in the top-right corner."))
+                },
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Staff Portal", Title = "Viewing Your Timesheet", SortOrder = 2,
+                    TagsJson = Tags("timesheet", "payroll", "hours", "csv", "download", "monthly", "portal"),
+                    SectionsJson = Sections(
+                        (null, "The Timesheet page shows a monthly summary of all your clock-in/out entries including lunch and net hours."),
+                        ("Navigating months", "Use the left/right arrows next to the month name to go back or forward."),
+                        ("Calendar view", "Each day shows your net hours worked (in green) and lunch hours (in blue). Click a day to see the full entry details."),
+                        ("Downloading for payroll", "Click Download CSV. The file includes all entries for the month with: Date, Day, Clock In, Clock Out, Lunch Start, Lunch End, Lunch (hrs), Net Hours Worked. The last row shows the monthly total."))
+                }
+            );
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: seeded help articles.");
+        }
+
         logger.LogInformation("DevDataSeeder: seeding complete.");
     }
 }

@@ -9,6 +9,7 @@ import {
 } from "@mui/icons-material";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
+import AppHelpAssistant from "./AppHelpAssistant";
 
 const NAV_ITEMS = [
   { label: "Schedule",  icon: <CalendarMonth />, path: "/portal/schedule"  },
@@ -37,12 +38,14 @@ export default function PortalShell() {
         }}
       >
         <Toolbar>
-          <Typography variant="h6" sx={{ fontWeight: 700, flexGrow: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, flexGrow: 1, cursor: "pointer" }}
+            onClick={() => navigate("/portal")}>
             Statera — Staff Portal
           </Typography>
-          <Typography variant="body2" sx={{ opacity: 0.75, mr: 2 }}>
+          <Typography variant="body2" sx={{ opacity: 0.75, mr: 1 }}>
             {user?.email}
           </Typography>
+          <AppHelpAssistant />
           <IconButton color="inherit" onClick={logout} title="Logout">
             <Logout fontSize="small" />
           </IconButton>

@@ -253,13 +253,22 @@ public class TimeClockEntry
     public Guid? UnitId { get; set; }
     public DateTime ClockInUtc { get; set; }
     public DateTime? ClockOutUtc { get; set; }
+    // Lunch break window
+    public DateTime? LunchOutUtc { get; set; }
+    public DateTime? LunchInUtc { get; set; }
     public bool IsManual { get; set; } = false;
-    // "ClockedIn" | "ClockedOut" | "Approved" | "Denied" | "Adjusted"
+    // "ClockedIn" | "OnLunch" | "ClockedOut" | "Approved" | "Denied" | "Adjusted" | "PendingCorrection"
     public string Status { get; set; } = "ClockedIn";
     public string? Notes { get; set; }
     public string? AdminNotes { get; set; }
     public string? ReviewedByUserId { get; set; }
     public DateTime? ReviewedUtc { get; set; }
+    // Staff-submitted correction fields
+    public string? CorrectionNotes { get; set; }
+    public DateTime? CorrectedClockInUtc { get; set; }
+    public DateTime? CorrectedClockOutUtc { get; set; }
+    public DateTime? CorrectedLunchOutUtc { get; set; }
+    public DateTime? CorrectedLunchInUtc { get; set; }
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
@@ -295,5 +304,30 @@ public class ChatMessage
     public string Content { get; set; } = default!;
     public DateTime SentUtc { get; set; } = DateTime.UtcNow;
     public bool IsDeleted { get; set; } = false;
+}
+
+// ── Help Documentation ────────────────────────────────────────────────────────
+
+/// <summary>
+/// A single help/documentation article shown in the in-app Help center.
+/// Tags and Sections are stored as JSON strings for simplicity.
+/// </summary>
+public class HelpArticle
+{
+    public Guid Id { get; set; }
+
+    /// <summary>Display group, e.g. "Scheduler", "Time Clock".</summary>
+    public string Category { get; set; } = "";
+
+    public string Title { get; set; } = "";
+
+    /// <summary>JSON array of strings used for full-text filtering, e.g. ["clock in","lunch"].</summary>
+    public string TagsJson { get; set; } = "[]";
+
+    /// <summary>JSON array of {Heading?, Body} objects.</summary>
+    public string SectionsJson { get; set; } = "[]";
+
+    /// <summary>Ascending sort position within the category.</summary>
+    public int SortOrder { get; set; }
 }
 

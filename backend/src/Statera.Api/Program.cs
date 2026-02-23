@@ -85,6 +85,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<IRepository, EfRepository>();
 builder.Services.AddScoped<LicensePolicyService>();
 builder.Services.AddScoped<SchedulerSuggestionService>();
+builder.Services.AddHttpClient();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
@@ -147,6 +148,7 @@ v1.MapTimeOffEndpoints();
 v1.MapDemandTemplatesEndpoints();
 v1.MapTimeClockEndpoints();
 v1.MapChatEndpoints();
+v1.MapHelpEndpoints();
 
 
 // Convenience: root -> Swagger
