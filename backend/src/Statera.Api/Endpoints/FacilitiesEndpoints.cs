@@ -277,6 +277,9 @@ public static class FacilitiesEndpoints
             if (startUtc >= endUtc)
                 return Results.BadRequest(new { error = "start must be before end" });
 
+            var availError = await CheckAvailabilityAsync(db, req.StaffId, DateTime.SpecifyKind(startUtc, DateTimeKind.Utc), DateTime.SpecifyKind(endUtc, DateTimeKind.Utc), ct);
+            if (availError is not null) return Results.UnprocessableEntity(new { error = availError, code = "AVAILABILITY_CONFLICT" });
+
             var e = new DomAssignment
             {
                 Id            = Guid.NewGuid(),
@@ -339,6 +342,9 @@ public static class FacilitiesEndpoints
 
             if (req.Notes is not null) e.Notes = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim();
 
+            var availErr = await CheckAvailabilityAsync(db, e.StaffId, e.StartUtc, e.EndUtc, ct);
+            if (availErr is not null) return Results.UnprocessableEntity(new { error = availErr, code = "AVAILABILITY_CONFLICT" });
+
             await db.SaveChangesAsync(ct);
 
             return Results.Ok(new
@@ -371,5 +377,35 @@ public static class FacilitiesEndpoints
         .RequireAuthorization("FacilityAccess");
 
         return v1;
+    }
+
+    private static async Task<string?> CheckAvailabilityAsync(
+        AppDbContext db, Guid staffId, DateTime startUtc, DateTime endUtc, CancellationToken ct)
+    {
+        var avail = await db.StaffAvailabilities.AsNoTracking()
+            .Where(a => a.StaffId == staffId)
+            .ToListAsync(ct);
+
+        if (avail.Count == 0) return null; // no restrictions defined
+
+        var cursor = startUtc.Date;
+        while (cursor <= endUtc.Date)
+        {
+            var dow     = cursor.DayOfWeek;
+            var segStart = cursor == startUtc.Date ? startUtc.TimeOfDay : TimeSpan.Zero;
+            var segEnd   = cursor == endUtc.Date   ? endUtc.TimeOfDay   : TimeSpan.FromHours(24);
+            if (segEnd == TimeSpan.Zero) { cursor = cursor.AddDays(1); continue; }
+
+            var covered = avail.Any(a =>
+                a.DayOfWeek == dow &&
+                a.StartLocal <= segStart &&
+                a.EndLocal   >= segEnd);
+
+            if (!covered)
+                return $"Staff is not available on {dow}. Adjust the shift time or update their availability settings.";
+
+            cursor = cursor.AddDays(1);
+        }
+        return null;
     }
 }

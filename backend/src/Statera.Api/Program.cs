@@ -145,6 +145,8 @@ v1.MapForecastEndpoints();
 v1.MapRolesEndpoints();           
 v1.MapTimeOffEndpoints();
 v1.MapDemandTemplatesEndpoints();
+v1.MapTimeClockEndpoints();
+v1.MapChatEndpoints();
 
 
 // Convenience: root -> Swagger

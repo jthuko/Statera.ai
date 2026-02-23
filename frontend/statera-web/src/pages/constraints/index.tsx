@@ -1,23 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
-  Box,
-  Container,
-  Snackbar,
-  Typography,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  Alert, Box, Button, Container, Snackbar, Typography,
+  FormControl, InputLabel, Select, MenuItem,
 } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 import {
-  ConstraintDto,
-  CreateConstraintRequest,
-  UpdateConstraintRequest,
-  listConstraints,
-  createConstraint,
-  updateConstraint,
-  deleteConstraint,
+  ConstraintDto, CreateConstraintRequest, UpdateConstraintRequest,
+  listConstraints, createConstraint, updateConstraint, deleteConstraint,
 } from "../../api/constraints";
 import { listUnits } from "../../api/units";
 import ConstraintsTable from "../../components/constraints/ConstraintsTable";
@@ -62,16 +51,24 @@ export default function ConstraintsRulesPage() {
   }, [facilityId]);
 
   async function handleCreate(payload: CreateConstraintRequest | UpdateConstraintRequest) {
-    await createConstraint(facilityId, payload as CreateConstraintRequest);
-    setToast({ msg: "Constraint created.", sev: "success" });
-    reload();
+    try {
+      await createConstraint(facilityId, payload as CreateConstraintRequest);
+      setToast({ msg: "Constraint created.", sev: "success" });
+      reload();
+    } catch (e: any) {
+      setToast({ msg: e?.response?.data?.detail ?? "Failed to create constraint.", sev: "error" });
+    }
   }
 
   async function handleEdit(payload: CreateConstraintRequest | UpdateConstraintRequest) {
     if (dialog.mode !== "edit") return;
-    await updateConstraint(facilityId, dialog.row.id, payload as UpdateConstraintRequest);
-    setToast({ msg: "Constraint updated.", sev: "success" });
-    reload();
+    try {
+      await updateConstraint(facilityId, dialog.row.id, payload as UpdateConstraintRequest);
+      setToast({ msg: "Constraint updated.", sev: "success" });
+      reload();
+    } catch (e: any) {
+      setToast({ msg: e?.response?.data?.detail ?? "Failed to update constraint.", sev: "error" });
+    }
   }
 
   async function handleDelete(row: ConstraintDto) {
@@ -87,20 +84,32 @@ export default function ConstraintsRulesPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 2 }}>
         <Typography variant="h5">Constraints & Rules</Typography>
-        <FormControl size="small" sx={{ minWidth: 240 }}>
-          <InputLabel>Facility</InputLabel>
-          <Select
-            label="Facility"
-            value={facilityId}
-            onChange={e => setSelectedId(String(e.target.value))}
+
+        <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
+          <FormControl size="small" sx={{ minWidth: 240 }}>
+            <InputLabel>Facility</InputLabel>
+            <Select
+              label="Facility"
+              value={facilityId}
+              onChange={e => setSelectedId(String(e.target.value))}
+            >
+              {facilities.map(f => (
+                <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            disabled={!facilityId}
+            onClick={() => setDialog({ mode: "create" })}
           >
-            {facilities.map(f => (
-              <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            New Rule
+          </Button>
+        </Box>
       </Box>
 
       {!facilityId && (
@@ -112,7 +121,6 @@ export default function ConstraintsRulesPage() {
       <ConstraintsTable
         loading={loading}
         rows={rows}
-        onCreate={() => setDialog({ mode: "create" })}
         onEdit={row => setDialog({ mode: "edit", row })}
         onDelete={handleDelete}
       />
@@ -138,16 +146,8 @@ export default function ConstraintsRulesPage() {
         />
       )}
 
-      <Snackbar
-        open={!!toast}
-        autoHideDuration={3500}
-        onClose={() => setToast(null)}
-      >
-        <Alert
-          severity={toast?.sev ?? "success"}
-          onClose={() => setToast(null)}
-          sx={{ width: "100%" }}
-        >
+      <Snackbar open={!!toast} autoHideDuration={3500} onClose={() => setToast(null)}>
+        <Alert severity={toast?.sev ?? "success"} onClose={() => setToast(null)} sx={{ width: "100%" }}>
           {toast?.msg}
         </Alert>
       </Snackbar>

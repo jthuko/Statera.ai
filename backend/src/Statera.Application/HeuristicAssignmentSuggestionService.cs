@@ -131,6 +131,12 @@ public class HeuristicAssignmentSuggestionService
                     r.StartUtc < endUtc && r.EndUtc > startUtc))
                 continue;
 
+            // ── Availability windows ───────────────────────────────────
+            // If staff has defined availability, the shift must fit within it.
+            // If no availability is defined, there are no restrictions (opt-in).
+            if (s.Availabilities?.Count > 0 && !ShiftFitsAvailability(s.Availabilities, startUtc, endUtc))
+                continue;
+
             // ── Overlapping assignment ────────────────────────────────
             if (existing.Any(a => a.StaffId == s.Id && a.StartUtc < endUtc && a.EndUtc > startUtc))
                 continue;
@@ -204,6 +210,31 @@ public class HeuristicAssignmentSuggestionService
 
         ranked.Sort((a, b) => b.Score.CompareTo(a.Score));
         return ranked;
+    }
+
+    /// <summary>
+    /// Returns true if the shift window fits within the staff member's recorded availability.
+    /// Checks each calendar day the shift spans.
+    /// </summary>
+    private static bool ShiftFitsAvailability(ICollection<StaffAvailability> avail, DateTime startUtc, DateTime endUtc)
+    {
+        var cursor = startUtc.Date;
+        while (cursor <= endUtc.Date)
+        {
+            var dow      = cursor.DayOfWeek;
+            var segStart = cursor == startUtc.Date ? startUtc.TimeOfDay : TimeSpan.Zero;
+            var segEnd   = cursor == endUtc.Date   ? endUtc.TimeOfDay   : TimeSpan.FromHours(24);
+            if (segEnd == TimeSpan.Zero) { cursor = cursor.AddDays(1); continue; }
+
+            var covered = avail.Any(a =>
+                a.DayOfWeek == dow &&
+                a.StartLocal <= segStart &&
+                a.EndLocal   >= segEnd);
+
+            if (!covered) return false;
+            cursor = cursor.AddDays(1);
+        }
+        return true;
     }
 
     private static double Resolve(

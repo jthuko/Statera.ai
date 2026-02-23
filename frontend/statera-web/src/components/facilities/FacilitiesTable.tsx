@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Button,
@@ -7,15 +8,16 @@ import {
   Divider,
   IconButton,
   InputAdornment,
+  Link,
   Stack,
   Table,
+  Typography,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
   TextField,
   Tooltip,
-  Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
@@ -41,6 +43,7 @@ export default function FacilitiesTable() {
 
   const { user } = useAuth();
   const isOwner = user?.systemRole === "Owner";
+  const navigate = useNavigate();
 
   const { data, isLoading, error } = useFacilities(query);
   const items: Facility[] = data ?? []; // hook normalizes to Facility[]
@@ -138,7 +141,17 @@ export default function FacilitiesTable() {
               )}
               {items.map((f) => (
                 <TableRow key={f.id} hover>
-                  <TableCell>{f.name}</TableCell>
+                  <TableCell>
+                    <Link
+                      component="button"
+                      variant="body2"
+                      onClick={() => navigate(`/facilities/${f.id}`)}
+                      underline="hover"
+                      sx={{ color: "primary.light", fontWeight: 500 }}
+                    >
+                      {f.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>{f.city}</TableCell>
                   <TableCell>{f.state}</TableCell>
                   <TableCell align="right">

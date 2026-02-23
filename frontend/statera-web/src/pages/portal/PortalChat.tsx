@@ -1,0 +1,205 @@
+// src/pages/portal/PortalChat.tsx
+// Staff portal: chat interface (mirrors admin chat but no group creation)
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Alert, Box, CircularProgress, Divider, IconButton, InputAdornment,
+  List, ListItemButton, ListItemText, Stack, TextField, Typography,
+  Badge,
+} from "@mui/material";
+import { Send as SendIcon } from "@mui/icons-material";
+import dayjs from "dayjs";
+import { useAuth } from "../../auth/useAuth";
+import {
+  listRooms, listMessages, sendMessage, markRoomRead,
+  type ChatRoomDto, type ChatMessageDto,
+} from "../../api/chat";
+
+export default function PortalChat() {
+  const { user } = useAuth();
+  const [rooms, setRooms] = useState<ChatRoomDto[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [selectedRoom, setSelectedRoom] = useState<ChatRoomDto | null>(null);
+  const [messages, setMessages] = useState<ChatMessageDto[]>([]);
+  const [msgLoading, setMsgLoading] = useState(false);
+  const [msgText, setMsgText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const loadRooms = useCallback(async () => {
+    try {
+      setRooms(await listRooms());
+    } catch { /* ignore */ }
+    finally { setRoomsLoading(false); }
+  }, []);
+
+  useEffect(() => { loadRooms(); }, [loadRooms]);
+
+  // Poll for new messages every 5 s
+  useEffect(() => {
+    if (!selectedRoom) return;
+    const id = setInterval(async () => {
+      try {
+        const msgs = await listMessages(selectedRoom.id);
+        setMessages(msgs);
+      } catch { /* ignore */ }
+    }, 5000);
+    return () => clearInterval(id);
+  }, [selectedRoom]);
+
+  async function selectRoom(room: ChatRoomDto) {
+    setSelectedRoom(room);
+    setMsgLoading(true);
+    try {
+      const msgs = await listMessages(room.id);
+      setMessages(msgs);
+      await markRoomRead(room.id);
+      setRooms(prev => prev.map(r => r.id === room.id ? { ...r, unreadCount: 0 } : r));
+    } catch (e: any) {
+      setError("Failed to load messages.");
+    } finally {
+      setMsgLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  async function handleSend() {
+    if (!selectedRoom || !msgText.trim()) return;
+    setSending(true);
+    try {
+      const msg = await sendMessage(selectedRoom.id, msgText.trim());
+      setMessages(prev => [...prev, msg]);
+      setMsgText("");
+      await markRoomRead(selectedRoom.id);
+    } catch {
+      setError("Failed to send message.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const roomName = (room: ChatRoomDto) => {
+    if (room.name) return room.name;
+    const other = room.members.find(m => m.userId !== user?.id);
+    return other?.displayName ?? "Direct Message";
+  };
+
+  if (roomsLoading) return <Box sx={{ pt: 4, textAlign: "center" }}><CircularProgress /></Box>;
+
+  return (
+    <Box sx={{ pt: 2, display: "flex", height: "calc(100vh - 148px)", gap: 0 }}>
+      {error && <Alert severity="error" onClose={() => setError(null)} sx={{ position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)", zIndex: 10, minWidth: 300 }}>{error}</Alert>}
+
+      {/* Room list */}
+      <Box sx={{ width: 200, borderRight: "1px solid rgba(255,255,255,0.1)", overflowY: "auto", flexShrink: 0 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ px: 1.5, py: 1, display: "block", fontWeight: 600 }}>
+          CONVERSATIONS
+        </Typography>
+        <List dense disablePadding>
+          {rooms.length === 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+              No conversations yet.
+            </Typography>
+          )}
+          {rooms.map(room => (
+            <ListItemButton
+              key={room.id}
+              selected={selectedRoom?.id === room.id}
+              onClick={() => selectRoom(room)}
+              sx={{ py: 1 }}
+            >
+              <Badge badgeContent={room.unreadCount} color="error" sx={{ mr: 1 }}>
+                <Box />
+              </Badge>
+              <ListItemText
+                primary={roomName(room)}
+                secondary={room.lastMessage ? room.lastMessage.slice(0, 30) : undefined}
+                primaryTypographyProps={{ variant: "body2", fontWeight: room.unreadCount > 0 ? 700 : 400 }}
+                secondaryTypographyProps={{ variant: "caption", noWrap: true }}
+              />
+            </ListItemButton>
+          ))}
+        </List>
+      </Box>
+
+      {/* Message area */}
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {!selectedRoom ? (
+          <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Typography color="text.secondary">Select a conversation</Typography>
+          </Box>
+        ) : (
+          <>
+            <Box sx={{ px: 2, py: 1, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+              <Typography variant="subtitle1" fontWeight={600}>{roomName(selectedRoom)}</Typography>
+            </Box>
+
+            <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 1 }}>
+              {msgLoading ? (
+                <Box sx={{ textAlign: "center", pt: 4 }}><CircularProgress size={24} /></Box>
+              ) : messages.length === 0 ? (
+                <Typography color="text.secondary" variant="body2" sx={{ pt: 4, textAlign: "center" }}>
+                  No messages yet. Say hello!
+                </Typography>
+              ) : (
+                <Stack spacing={1.5}>
+                  {messages.map(m => {
+                    const isMe = m.senderUserId === user?.id;
+                    return (
+                      <Stack key={m.id} direction={isMe ? "row-reverse" : "row"} spacing={1} alignItems="flex-end">
+                        <Box
+                          sx={{
+                            maxWidth: "75%",
+                            px: 1.5, py: 1,
+                            borderRadius: 2,
+                            background: isMe ? "rgba(0,120,180,0.35)" : "rgba(255,255,255,0.08)",
+                          }}
+                        >
+                          {!isMe && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              {m.senderName ?? m.senderUserId}
+                            </Typography>
+                          )}
+                          <Typography variant="body2">{m.content}</Typography>
+                          <Typography variant="caption" color="text.secondary" display="block" align={isMe ? "right" : "left"}>
+                            {dayjs(m.sentUtc).format("h:mm a")}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    );
+                  })}
+                  <div ref={bottomRef} />
+                </Stack>
+              )}
+            </Box>
+
+            <Divider />
+            <Box sx={{ px: 2, py: 1 }}>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Type a message…"
+                value={msgText}
+                onChange={e => setMsgText(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                disabled={sending}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={handleSend} disabled={!msgText.trim() || sending}>
+                        {sending ? <CircularProgress size={18} /> : <SendIcon fontSize="small" />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Box>
+          </>
+        )}
+      </Box>
+    </Box>
+  );
+}

@@ -105,8 +105,8 @@ public static class StaffEndpoints
             var e = await db.Staff.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
             if (e is null) return Results.NotFound();
 
-            // hasAdminAccount = they have an AppUser AND an active UserFacilityRole for this facility
-            var hasAdminAccount = false;
+            var hasAdminAccount  = false;
+            var hasPortalAccount = false;
             if (!string.IsNullOrWhiteSpace(e.Email))
             {
                 var appUser = await db.Users.AsNoTracking()
@@ -115,6 +115,7 @@ public static class StaffEndpoints
                 {
                     hasAdminAccount = await db.UserFacilityRoles
                         .AnyAsync(ufr => ufr.UserId == appUser.Id && ufr.FacilityId == e.FacilityId);
+                    hasPortalAccount = appUser.SystemRole == "Staff";
                 }
             }
 
@@ -122,7 +123,8 @@ public static class StaffEndpoints
             {
                 e.Id, e.FirstName, e.LastName, e.Email,
                 e.FacilityId, e.UnitId, e.Role, e.EmploymentType, e.Active,
-                HasAdminAccount = hasAdminAccount
+                HasAdminAccount  = hasAdminAccount,
+                HasPortalAccount = hasPortalAccount,
             });
         });
 
@@ -356,6 +358,121 @@ public static class StaffEndpoints
             return Results.NoContent();
         });
 
+        // GET /api/v1/staff/{id}/availability
+        g.MapGet("/{id:guid}/availability", async (Guid id, [FromServices] AppDbContext db) =>
+        {
+            var rows = await db.StaffAvailabilities.AsNoTracking()
+                .Where(a => a.StaffId == id)
+                .OrderBy(a => a.DayOfWeek).ThenBy(a => a.StartLocal)
+                .ToListAsync();
+            return Results.Ok(rows.Select(a => new
+            {
+                a.Id, a.StaffId,
+                DayOfWeek = (int)a.DayOfWeek,
+                StartLocal = a.StartLocal.ToString(@"hh\:mm"),
+                EndLocal   = a.EndLocal.ToString(@"hh\:mm"),
+            }));
+        });
+
+        // PUT /api/v1/staff/{id}/availability  — full replace
+        g.MapPut("/{id:guid}/availability", async (
+            Guid id,
+            [FromBody] List<AvailabilityEntry> entries,
+            [FromServices] AppDbContext db) =>
+        {
+            var staffExists = await db.Staff.AnyAsync(s => s.Id == id);
+            if (!staffExists) return Results.NotFound();
+
+            // Remove existing
+            var existing = db.StaffAvailabilities.Where(a => a.StaffId == id);
+            db.StaffAvailabilities.RemoveRange(existing);
+
+            // Add new
+            foreach (var e in entries)
+            {
+                if (!TimeSpan.TryParse(e.StartLocal, out var start)) continue;
+                if (!TimeSpan.TryParse(e.EndLocal, out var end)) continue;
+                if (end <= start) continue;
+                db.StaffAvailabilities.Add(new Statera.Domain.StaffAvailability
+                {
+                    Id         = Guid.NewGuid(),
+                    StaffId    = id,
+                    DayOfWeek  = (DayOfWeek)e.DayOfWeek,
+                    StartLocal = start,
+                    EndLocal   = end,
+                });
+            }
+            await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
+
+        // POST /api/v1/staff/{id}/create-portal-account
+        // Creates a Staff-role login account for a staff member (for the Staff Portal).
+        g.MapPost("/{id:guid}/create-portal-account", async (
+            Guid id,
+            [FromServices] AppDbContext db,
+            [FromServices] UserManager<AppUser> um) =>
+        {
+            var staff = await db.Staff.FirstOrDefaultAsync(s => s.Id == id);
+            if (staff is null) return Results.NotFound();
+
+            if (string.IsNullOrWhiteSpace(staff.Email))
+                return Results.BadRequest(new { error = "Staff member must have an email address." });
+
+            var existing = await um.FindByEmailAsync(staff.Email);
+            if (existing is not null)
+                return Results.Conflict(new { error = "A login account already exists for this email." });
+
+            var tempPassword = "TempPass123!";
+            var appUser = new AppUser
+            {
+                UserName       = staff.Email,
+                Email          = staff.Email,
+                EmailConfirmed = true,
+                SystemRole     = "Staff"
+            };
+            var result = await um.CreateAsync(appUser, tempPassword);
+            if (!result.Succeeded)
+            {
+                var errs = string.Join(", ", result.Errors.Select(e => e.Description));
+                return Results.BadRequest(new { error = errs });
+            }
+
+            return Results.Ok(new { email = staff.Email, tempPassword, staffId = staff.Id });
+        });
+
+        // POST /api/v1/staff/{id}/reset-password
+        // Resets the portal account password for a staff member and returns a new temp password.
+        g.MapPost("/{id:guid}/reset-password", async (
+            Guid id,
+            [FromServices] AppDbContext db,
+            [FromServices] UserManager<AppUser> um) =>
+        {
+            var staff = await db.Staff.FirstOrDefaultAsync(s => s.Id == id);
+            if (staff is null) return Results.NotFound();
+
+            if (string.IsNullOrWhiteSpace(staff.Email))
+                return Results.BadRequest(new { error = "Staff member has no email." });
+
+            var appUser = await um.FindByEmailAsync(staff.Email);
+            if (appUser is null)
+                return Results.BadRequest(new { error = "No login account found for this staff member." });
+
+            // Generate new temp password
+            var newPassword = "TempPass123!";
+            var token = await um.GeneratePasswordResetTokenAsync(appUser);
+            var result = await um.ResetPasswordAsync(appUser, token, newPassword);
+            if (!result.Succeeded)
+            {
+                var errs = string.Join(", ", result.Errors.Select(e => e.Description));
+                return Results.BadRequest(new { error = errs });
+            }
+
+            return Results.Ok(new { email = staff.Email, tempPassword = newPassword });
+        });
+
         return v1;
     }
+
+    private record AvailabilityEntry(int DayOfWeek, string StartLocal, string EndLocal);
 }

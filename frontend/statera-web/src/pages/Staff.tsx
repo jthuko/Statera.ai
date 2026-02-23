@@ -19,6 +19,7 @@ const cols: GridColDef[] = [
 
 export default function Staff() {
   const [rows, setRows] = useState<StaffDto[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [duplicatePopup, setDuplicatePopup] = useState(false);
@@ -108,23 +109,40 @@ export default function Staff() {
         </Alert>
       )}
       <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1 }}>
-        <TextField select size="small" label="Facility" value={facility?.id ?? ""} onChange={(e) => setSelectedId(e.target.value)} sx={{ minWidth: 280 }}>
-          {facilities.map(f => (
-            <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
-          ))}
-        </TextField>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <TextField select size="small" label="Facility" value={facility?.id ?? ""} onChange={(e) => setSelectedId(e.target.value)} sx={{ minWidth: 280 }}>
+            {facilities.map(f => (
+              <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            size="small"
+            label="Search name or role"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            sx={{ minWidth: 220 }}
+          />
+        </Stack>
         <Button variant="contained" onClick={() => setOpen(true)} disabled={!facility}>New Staff</Button>
       </Stack>
       <Box sx={{ height: 560 }}>
         <DataGrid
           columns={cols}
-          rows={rows.map(r => ({
-            id: r.id,
-            name: r.displayName ?? `${r.firstName} ${r.lastName}`,
-            role: r.role ?? r.roles?.[0]?.name ?? "",
-            employmentType: (r as any).employmentType ?? "",
-            unit: "",
-          }))}
+          rows={rows
+            .filter(r => {
+              if (!search) return true;
+              const q = search.toLowerCase();
+              const name = (r.displayName ?? `${r.firstName} ${r.lastName}`).toLowerCase();
+              const role = (r.role ?? r.roles?.[0]?.name ?? "").toLowerCase();
+              return name.includes(q) || role.includes(q);
+            })
+            .map(r => ({
+              id: r.id,
+              name: r.displayName ?? `${r.firstName} ${r.lastName}`,
+              role: r.role ?? r.roles?.[0]?.name ?? "",
+              employmentType: (r as any).employmentType ?? "",
+              unit: "",
+            }))}
           onRowClick={(p) => nav(`/staff/${p.id}`)}
           pageSizeOptions={[10, 25, 50]}
         />

@@ -1,8 +1,9 @@
 // src/pages/demand-templates/index.tsx
 import * as React from "react";
 import {
-  Box, Button, Container, Divider, IconButton, Pagination, Paper, Stack, Table, TableBody,
-  TableCell, TableHead, TableRow, TextField, Toolbar, Typography
+  Box, Button, Container, Divider, FormControl, IconButton, InputLabel,
+  MenuItem, Pagination, Paper, Select, Stack, Table, TableBody,
+  TableCell, TableHead, TableRow, TextField, Toolbar, Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -12,12 +13,17 @@ import {
   listDemandTemplates, deleteDemandTemplate, DemandTemplate, DemandTemplateStatus, Guid
 } from "../../api/demandTemplates";
 import { useNavigate } from "react-router-dom";
-import { useFacility } from "../../context/facility"; // assumes you have this context
+import { useFacility } from "../../context/facility";
+import { useAuth } from "../../auth/useAuth";
+import { listUnits } from "../../api/units";
 
 export default function DemandTemplatesListPage() {
   const navigate = useNavigate();
-  const { selected } = useFacility(); // facility.id: Guid
-  const facilityId = selected?.id as Guid;
+  const { facilities, selected, setSelectedId } = useFacility();
+  const { user } = useAuth();
+  const isOwner = user?.systemRole === "Owner";
+
+  const facilityId = selected?.id as Guid | undefined;
 
   const [q, setQ] = React.useState<string>("");
   const [status, setStatus] = React.useState<DemandTemplateStatus | "">("");
@@ -26,12 +32,19 @@ export default function DemandTemplatesListPage() {
   const [rows, setRows] = React.useState<DemandTemplate[]>([]);
   const [total, setTotal] = React.useState<number>(0);
   const [loading, setLoading] = React.useState<boolean>(false);
+  const [unitMap, setUnitMap] = React.useState<Record<string, string>>({});
 
   const load = React.useCallback(async () => {
     if (!facilityId) return;
     setLoading(true);
     try {
-      const res = await listDemandTemplates(facilityId, q || undefined, (status || undefined) as DemandTemplateStatus | undefined, page, pageSize);
+      const res = await listDemandTemplates(
+        facilityId,
+        q || undefined,
+        (status || undefined) as DemandTemplateStatus | undefined,
+        page,
+        pageSize
+      );
       setRows(res.items);
       setTotal(res.total);
     } finally {
@@ -39,9 +52,19 @@ export default function DemandTemplatesListPage() {
     }
   }, [facilityId, q, status, page, pageSize]);
 
+  // Load unit names whenever facility changes
   React.useEffect(() => {
-    load();
-  }, [load]);
+    if (!facilityId) return;
+    listUnits(facilityId)
+      .then(units => {
+        const map: Record<string, string> = {};
+        units.forEach(u => { map[u.id] = u.name; });
+        setUnitMap(map);
+      })
+      .catch(() => {});
+  }, [facilityId]);
+
+  React.useEffect(() => { load(); }, [load]);
 
   const onDelete = async (id: Guid) => {
     if (!confirm("Delete this template?")) return;
@@ -53,42 +76,58 @@ export default function DemandTemplatesListPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Toolbar disableGutters>
+      <Toolbar disableGutters sx={{ gap: 2, flexWrap: "wrap" }}>
         <Typography variant="h5" sx={{ flexGrow: 1 }}>Demand Templates</Typography>
+
+        {/* Facility selector — Owners only */}
+        {isOwner && (
+          <FormControl size="small" sx={{ minWidth: 240 }}>
+            <InputLabel>Facility</InputLabel>
+            <Select
+              label="Facility"
+              value={facilityId ?? ""}
+              onChange={e => setSelectedId(String(e.target.value))}
+            >
+              {facilities.map(f => (
+                <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => navigate("/demand-templates/new")}
+          disabled={!facilityId}
         >
           New Template
         </Button>
       </Toolbar>
 
       <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
           <TextField
-            label="Search"
+            label="Search name or role"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="name, role..."
-            fullWidth
+            size="small"
+            sx={{ minWidth: 220 }}
           />
           <TextField
             label="Status"
             select
             value={status}
             onChange={(e) => setStatus(e.target.value as any)}
-            sx={{ minWidth: 200 }}
+            size="small"
+            sx={{ minWidth: 160 }}
           >
-            <option value=""></option>
-            <option value="Draft">Draft</option>
-            <option value="Review">Review</option>
-            <option value="Approved">Approved</option>
-            <option value="Published">Published</option>
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="Draft">Draft</MenuItem>
+            <MenuItem value="Review">Review</MenuItem>
+            <MenuItem value="Approved">Approved</MenuItem>
+            <MenuItem value="Published">Published</MenuItem>
           </TextField>
-          <Button variant="outlined" onClick={() => { setPage(1); load(); }}>
-            Apply
-          </Button>
         </Stack>
       </Paper>
 
@@ -98,7 +137,7 @@ export default function DemandTemplatesListPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Role</TableCell>
-              <TableCell>UnitId</TableCell>
+              <TableCell>Unit</TableCell>
               <TableCell>Status</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -107,25 +146,24 @@ export default function DemandTemplatesListPage() {
             {rows.map(r => (
               <TableRow key={r.id} hover>
                 <TableCell>{r.name}</TableCell>
-                <TableCell>{r.role || "-"}</TableCell>
-                <TableCell sx={{ fontFamily: "monospace" }}>{r.unitId || "-"}</TableCell>
+                <TableCell>{r.role || "—"}</TableCell>
+                <TableCell>{r.unitId ? (unitMap[r.unitId] ?? r.unitId) : "—"}</TableCell>
                 <TableCell><StatusChip status={r.status} /></TableCell>
                 <TableCell align="right">
                   <IconButton size="small" onClick={() => navigate(`/demand-templates/${r.id}`)}>
-                    <EditIcon />
+                    <EditIcon fontSize="small" />
                   </IconButton>
                   <IconButton size="small" color="error" onClick={() => onDelete(r.id)}>
-                    <DeleteIcon />
+                    <DeleteIcon fontSize="small" />
                   </IconButton>
                 </TableCell>
               </TableRow>
             ))}
-
             {!rows.length && (
               <TableRow>
                 <TableCell colSpan={5}>
                   <Box sx={{ p: 3, textAlign: "center", color: "text.secondary" }}>
-                    {loading ? "Loading..." : "No templates yet."}
+                    {loading ? "Loading…" : facilityId ? "No templates yet." : "Select a facility to view templates."}
                   </Box>
                 </TableCell>
               </TableRow>

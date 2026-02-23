@@ -60,6 +60,7 @@ export interface FullStaffDto extends StaffDto {
   role?: string;
   employmentType?: string;
   hasAdminAccount?: boolean;
+  hasPortalAccount?: boolean;
 }
 
 export async function getStaffById(id: string): Promise<FullStaffDto> {
@@ -83,4 +84,42 @@ export async function revokeAdminAccess(staffId: string): Promise<void> {
 
 export async function deleteStaff(staffId: string): Promise<void> {
   await http.delete(`/staff/${staffId}`);
+}
+
+// ── Availability ──────────────────────────────────────────────────────────────
+
+export interface AvailabilityDto {
+  id: string;
+  staffId: string;
+  dayOfWeek: number; // 0=Sunday … 6=Saturday
+  startLocal: string; // "HH:mm"
+  endLocal: string;   // "HH:mm"
+}
+
+export async function getStaffAvailability(staffId: string): Promise<AvailabilityDto[]> {
+  const { data } = await http.get<AvailabilityDto[]>(`/staff/${staffId}/availability`);
+  return data;
+}
+
+export async function updateStaffAvailability(staffId: string, entries: { dayOfWeek: number; startLocal: string; endLocal: string }[]): Promise<AvailabilityDto[]> {
+  const { data } = await http.put<AvailabilityDto[]>(`/staff/${staffId}/availability`, entries);
+  return data;
+}
+
+// ── Portal account ────────────────────────────────────────────────────────────
+
+export interface PortalAccountResult {
+  email: string;
+  tempPassword: string;
+  staffId: string;
+}
+
+export async function createPortalAccount(staffId: string): Promise<PortalAccountResult> {
+  const { data } = await http.post<PortalAccountResult>(`/staff/${staffId}/create-portal-account`);
+  return data;
+}
+
+export async function resetPortalPassword(staffId: string): Promise<{ email: string; tempPassword: string }> {
+  const { data } = await http.post<{ email: string; tempPassword: string }>(`/staff/${staffId}/reset-password`);
+  return data;
 }

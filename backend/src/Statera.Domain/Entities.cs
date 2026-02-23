@@ -238,7 +238,62 @@ public class Constraint
     public Guid? FacilityId { get; set; }
     public Guid? UnitId { get; set; }
 
-    public string Code { get; set; } = default!;   // e.g., "MaxHoursPerWeek"
-    public string Value { get; set; } = default!;  // e.g., "40"
+    public string Code { get; set; } = default!;
+    public string Value { get; set; } = default!;
+}
+
+// ─── Time Clock ───────────────────────────────────────────────────────────────
+
+public class TimeClockEntry
+{
+    public Guid Id { get; set; }
+    public Guid StaffId { get; set; }
+    public Staff? Staff { get; set; }
+    public Guid FacilityId { get; set; }
+    public Guid? UnitId { get; set; }
+    public DateTime ClockInUtc { get; set; }
+    public DateTime? ClockOutUtc { get; set; }
+    public bool IsManual { get; set; } = false;
+    // "ClockedIn" | "ClockedOut" | "Approved" | "Denied" | "Adjusted"
+    public string Status { get; set; } = "ClockedIn";
+    public string? Notes { get; set; }
+    public string? AdminNotes { get; set; }
+    public string? ReviewedByUserId { get; set; }
+    public DateTime? ReviewedUtc { get; set; }
+}
+
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+
+public class ChatRoom
+{
+    public Guid Id { get; set; }
+    public Guid FacilityId { get; set; }
+    public string? Name { get; set; }
+    public string Type { get; set; } = "Direct"; // "Direct" | "Group"
+    public string CreatedByUserId { get; set; } = default!;
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+    public ICollection<ChatRoomMember> Members { get; set; } = new List<ChatRoomMember>();
+    public ICollection<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
+}
+
+public class ChatRoomMember
+{
+    public Guid Id { get; set; }
+    public Guid RoomId { get; set; }
+    public ChatRoom Room { get; set; } = default!;
+    public string UserId { get; set; } = default!;
+    public DateTime JoinedUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? LastReadUtc { get; set; }
+}
+
+public class ChatMessage
+{
+    public Guid Id { get; set; }
+    public Guid RoomId { get; set; }
+    public ChatRoom Room { get; set; } = default!;
+    public string SenderUserId { get; set; } = default!;
+    public string Content { get; set; } = default!;
+    public DateTime SentUtc { get; set; } = DateTime.UtcNow;
+    public bool IsDeleted { get; set; } = false;
 }
 

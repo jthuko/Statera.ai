@@ -10,6 +10,7 @@ dayjs.extend(isoWeek);
 
 import { useFacility } from "../../context/facility";
 import { useAuth } from "../../auth/useAuth";
+import { useNotifications } from "../../context/NotificationContext";
 import { listStaff, StaffDto } from "../../api/staff";
 import { listUnits } from "../../api/units";
 import type { UnitDto } from "../../api/units";
@@ -22,11 +23,8 @@ import {
 } from "../../api/assignments";
 
 interface RoleOption { id: string; name: string; }
-const ROLE_OPTIONS: RoleOption[] = [
-  { id: "rn", name: "RN" },
-  { id: "lpn", name: "LPN" },
-  { id: "cna", name: "CNA" },
-];
+const CREDENTIALS = ["RN", "LPN", "CNA", "MD", "PA", "NP", "CRNA", "RRT", "EMT", "Other"];
+const ROLE_OPTIONS: RoleOption[] = CREDENTIALS.map(c => ({ id: c, name: c }));
 
 function startOfWeekMonday(d: Dayjs) {
   return d.isoWeekday(1).startOf("day");
@@ -35,6 +33,7 @@ function startOfWeekMonday(d: Dayjs) {
 export default function AssignmentsPage() {
   const { facilities, selected, setSelectedId } = useFacility();
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
   const isOwner = user?.systemRole === "Owner";
   const facilityId = selected?.id;
 
@@ -43,6 +42,7 @@ export default function AssignmentsPage() {
   const [staff, setStaff] = React.useState<StaffDto[]>([]);
   const [unitId, setUnitId] = React.useState<string>("");
   const [roleId, setRoleId] = React.useState<string>("");
+  const [nameSearch, setNameSearch] = React.useState<string>("");
 
   const [loading, setLoading] = React.useState(false);
   const [assignments, setAssignments] = React.useState<AssignmentDto[]>([]);
@@ -113,14 +113,21 @@ export default function AssignmentsPage() {
     let filtered = staff;
     if (unitId) filtered = filtered.filter(s => s.unitId === unitId);
     if (roleId) filtered = filtered.filter(s => (s.role ?? "").toLowerCase() === roleId.toLowerCase());
-    return filtered.map(s => ({ id: s.id, label: s.displayName ?? `${s.firstName} ${s.lastName}` }));
-  }, [staff, unitId, roleId]);
+    if (nameSearch) {
+      const q = nameSearch.toLowerCase();
+      filtered = filtered.filter(s =>
+        `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+        (s.displayName ?? "").toLowerCase().includes(q)
+      );
+    }
+    return filtered.map(s => ({ id: s.id, label: s.displayName ?? `${s.firstName} ${s.lastName}`, role: s.role ?? undefined }));
+  }, [staff, unitId, roleId, nameSearch]);
 
   const assignmentCells = React.useMemo(() => {
     return assignments.map(a => {
       const start = dayjs(a.start);
       const dayISO = start.startOf("day").toISOString();
-      const roleName = ROLE_OPTIONS.find(r => r.id === a.roleId)?.name ?? a.roleId;
+      const roleName = ROLE_OPTIONS.find(r => r.id.toLowerCase() === (a.roleId ?? "").toLowerCase())?.name ?? a.roleId;
       const unitName = units.find(u => u.id === a.unitId)?.name;
       return { id: a.id, staffId: a.staffId, dayISO, startISO: a.start, endISO: a.end, roleName, unitName, notes: a.notes ?? null };
     });
@@ -129,12 +136,14 @@ export default function AssignmentsPage() {
   const openCreate = (staffId: string, dayISO: string) => {
     const start = dayjs(dayISO).hour(7).minute(0).second(0).millisecond(0);
     const end = start.add(8, "hour");
+    const staffMember = staff.find(s => s.id === staffId);
+    const staffRole = staffMember?.role ?? "";
     setDialogTitle("Create Assignment");
     setEditingId(undefined);
     setDialogInitial({
-      unitId: unitId || (units[0]?.id ?? ""),
+      unitId: unitId || staffMember?.unitId || (units[0]?.id ?? ""),
       staffId,
-      roleId: roleId || ROLE_OPTIONS[0].id,
+      roleId: staffRole || roleId || ROLE_OPTIONS[0].id,
       start: start.toISOString(),
       end: end.toISOString(),
       notes: ""
@@ -158,14 +167,20 @@ export default function AssignmentsPage() {
       if (!editingId) {
         await createAssignment(facilityId, { unitId: values.unitId || undefined, staffId: values.staffId, roleId: values.roleId, start: values.start, end: values.end, notes: values.notes });
         setToast("Assignment created");
+        const staffName = staff.find(s => s.id === values.staffId);
+        const label = staffName ? `${staffName.firstName} ${staffName.lastName}` : values.staffId;
+        addNotification(`Assignment created for ${label} (${values.roleId}) on ${dayjs(values.start).format("MMM D")}`, "success");
       } else {
         await updateAssignment(facilityId, editingId, { id: editingId, unitId: values.unitId || undefined, staffId: values.staffId, roleId: values.roleId, start: values.start, end: values.end, notes: values.notes });
         setToast("Assignment updated");
+        const staffName = staff.find(s => s.id === values.staffId);
+        const label = staffName ? `${staffName.firstName} ${staffName.lastName}` : values.staffId;
+        addNotification(`Assignment updated for ${label} on ${dayjs(values.start).format("MMM D")}`, "info");
       }
       setDialogOpen(false);
       await loadAssignments();
-    } catch {
-      setError("Failed to save assignment");
+    } catch (e: any) {
+      setError(e?.response?.data?.error ?? "Failed to save assignment");
     } finally {
       setLoading(false);
     }
@@ -178,9 +193,10 @@ export default function AssignmentsPage() {
       await deleteAssignment(facilityId, editingId);
       setDialogOpen(false);
       setToast("Assignment deleted");
+      addNotification("An assignment was removed from the schedule.", "warning");
       await loadAssignments();
-    } catch {
-      setError("Failed to delete assignment");
+    } catch (e: any) {
+      setError(e?.response?.data?.error ?? "Failed to delete assignment");
     } finally {
       setLoading(false);
     }
@@ -250,6 +266,14 @@ export default function AssignmentsPage() {
             <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
           ))}
         </TextField>
+
+        <TextField
+          label="Search staff"
+          value={nameSearch}
+          onChange={e => setNameSearch(e.target.value)}
+          sx={{ minWidth: 180 }}
+          size="small"
+        />
 
         {loading && <CircularProgress size={24} />}
       </Stack>

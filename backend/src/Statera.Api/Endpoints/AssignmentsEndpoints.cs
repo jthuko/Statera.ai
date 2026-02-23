@@ -1,5 +1,6 @@
-﻿// backend/src/Statera.Api/Endpoints/AssignmentsEndpoints.cs
+// backend/src/Statera.Api/Endpoints/AssignmentsEndpoints.cs
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -75,6 +76,12 @@ public static class AssignmentsEndpoints
             if (req.UnitId.HasValue && !await db.Set<DomainUnit>().AnyAsync(u => u.Id == req.UnitId.Value))
                 return Results.BadRequest(new { error = "Unit not found" });
 
+            var availError = await CheckAvailabilityAsync(db, req.StaffId,
+                DateTime.SpecifyKind(req.StartUtc, DateTimeKind.Utc),
+                DateTime.SpecifyKind(req.EndUtc,   DateTimeKind.Utc));
+            if (availError is not null)
+                return Results.UnprocessableEntity(new { error = availError, code = "AVAILABILITY_CONFLICT" });
+
             var e = new DomainAssignment
             {
                 Id = Guid.NewGuid(),
@@ -124,6 +131,12 @@ public static class AssignmentsEndpoints
             var end = req.EndUtc ?? e.EndUtc;
             if (start >= end) return Results.BadRequest(new { error = "StartUtc must be before EndUtc" });
 
+            var availError = await CheckAvailabilityAsync(db, staffId,
+                DateTime.SpecifyKind(start, DateTimeKind.Utc),
+                DateTime.SpecifyKind(end,   DateTimeKind.Utc));
+            if (availError is not null)
+                return Results.UnprocessableEntity(new { error = availError, code = "AVAILABILITY_CONFLICT" });
+
             e.StaffId = staffId;
             e.FacilityId = facilityId;
             e.UnitId = unitId;
@@ -158,5 +171,52 @@ public static class AssignmentsEndpoints
         });
 
         return v1;
+    }
+
+    /// <summary>
+    /// Returns an error string if the staff member has recorded availability that
+    /// conflicts with the proposed shift, or null if the shift is allowed.
+    /// If the staff has NO availability records the schedule is unrestricted.
+    /// </summary>
+    private static async Task<string?> CheckAvailabilityAsync(
+        AppDbContext db, Guid staffId, DateTime startUtc, DateTime endUtc)
+    {
+        var avail = await db.StaffAvailabilities
+            .AsNoTracking()
+            .Where(a => a.StaffId == staffId)
+            .ToListAsync();
+
+        // No records → no restriction
+        if (avail.Count == 0) return null;
+
+        // Check every calendar day the shift touches
+        var cursor = startUtc.Date;
+        while (cursor < endUtc.Date || (cursor == startUtc.Date && cursor == endUtc.Date))
+        {
+            var dayOfWeek = cursor.DayOfWeek;
+            // The portion of the shift on this day
+            var segStart = cursor == startUtc.Date ? startUtc.TimeOfDay : TimeSpan.Zero;
+            var segEnd   = cursor == endUtc.Date   ? endUtc.TimeOfDay   : TimeSpan.FromHours(24);
+            // Zero end means midnight exactly (end of previous day already covered)
+            if (segEnd == TimeSpan.Zero) { cursor = cursor.AddDays(1); continue; }
+
+            var covered = avail.Any(a =>
+                a.DayOfWeek == dayOfWeek &&
+                a.StartLocal <= segStart &&
+                a.EndLocal   >= segEnd);
+
+            if (!covered)
+            {
+                var dayName   = dayOfWeek.ToString();
+                var startStr  = startUtc.ToString("HH:mm");
+                var endStr    = endUtc.ToString("HH:mm");
+                return $"Staff is not available on {dayName} (shift {startStr}–{endStr} UTC). " +
+                       "Check their availability settings or adjust the shift time.";
+            }
+
+            cursor = cursor.AddDays(1);
+        }
+
+        return null;
     }
 }

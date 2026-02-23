@@ -2,7 +2,7 @@
 import { useState } from "react";
 import {
   AppBar, Box, CssBaseline, Divider, Drawer, IconButton, InputBase,
-  List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography
+  List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography,
 } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
@@ -14,10 +14,13 @@ import {
   Assignment,
   AccessAlarm,
   Rule,
-  Work, // Units
+  Work,
+  EventNote,
+  Chat,
 } from "@mui/icons-material";
 import { Outlet, Link as RouterLink, useMatch, useResolvedPath } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
+import AppNotificationBell from "./AppNotificationBell";
 
 
 const drawerWidth = 260;
@@ -58,7 +61,8 @@ export default function AppShell() {
     { to: "/timeoff",     label: "Time Off",         icon: <AccessAlarm /> },
     { to: "/constraints", label: "Constraints & Rules", icon: <Rule /> },
     { to: "/coverage",    label: "Coverage",         icon: <Work /> },
-    { to: "/demand-templates", label: "Demand Templates", icon: <ListItemIcon /> },
+    { to: "/demand-templates", label: "Demand Templates", icon: <EventNote /> },
+    { to: "/chat",             label: "Chat",             icon: <Chat /> },
   ];
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -97,7 +101,8 @@ export default function AppShell() {
               sx={{ color: "white", px: 1, minWidth: 260 }}
             />
           </Box>
-          <IconButton color="inherit" onClick={logout} title="Logout" sx={{ ml: 2 }}>
+          <AppNotificationBell />
+          <IconButton color="inherit" onClick={logout} title="Logout" sx={{ ml: 1 }}>
             ⎋
           </IconButton>
         </Toolbar>

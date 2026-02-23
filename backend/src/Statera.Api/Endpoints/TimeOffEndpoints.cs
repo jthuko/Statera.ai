@@ -59,7 +59,9 @@ public static class TimeOffEndpoints
                 query = query.Where(x => x.t.StartUtc <= DateTime.SpecifyKind(to.Value, DateTimeKind.Utc));
 
             if (!string.IsNullOrWhiteSpace(q))
-                query = query.Where(x => (x.t.Reason ?? "").Contains(q));
+                query = query.Where(x =>
+                    (x.t.Reason ?? "").Contains(q) ||
+                    (x.s != null && (x.s.FirstName + " " + x.s.LastName).Contains(q)));
 
             var total = await query.CountAsync();
 

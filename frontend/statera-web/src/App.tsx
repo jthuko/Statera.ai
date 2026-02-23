@@ -10,6 +10,7 @@ import Staff from "./pages/Staff";
 import StaffDetail from "./pages/StaffDetail";
 import RequireAuth from "./auth/RequireAuth";
 import AppShell from "./components/AppShell";
+import PortalShell from "./components/PortalShell";
 import FacilitiesPage from "./pages/Facilities";
 import ConstraintsRulesPage from "./pages/constraints";
 import UnitsPage from "./pages/units/_Page";
@@ -20,9 +21,16 @@ import ConstraintsPage from "./pages/constraints";
 import CoveragePage from "./pages/coverage";
 import DemandTemplatesListPage from "./pages/demand-templates";
 import DemandTemplateEditorPage from "./pages/demand-templates/editor";
+import FacilityAdminPage from "./pages/facilities/FacilityAdminPage";
+import ChatPage from "./pages/ChatPage";
 
-// If you already created the Time Off page, uncomment the next line:
-// import TimeOffPage from "./pages/timeoff";
+// Portal pages (staff)
+import PortalDashboard from "./pages/portal/PortalDashboard";
+import PortalSchedule from "./pages/portal/PortalSchedule";
+import PortalTimeOff from "./pages/portal/PortalTimeOff";
+import PortalTimeClock from "./pages/portal/PortalTimeClock";
+import PortalTimesheet from "./pages/portal/PortalTimesheet";
+import PortalChat from "./pages/portal/PortalChat";
 
 export default function App() {
   return (
@@ -30,14 +38,32 @@ export default function App() {
       {/* Public */}
       <Route path="/login" element={<Login />} />
 
-      {/* Private layout: everything inside renders within <AppShell /> via <Outlet /> */}
+      {/* ── Staff Portal (staffOnly) ── */}
+      <Route
+        path="/portal"
+        element={
+          <RequireAuth staffOnly>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <PortalShell />
+            </LocalizationProvider>
+          </RequireAuth>
+        }
+      >
+        <Route index element={<PortalDashboard />} />
+        <Route path="schedule" element={<PortalSchedule />} />
+        <Route path="timeoff" element={<PortalTimeOff />} />
+        <Route path="timeclock" element={<PortalTimeClock />} />
+        <Route path="timesheet" element={<PortalTimesheet />} />
+        <Route path="chat" element={<PortalChat />} />
+        <Route path="*" element={<Navigate to="/portal" replace />} />
+      </Route>
+
+      {/* ── Admin layout ── */}
       <Route
         path="/"
         element={
           <RequireAuth>
-            {/* Date/time pickers need this provider at or above the pages that use them */}
             <LocalizationProvider dateAdapter={AdapterDayjs}>
-              {/* Facility context available to all nested routes */}
               <FacilityProvider>
                 <AppShell />
               </FacilityProvider>
@@ -45,28 +71,26 @@ export default function App() {
           </RequireAuth>
         }
       >
-        {/* Children (relative paths) */}
         <Route index element={<Dashboard />} />
         <Route path="scheduler" element={<Scheduler />} />
         <Route path="staff" element={<Staff />} />
         <Route path="staff/:id" element={<StaffDetail />} />
-        {/* Facilities — Owner sees all + full controls; FacilityAdmin sees only their facility + Manage Admins */}
         <Route path="facilities" element={<FacilitiesPage />} />
+        <Route path="facilities/:facilityId" element={<FacilityAdminPage />} />
         <Route path="constraints" element={<ConstraintsRulesPage />} />
         <Route path="units" element={<UnitsPage />} />
         <Route path="assignments" element={<AssignmentsPage />} />
         <Route path="timeoff" element={<TimeOffPage/>} />
         <Route path="/constraints" element={<ConstraintsPage />} />
-        <Route path="/coverage" element={<CoveragePage/>} />                           
+        <Route path="/coverage" element={<CoveragePage/>} />
+        <Route path="chat" element={<ChatPage />} />
         <Route path="dashboard" element={<Navigate to="/" replace />} />
         <Route path="/demand-templates" element={<DemandTemplatesListPage />} />
         <Route path="/demand-templates/:id" element={<DemandTemplateEditorPage />} />
-
-        {/* Fallback for unknown routes under the shell */}
         <Route path="*" element={<Navigate to="/assignments" replace />} />
       </Route>
 
-      {/* Final catch-all for anything outside "/" tree */}
+      {/* Final catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

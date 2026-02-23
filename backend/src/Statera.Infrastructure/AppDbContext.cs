@@ -62,6 +62,14 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
     // User-Facility permission assignments
     public DbSet<UserFacilityRole> UserFacilityRoles => Set<UserFacilityRole>();
 
+    // Time Clock
+    public DbSet<TimeClockEntry> TimeClockEntries => Set<TimeClockEntry>();
+
+    // Chat
+    public DbSet<ChatRoom> ChatRooms => Set<ChatRoom>();
+    public DbSet<ChatRoomMember> ChatRoomMembers => Set<ChatRoomMember>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
@@ -228,5 +236,37 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
         b.Entity<OvertimeRule>();
         b.Entity<ShiftSwap>();
         b.Entity<AuditLog>();
+
+        // TimeClockEntry
+        b.Entity<TimeClockEntry>(e =>
+        {
+            e.HasIndex(x => new { x.StaffId, x.ClockInUtc });
+            e.HasIndex(x => x.FacilityId);
+            e.Property(x => x.Status).HasMaxLength(20).HasDefaultValue("ClockedIn");
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.Property(x => x.AdminNotes).HasMaxLength(500);
+        });
+
+        // ChatRoom
+        b.Entity<ChatRoom>(e =>
+        {
+            e.Property(x => x.Type).HasMaxLength(10).HasDefaultValue("Direct");
+            e.Property(x => x.Name).HasMaxLength(100);
+            e.HasMany(x => x.Members).WithOne(m => m.Room).HasForeignKey(m => m.RoomId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Messages).WithOne(m => m.Room).HasForeignKey(m => m.RoomId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ChatRoomMember
+        b.Entity<ChatRoomMember>(e =>
+        {
+            e.HasIndex(x => new { x.RoomId, x.UserId }).IsUnique();
+        });
+
+        // ChatMessage
+        b.Entity<ChatMessage>(e =>
+        {
+            e.Property(x => x.Content).HasMaxLength(4000).IsRequired();
+            e.HasIndex(x => new { x.RoomId, x.SentUtc });
+        });
     }
 }

@@ -34,7 +34,7 @@ public static class AuthEndpoints
             var result = await sm.CheckPasswordSignInAsync(user, req.Password, lockoutOnFailure: false);
             if (!result.Succeeded) return Results.Unauthorized();
 
-            // Owners get all facility IDs; FacilityAdmins get only their assigned ones
+            // Owners get all facility IDs; others get only their assigned ones
             List<Guid> facilityIds;
             if (user.SystemRole == "Owner")
             {
@@ -48,23 +48,43 @@ public static class AuthEndpoints
                     .ToListAsync(ct);
             }
 
-            var tokens = await jwt.CreateAsync(user, facilityIds, ct);
+            // For Staff portal users embed their Staff record ID
+            Guid? staffId = null;
+            if (user.SystemRole == "Staff" && !string.IsNullOrWhiteSpace(user.Email))
+            {
+                var staffRecord = await db.Staff.AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.Email == user.Email, ct);
+                staffId = staffRecord?.Id;
+                // Staff can only access their own facility
+                if (staffRecord != null && !facilityIds.Contains(staffRecord.FacilityId))
+                    facilityIds = new List<Guid> { staffRecord.FacilityId };
+            }
+
+            var tokens = await jwt.CreateAsync(user, facilityIds, ct, staffId);
             return Results.Ok(new AuthResponse(tokens.AccessToken, tokens.RefreshToken));
         });
 
         // Returns the current user's identity decoded from the Bearer token
         g.MapGet("/me", (HttpContext ctx) =>
         {
-            var userId   = ctx.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
-            var email    = ctx.User.FindFirstValue(JwtRegisteredClaimNames.Email);
-            var sysRole  = ctx.User.FindFirstValue("system_role") ?? "FacilityAdmin";
+            var userId    = ctx.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            var email     = ctx.User.FindFirstValue(JwtRegisteredClaimNames.Email);
+            var sysRole   = ctx.User.FindFirstValue("system_role") ?? "FacilityAdmin";
+            var staffIdStr = ctx.User.FindFirstValue("staff_id");
             var fidClaims = ctx.User.FindAll("facility_id")
                                     .Select(c => c.Value)
                                     .ToList();
 
             if (userId is null) return Results.Unauthorized();
 
-            return Results.Ok(new UserInfoResponse(userId, email ?? "", sysRole, fidClaims));
+            return Results.Ok(new
+            {
+                Id          = userId,
+                Email       = email ?? "",
+                SystemRole  = sysRole,
+                FacilityIds = fidClaims,
+                StaffId     = staffIdStr
+            });
         })
         .RequireAuthorization();
 
@@ -94,6 +114,20 @@ public static class AuthEndpoints
             }
             return Results.Ok(new { registered = true, email = req.Email });
         });
+
+        // GET /api/v1/auth/users  — list all AppUsers for chat DM picker
+        g.MapGet("/users", async (
+            [FromServices] UserManager<AppUser> um,
+            HttpContext ctx) =>
+        {
+            var currentId = ctx.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            var users = um.Users
+                .Where(u => u.Id != currentId)
+                .Select(u => new { u.Id, u.Email, u.SystemRole })
+                .ToList();
+            return Results.Ok(users);
+        })
+        .RequireAuthorization();
 
         return v1;
     }

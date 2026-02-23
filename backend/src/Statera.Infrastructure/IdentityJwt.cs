@@ -20,7 +20,7 @@ namespace Statera.Infrastructure
 
     public interface IJwtService
     {
-        Task<TokenPair> CreateAsync(AppUser user, IList<Guid> facilityIds, CancellationToken ct);
+        Task<TokenPair> CreateAsync(AppUser user, IList<Guid> facilityIds, CancellationToken ct, Guid? staffId = null);
     }
 
     public class JwtService : IJwtService
@@ -32,7 +32,7 @@ namespace Statera.Infrastructure
             _opts = opts.Value;
         }
 
-        public Task<TokenPair> CreateAsync(AppUser user, IList<Guid> facilityIds, CancellationToken ct)
+        public Task<TokenPair> CreateAsync(AppUser user, IList<Guid> facilityIds, CancellationToken ct, Guid? staffId = null)
         {
             // signing key & creds
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_opts.Key));
@@ -51,6 +51,10 @@ namespace Statera.Infrastructure
             // One claim per facility this user is allowed to access
             foreach (var fid in facilityIds)
                 claims.Add(new Claim("facility_id", fid.ToString()));
+
+            // For Staff portal users: embed their Staff record ID
+            if (staffId.HasValue)
+                claims.Add(new Claim("staff_id", staffId.Value.ToString()));
 
             // jwt
             var jwt = new JwtSecurityToken(

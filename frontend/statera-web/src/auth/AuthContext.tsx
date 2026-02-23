@@ -1,13 +1,14 @@
 import React, { createContext, useEffect, useState } from "react";
 import api from "../api/axios";
 
-type SystemRole = "Owner" | "FacilityAdmin";
+export type SystemRole = "Owner" | "FacilityAdmin" | "Staff";
 
-interface User {
+export interface User {
   id: string;
   email: string;
   systemRole: SystemRole;
   facilityIds: string[];
+  staffId?: string | null; // set for Staff-role users
 }
 
 interface AuthContextValue {
@@ -46,27 +47,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("statera:refreshToken", refreshToken);
     }
 
-    // Fetch the user's identity from the server using the newly stored token
     try {
       const meRes = await api.get<{
         id: string;
         email: string;
         systemRole: string;
         facilityIds: string[];
+        staffId?: string | null;
       }>("/auth/me");
 
-      const { id, email: userEmail, systemRole, facilityIds } = meRes.data;
+      const { id, email: userEmail, systemRole, facilityIds, staffId } = meRes.data;
       const parsed: User = {
         id,
         email: userEmail,
         systemRole: (systemRole as SystemRole) ?? "FacilityAdmin",
         facilityIds: facilityIds ?? [],
+        staffId: staffId ?? null,
       };
 
       localStorage.setItem("statera:user", JSON.stringify(parsed));
       setUser(parsed);
     } catch {
-      // Fallback: minimal user so auth guards still pass
       const fallback: User = {
         id: "self",
         email,
@@ -97,9 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider
-      value={{ user, login, logout, isAuthorized, hasFacilityAccess }}
-    >
+    <AuthContext.Provider value={{ user, login, logout, isAuthorized, hasFacilityAccess }}>
       {children}
     </AuthContext.Provider>
   );
