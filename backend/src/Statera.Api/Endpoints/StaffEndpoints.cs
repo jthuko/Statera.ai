@@ -1,7 +1,14 @@
 ﻿// backend/src/Statera.Api/Endpoints/StaffEndpoints.cs
 using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using ClosedXML.Excel;
+using CsvHelper;
+using CsvHelper.Configuration;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
@@ -470,6 +477,198 @@ public static class StaffEndpoints
 
             return Results.Ok(new { email = staff.Email, tempPassword = newPassword });
         });
+
+        // POST /api/v1/staff/import?facilityId={guid}
+        // Accepts a multipart form with a single "file" field (.csv or .xlsx).
+        // Validates and creates each row; returns a summary of successes and per-row errors.
+        g.MapPost("/import", async (
+            [FromQuery] Guid facilityId,
+            HttpRequest request,
+            [FromServices] AppDbContext db) =>
+        {
+            if (facilityId == Guid.Empty)
+                return Results.BadRequest(new { error = "facilityId query parameter is required." });
+
+            if (!await db.Facilities.AnyAsync(f => f.Id == facilityId))
+                return Results.BadRequest(new { error = "Facility not found." });
+
+            if (!request.HasFormContentType || !request.Form.Files.Any())
+                return Results.BadRequest(new { error = "Upload a CSV or Excel (.xlsx) file." });
+
+            var file = request.Form.Files[0];
+            var ext  = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (ext != ".csv" && ext != ".xlsx")
+                return Results.BadRequest(new { error = "Only .csv and .xlsx files are supported." });
+
+            // ── Parse rows ──────────────────────────────────────────────────
+            var rawRows = new List<Dictionary<string, string>>();
+            try
+            {
+                if (ext == ".csv")
+                {
+                    using var reader = new StreamReader(file.OpenReadStream());
+                    var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+                        { HeaderValidated = null, MissingFieldFound = null };
+                    using var csv = new CsvReader(reader, config);
+                    await csv.ReadAsync();
+                    csv.ReadHeader();
+                    var headers = csv.HeaderRecord!.Select(h => h.Trim()).ToArray();
+                    while (await csv.ReadAsync())
+                    {
+                        var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var h in headers)
+                            row[h] = csv.GetField(h)?.Trim() ?? "";
+                        rawRows.Add(row);
+                    }
+                }
+                else // .xlsx
+                {
+                    using var ms = new MemoryStream();
+                    await file.CopyToAsync(ms);
+                    ms.Position = 0;
+                    using var wb = new XLWorkbook(ms);
+                    var ws = wb.Worksheets.First();
+                    var headerRow = ws.Row(1);
+                    var headers = headerRow.CellsUsed()
+                        .Select(c => c.GetString().Trim())
+                        .ToArray();
+                    foreach (var row in ws.RowsUsed().Skip(1))
+                    {
+                        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        for (int i = 0; i < headers.Length; i++)
+                            dict[headers[i]] = row.Cell(i + 1).GetString().Trim();
+                        rawRows.Add(dict);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return Results.BadRequest(new { error = $"Failed to parse file: {ex.Message}" });
+            }
+
+            if (rawRows.Count == 0)
+                return Results.BadRequest(new { error = "The file contains no data rows." });
+
+            // ── Helper: resolve a column by multiple possible names ──────────
+            static string? Col(Dictionary<string, string> row, params string[] names)
+            {
+                foreach (var n in names)
+                    if (row.TryGetValue(n, out var v) && !string.IsNullOrWhiteSpace(v))
+                        return v.Trim();
+                return null;
+            }
+
+            // Normalise employment type variants: "full-time", "Full Time" → "FullTime"
+            static string NormaliseEmploymentType(string raw) =>
+                raw.Replace("-", "").Replace(" ", "").Replace("_", "");
+
+            // ── Pre-load existing emails to detect duplicates ─────────────────
+            var existingEmailsList = await db.Staff.AsNoTracking()
+                .Where(s => s.Email != null)
+                .Select(s => s.Email!.ToLower())
+                .ToListAsync();
+            var existingEmails = new HashSet<string>(existingEmailsList, StringComparer.OrdinalIgnoreCase);
+
+            // ── Validate & build entities ─────────────────────────────────────
+            var errors  = new List<object>();
+            var toAdd   = new List<DomStaff>();
+            var batchEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            for (int i = 0; i < rawRows.Count; i++)
+            {
+                int rowNum = i + 2; // 1-based; row 1 is header
+                var r = rawRows[i];
+
+                var firstName      = Col(r, "firstName", "first_name", "First Name", "FirstName");
+                var lastName       = Col(r, "lastName", "last_name", "Last Name", "LastName");
+                var email          = Col(r, "email", "Email");
+                var role           = Col(r, "role", "Role");
+                var employmentType = Col(r, "employmentType", "employment_type", "Employment Type", "EmploymentType");
+                var unitIdRaw      = Col(r, "unitId", "unit_id", "Unit Id", "UnitId");
+                var activeRaw      = Col(r, "active", "Active");
+
+                // Required field checks
+                if (string.IsNullOrWhiteSpace(firstName))
+                { errors.Add(new { row = rowNum, message = "firstName is required." }); continue; }
+                if (string.IsNullOrWhiteSpace(lastName))
+                { errors.Add(new { row = rowNum, message = "lastName is required." }); continue; }
+                if (string.IsNullOrWhiteSpace(role))
+                { errors.Add(new { row = rowNum, message = "role is required." }); continue; }
+                if (string.IsNullOrWhiteSpace(employmentType))
+                { errors.Add(new { row = rowNum, message = "employmentType is required." }); continue; }
+
+                if (!Enum.TryParse<EmploymentType>(NormaliseEmploymentType(employmentType), ignoreCase: true, out var et))
+                {
+                    var allowed = string.Join(", ", Enum.GetNames(typeof(EmploymentType)));
+                    errors.Add(new { row = rowNum, message = $"Invalid employmentType '{employmentType}'. Allowed: {allowed}." });
+                    continue;
+                }
+
+                // Email uniqueness
+                if (!string.IsNullOrWhiteSpace(email))
+                {
+                    var emailLower = email.ToLower();
+                    if (existingEmails.Contains(emailLower))
+                    { errors.Add(new { row = rowNum, message = $"Email '{email}' is already in use." }); continue; }
+                    if (!batchEmails.Add(emailLower))
+                    { errors.Add(new { row = rowNum, message = $"Email '{email}' appears more than once in the file." }); continue; }
+                }
+
+                // Unit resolution
+                Guid? unitId = null;
+                if (!string.IsNullOrWhiteSpace(unitIdRaw))
+                {
+                    if (Guid.TryParse(unitIdRaw, out var parsedUnitId))
+                    {
+                        if (!await db.Units.AnyAsync(u => u.Id == parsedUnitId && u.FacilityId == facilityId))
+                        { errors.Add(new { row = rowNum, message = $"Unit '{unitIdRaw}' not found in this facility." }); continue; }
+                        unitId = parsedUnitId;
+                    }
+                    else
+                    {
+                        // Try name lookup
+                        var unit = await db.Units.AsNoTracking()
+                            .FirstOrDefaultAsync(u => u.FacilityId == facilityId && u.Name == unitIdRaw);
+                        if (unit is null)
+                        { errors.Add(new { row = rowNum, message = $"Unit '{unitIdRaw}' not found. Provide a valid unit name or GUID." }); continue; }
+                        unitId = unit.Id;
+                    }
+                }
+
+                bool active = true;
+                if (!string.IsNullOrWhiteSpace(activeRaw))
+                    bool.TryParse(activeRaw, out active);
+
+                toAdd.Add(new DomStaff
+                {
+                    Id             = Guid.NewGuid(),
+                    FirstName      = firstName,
+                    LastName       = lastName,
+                    Email          = string.IsNullOrWhiteSpace(email) ? null : email,
+                    FacilityId     = facilityId,
+                    UnitId         = unitId,
+                    Role           = role,
+                    EmploymentType = et,
+                    Active         = active,
+                });
+            }
+
+            // ── Save all valid rows together ──────────────────────────────────
+            if (toAdd.Count > 0)
+            {
+                db.Staff.AddRange(toAdd);
+                await db.SaveChangesAsync();
+            }
+
+            return Results.Ok(new
+            {
+                successCount = toAdd.Count,
+                errorCount   = errors.Count,
+                errors,
+            });
+        })
+        .DisableAntiforgery()
+        .RequireAuthorization();
 
         return v1;
     }

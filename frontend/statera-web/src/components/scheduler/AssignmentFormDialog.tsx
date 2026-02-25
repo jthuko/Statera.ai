@@ -111,10 +111,17 @@ export default function AssignmentFormDialog(props: AssignmentFormDialogProps) {
   };
 
   const handleTimeChange = (key: "start" | "end") => (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Accept "YYYY-MM-DDTHH:mm" from <input type="datetime-local">
     const val = e.target.value;
-    // Normalize to ISO
     const iso = dayjs(val).toISOString();
+    if (key === "start") {
+      const oldStart = dayjs(values.start);
+      const oldEnd = dayjs(values.end);
+      if (oldStart.isValid() && oldEnd.isValid()) {
+        const durationMs = oldEnd.valueOf() - oldStart.valueOf();
+        setValues(v => ({ ...v, start: iso, end: dayjs(iso).add(durationMs, "millisecond").toISOString() }));
+        return;
+      }
+    }
     setValues(v => ({ ...v, [key]: iso }));
   };
 
@@ -192,8 +199,7 @@ export default function AssignmentFormDialog(props: AssignmentFormDialogProps) {
 
           {hasConflict && (
             <Alert severity="warning">
-              This staff member is not available at the selected day/time based on their recorded availability.
-              Saving will be blocked — adjust the shift time or update their availability settings.
+              This staff member's availability settings don't cover this shift time. You can still save — admins can override availability.
             </Alert>
           )}
 
@@ -214,7 +220,7 @@ export default function AssignmentFormDialog(props: AssignmentFormDialogProps) {
           </Button>
         )}
         <Button onClick={onCancel} variant="text">Cancel</Button>
-        <Button onClick={submit} variant="contained" disabled={hasConflict}>Save</Button>
+        <Button onClick={submit} variant="contained">Save</Button>
       </DialogActions>
     </Dialog>
   );

@@ -1,10 +1,14 @@
 // src/pages/coverage/index.tsx
 import * as React from "react";
 import {
-  Box, Button, Container, Divider, FormControl, InputLabel, MenuItem,
-  Select, Stack, TextField, Typography, Chip,
-  Table, TableBody, TableCell, TableHead, TableRow, TableSortLabel, Tooltip
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress,
+  Container, FormControl, InputLabel, MenuItem,
+  Select, Stack, TextField, Tooltip, Typography,
+  Table, TableBody, TableCell, TableHead, TableRow, TableSortLabel,
 } from "@mui/material";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import TodayIcon from "@mui/icons-material/Today";
 import dayjs from "dayjs";
 
 import { useFacility } from "../../context/facility";
@@ -31,25 +35,36 @@ interface CoverageRow {
 
 type SortCol = "date" | "unit" | "role" | "required" | "assigned" | "variance";
 
+// ── Variance chip ─────────────────────────────────────────────────────────────
+function VarianceChip({ variance }: { variance: number }) {
+  const label   = variance > 0 ? `+${variance}` : `${variance}`;
+  const title   = variance < 0 ? "Under-staffed" : variance > 0 ? "Over-staffed" : "On target";
+  const color   = variance < 0 ? "error" : variance > 0 ? "success" : "warning";
+  return (
+    <Tooltip title={title}>
+      <Chip label={label} size="small" color={color}
+        sx={{ fontWeight: 700, minWidth: 44, fontSize: 12 }} />
+    </Tooltip>
+  );
+}
+
 export default function CoveragePage() {
   const { facilities, selected, setSelectedId } = useFacility();
   const { user } = useAuth();
-  const isOwner = user?.systemRole === "Owner";
+  const isOwner    = user?.systemRole === "Owner";
   const facilityId = selected?.id;
 
-  const [start, setStart] = React.useState(dayjs().startOf("week").format("YYYY-MM-DD"));
-  const [end, setEnd]     = React.useState(dayjs().endOf("week").format("YYYY-MM-DD"));
-  const [unitId, setUnitId]   = React.useState<Guid | "ALL">("ALL");
-  const [roleId, setRoleId]   = React.useState<string | "ALL">("ALL");
-  const [search, setSearch]   = React.useState("");
-
+  const [start, setStart]         = React.useState(dayjs().startOf("week").format("YYYY-MM-DD"));
+  const [end, setEnd]             = React.useState(dayjs().endOf("week").format("YYYY-MM-DD"));
+  const [unitId, setUnitId]       = React.useState<Guid | "ALL">("ALL");
+  const [roleId, setRoleId]       = React.useState<string | "ALL">("ALL");
+  const [search, setSearch]       = React.useState("");
   const [unitOptions, setUnitOptions] = React.useState<UnitOpt[]>([]);
   const [roleOptions, setRoleOptions] = React.useState<string[]>([]);
-  const [rows, setRows]               = React.useState<CoverageRow[]>([]);
-  const [loading, setLoading]         = React.useState(false);
-
-  const [sortCol, setSortCol]   = React.useState<SortCol>("date");
-  const [sortAsc, setSortAsc]   = React.useState(true);
+  const [rows, setRows]           = React.useState<CoverageRow[]>([]);
+  const [loading, setLoading]     = React.useState(false);
+  const [sortCol, setSortCol]     = React.useState<SortCol>("date");
+  const [sortAsc, setSortAsc]     = React.useState(true);
 
   const load = React.useCallback(async () => {
     if (!facilityId) return;
@@ -58,15 +73,14 @@ export default function CoveragePage() {
       const [units, constraints, assignments] = await Promise.all([
         listUnits(facilityId),
         listConstraints(facilityId),
-        listAssignments(facilityId, { start, end })
+        listAssignments(facilityId, { start, end }),
       ]);
-
       const unitMap: Record<string, string> = {};
       const opts = (units as any[]).map(u => ({ id: u.id as Guid, name: String(u.name) }));
       opts.forEach(u => (unitMap[u.id] = u.name));
       setUnitOptions(opts);
 
-      const demand = buildDemand(constraints as unknown as ConstraintDto[], start, end, opts);
+      const demand   = buildDemand(constraints as unknown as ConstraintDto[], start, end, opts);
       const assigned = buildAssigned(assignments, start, end);
 
       const rolesSeen = new Set<string>();
@@ -74,31 +88,25 @@ export default function CoveragePage() {
       Object.keys(assigned).forEach(k => rolesSeen.add(k.split("|")[2]));
       setRoleOptions([...rolesSeen].sort());
 
-      const allDates = eachDay(start, end);
-      const selectedUnits = unitId === "ALL" ? opts.map(o => o.id) : [unitId];
-      const selectedRoles = roleId === "ALL" ? [...rolesSeen] : [roleId];
+      const allDates    = eachDay(start, end);
+      const selUnits    = unitId === "ALL" ? opts.map(o => o.id) : [unitId];
+      const selRoles    = roleId === "ALL" ? [...rolesSeen] : [roleId];
 
       const out: CoverageRow[] = [];
       for (const d of allDates) {
-        for (const u of selectedUnits) {
-          for (const r of selectedRoles) {
+        for (const u of selUnits) {
+          for (const r of selRoles) {
             const req = demand[`${d}|${u}|${r}`] ?? 0;
             const got = assigned[`${d}|${u}|${r}`] ?? 0;
-            if (req === 0 && got === 0) continue; // skip empty rows
-            out.push({
-              unitId: u, unitName: unitMap[u] ?? "(Unknown)",
-              date: d, roleId: r,
-              required: req, assigned: got, variance: got - req
-            });
+            if (req === 0 && got === 0) continue;
+            out.push({ unitId: u, unitName: unitMap[u] ?? "(Unknown)", date: d, roleId: r, required: req, assigned: got, variance: got - req });
           }
         }
       }
       setRows(out);
     } catch (e) {
       console.error("Failed to load coverage", e);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [facilityId, start, end, unitId, roleId]);
 
   React.useEffect(() => { load(); }, [load]);
@@ -130,6 +138,11 @@ export default function CoveragePage() {
     return sortAsc ? cmp : -cmp;
   });
 
+  // Summary stats
+  const underCount = sorted.filter(r => r.variance < 0).length;
+  const onTarget   = sorted.filter(r => r.variance === 0).length;
+  const overCount  = sorted.filter(r => r.variance > 0).length;
+
   function SortHeader({ col, label }: { col: SortCol; label: string }) {
     return (
       <TableSortLabel
@@ -144,112 +157,161 @@ export default function CoveragePage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }} flexWrap="wrap" gap={1}>
-        <Typography variant="h5" fontWeight={700}>Demand & Coverage</Typography>
-        <Stack direction="row" spacing={1}>
-          <Button onClick={resetToThisWeek}>This week</Button>
-          <Button variant="contained" onClick={load} disabled={loading}>Refresh</Button>
-        </Stack>
-      </Stack>
 
-      <Box sx={{ p: 2, borderRadius: 2, bgcolor: "background.paper", boxShadow: 1, mb: 2 }}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} flexWrap="wrap">
-          {isOwner && (
-            <FormControl size="small" sx={{ minWidth: 220 }}>
-              <InputLabel>Facility</InputLabel>
-              <Select
-                label="Facility"
-                value={facilityId ?? ""}
-                onChange={e => setSelectedId(String(e.target.value))}
-              >
-                {facilities.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
-              </Select>
-            </FormControl>
+      {/* ── Header ── */}
+      <Card variant="outlined" sx={{
+        mb: 2.5,
+        background: "linear-gradient(90deg, rgba(0,77,77,0.4) 0%, rgba(0,77,77,0.08) 100%)",
+        borderColor: "rgba(0,137,123,0.25)",
+      }}>
+        <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
+          <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" gap={2}>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Box sx={{
+                width: 40, height: 40, borderRadius: 2, flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                bgcolor: "rgba(0,137,123,0.2)", border: "1px solid rgba(0,137,123,0.3)",
+              }}>
+                <BarChartIcon sx={{ color: "#4db6ac", fontSize: 22 }} />
+              </Box>
+              <Box>
+                <Typography variant="h6" fontWeight={700} lineHeight={1.2}>Demand & Coverage</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {dayjs(start).format("MMM D")} – {dayjs(end).format("MMM D, YYYY")}
+                </Typography>
+              </Box>
+            </Stack>
+            <Stack direction="row" spacing={1}>
+              <Button size="small" variant="outlined" startIcon={<TodayIcon fontSize="small" />}
+                onClick={resetToThisWeek}
+                sx={{ borderColor: "rgba(255,255,255,0.15)", fontSize: 12 }}>
+                This week
+              </Button>
+              <Button size="small" variant="contained" startIcon={<RefreshIcon fontSize="small" />}
+                onClick={load} disabled={loading}>
+                Refresh
+              </Button>
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {/* ── Summary chips ── */}
+      {!loading && facilityId && sorted.length > 0 && (
+        <Stack direction="row" spacing={1.5} sx={{ mb: 2 }} flexWrap="wrap">
+          <Chip label={`${sorted.length} slots`} size="small" variant="outlined"
+            sx={{ borderColor: "rgba(255,255,255,0.15)" }} />
+          {underCount > 0 && (
+            <Chip label={`${underCount} under-staffed`} size="small" color="error" variant="outlined" />
           )}
-          <TextField
-            type="date" label="Start" size="small" value={start}
-            onChange={(e) => setStart(e.target.value)} InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            type="date" label="End" size="small" value={end}
-            onChange={(e) => setEnd(e.target.value)} InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            select label="Unit" size="small" value={unitId}
-            onChange={(e) => setUnitId(e.target.value as any)} sx={{ minWidth: 180 }}
-          >
-            <MenuItem value="ALL">All Units</MenuItem>
-            {unitOptions.map(u => <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>)}
-          </TextField>
-          <TextField
-            select label="Role" size="small" value={roleId}
-            onChange={(e) => setRoleId(e.target.value as any)} sx={{ minWidth: 140 }}
-          >
-            <MenuItem value="ALL">All Roles</MenuItem>
-            {roleOptions.map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
-          </TextField>
-          <TextField
-            size="small" label="Search unit or role"
-            value={search} onChange={e => setSearch(e.target.value)}
-            sx={{ minWidth: 200 }}
-          />
+          {onTarget > 0 && (
+            <Chip label={`${onTarget} on target`} size="small" color="warning" variant="outlined" />
+          )}
+          {overCount > 0 && (
+            <Chip label={`${overCount} over-staffed`} size="small" color="success" variant="outlined" />
+          )}
         </Stack>
-      </Box>
-
-      <Divider sx={{ mb: 2 }} />
-
-      {!facilityId && (
-        <Typography color="text.secondary">Select a facility to view coverage.</Typography>
       )}
 
+      {/* ── Filters ── */}
+      <Card variant="outlined" sx={{ mb: 2, borderColor: "rgba(255,255,255,0.06)" }}>
+        <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} flexWrap="wrap" alignItems="center">
+            {isOwner && (
+              <FormControl size="small" sx={{ minWidth: 220 }}>
+                <InputLabel>Facility</InputLabel>
+                <Select label="Facility" value={facilityId ?? ""}
+                  onChange={e => setSelectedId(String(e.target.value))}>
+                  {facilities.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+            )}
+            <TextField type="date" label="Start" size="small" value={start}
+              onChange={e => setStart(e.target.value)} InputLabelProps={{ shrink: true }} />
+            <TextField type="date" label="End" size="small" value={end}
+              onChange={e => setEnd(e.target.value)} InputLabelProps={{ shrink: true }} />
+            <TextField select label="Unit" size="small" value={unitId}
+              onChange={e => setUnitId(e.target.value as any)} sx={{ minWidth: 180 }}>
+              <MenuItem value="ALL">All Units</MenuItem>
+              {unitOptions.map(u => <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>)}
+            </TextField>
+            <TextField select label="Role" size="small" value={roleId}
+              onChange={e => setRoleId(e.target.value as any)} sx={{ minWidth: 140 }}>
+              <MenuItem value="ALL">All Roles</MenuItem>
+              {roleOptions.map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+            </TextField>
+            <TextField size="small" label="Search" value={search}
+              onChange={e => setSearch(e.target.value)} sx={{ minWidth: 180 }} />
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {!facilityId && (
+        <Alert severity="info" sx={{ borderRadius: 2 }}>Select a facility to view coverage.</Alert>
+      )}
+
+      {/* ── Table ── */}
       {facilityId && (
-        <Box sx={{ overflowX: "auto" }}>
-          <Table size="small" stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell><SortHeader col="date" label="Date" /></TableCell>
-                <TableCell><SortHeader col="unit" label="Unit" /></TableCell>
-                <TableCell><SortHeader col="role" label="Role" /></TableCell>
-                <TableCell align="right"><SortHeader col="required" label="Required" /></TableCell>
-                <TableCell align="right"><SortHeader col="assigned" label="Assigned" /></TableCell>
-                <TableCell align="right"><SortHeader col="variance" label="Variance" /></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>Loading…</TableCell>
+        <Box sx={{ border: "1px solid rgba(255,255,255,0.07)", borderRadius: 1.5, overflow: "hidden" }}>
+          <Box sx={{ overflowX: "auto" }}>
+            <Table size="small" sx={{ minWidth: 560 }}>
+              <TableHead>
+                <TableRow sx={{
+                  "& th": {
+                    bgcolor: "rgba(0,55,55,0.55)",
+                    borderBottom: "1px solid rgba(255,255,255,0.08)",
+                    color: "rgba(255,255,255,0.5)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.7,
+                    py: 1.25,
+                    whiteSpace: "nowrap",
+                  },
+                }}>
+                  <TableCell sx={{ pl: 2 }}><SortHeader col="date"     label="Date" /></TableCell>
+                  <TableCell><SortHeader col="unit"     label="Unit" /></TableCell>
+                  <TableCell><SortHeader col="role"     label="Role" /></TableCell>
+                  <TableCell align="right"><SortHeader col="required" label="Required" /></TableCell>
+                  <TableCell align="right"><SortHeader col="assigned" label="Assigned" /></TableCell>
+                  <TableCell align="center"><SortHeader col="variance" label="Variance" /></TableCell>
                 </TableRow>
-              ) : sorted.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                    <Typography color="text.secondary">No data for the selected filters.</Typography>
-                  </TableCell>
-                </TableRow>
-              ) : sorted.map((row, i) => {
-                const color =
-                  row.variance < 0 ? "error.main"
-                  : row.variance === 0 ? "warning.main"
-                  : "success.main";
-                return (
-                  <TableRow key={i} hover>
-                    <TableCell>{dayjs(row.date).format("ddd, MMM D")}</TableCell>
-                    <TableCell>{row.unitName}</TableCell>
-                    <TableCell>{row.roleId}</TableCell>
-                    <TableCell align="right">{row.required}</TableCell>
-                    <TableCell align="right">{row.assigned}</TableCell>
-                    <TableCell align="right">
-                      <Tooltip title={row.variance < 0 ? "Under-staffed" : row.variance > 0 ? "Over-staffed" : "On target"}>
-                        <Typography component="span" sx={{ color, fontWeight: 700 }}>
-                          {row.variance > 0 ? `+${row.variance}` : `${row.variance}`}
-                        </Typography>
-                      </Tooltip>
+              </TableHead>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 6, border: 0 }}>
+                      <CircularProgress size={26} sx={{ color: "#4db6ac" }} />
                     </TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                ) : sorted.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 8, border: 0 }}>
+                      <BarChartIcon sx={{ fontSize: 40, color: "text.disabled", opacity: 0.25, mb: 1, display: "block", mx: "auto" }} />
+                      <Typography color="text.secondary" variant="body2">No data for the selected filters.</Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : sorted.map((row, i) => (
+                  <TableRow key={i} hover sx={{
+                    borderLeft: row.variance < 0 ? "3px solid #c62828" : row.variance > 0 ? "3px solid #2e7d32" : "3px solid #e65100",
+                    "& td": { borderBottom: "1px solid rgba(255,255,255,0.05)", py: 1.25 },
+                    "&:last-child td": { borderBottom: 0 },
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.025) !important" },
+                  }}>
+                    <TableCell sx={{ pl: 2, fontWeight: 500 }}>{dayjs(row.date).format("ddd, MMM D")}</TableCell>
+                    <TableCell>{row.unitName}</TableCell>
+                    <TableCell>
+                      <Chip label={row.roleId} size="small" variant="outlined"
+                        sx={{ fontSize: 11, height: 20, borderColor: "rgba(255,255,255,0.15)" }} />
+                    </TableCell>
+                    <TableCell align="right">{row.required}</TableCell>
+                    <TableCell align="right">{row.assigned}</TableCell>
+                    <TableCell align="center"><VarianceChip variance={row.variance} /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
         </Box>
       )}
     </Container>

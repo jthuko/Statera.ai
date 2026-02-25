@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Page from "./_Page";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Card,
@@ -19,6 +20,7 @@ import {
   IconButton,
   InputLabel,
   MenuItem,
+  Paper,
   Select,
   Skeleton,
   Stack,
@@ -34,6 +36,9 @@ import SaveIcon from "@mui/icons-material/Save";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import EmailIcon from "@mui/icons-material/Email";
+import BusinessIcon from "@mui/icons-material/Business";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import {
   getStaffById, updateStaff, deleteStaff,
   getStaffAvailability, updateStaffAvailability,
@@ -43,6 +48,24 @@ import {
 import StaffEditDialog, { StaffEditFormValues } from "../components/staff/StaffEditDialog";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+const ROLE_COLORS: Record<string, string> = {
+  RN: "#1565c0",
+  LPN: "#6a1b9a",
+  CNA: "#2e7d32",
+  Manager: "#e65100",
+  Cook: "#b71c1c",
+  Receptionist: "#01579b",
+  Other: "#546e7a",
+};
+
+function getInitials(name: string) {
+  return name.trim().split(/\s+/).map(n => n[0] ?? "").join("").toUpperCase().slice(0, 2);
+}
+
+function getRoleColor(role: string) {
+  return ROLE_COLORS[role] ?? "#546e7a";
+}
 
 export default function StaffDetail() {
   const { id } = useParams<{ id: string }>();
@@ -94,7 +117,7 @@ export default function StaffDetail() {
     if (!id) return;
     try {
       setDuplicateError(false);
-      const updated = await updateStaff(id, {
+      await updateStaff(id, {
         firstName: vals.firstName,
         lastName: vals.lastName,
         email: vals.email || null,
@@ -103,7 +126,6 @@ export default function StaffDetail() {
         employmentType: vals.employmentType,
         active: vals.active,
       });
-      // Reload to get fresh hasAdminAccount
       await reload();
       setEditOpen(false);
     } catch (e: any) {
@@ -161,26 +183,46 @@ export default function StaffDetail() {
     ? `${data.firstName ?? ""} ${data.lastName ?? ""}`.trim() || `(Unnamed #${id})`
     : "";
 
+  const roleColor = data?.role ? getRoleColor(data.role) : "#546e7a";
+
   return (
     <Page title={loading ? "Staff" : name}>
       {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
 
-      <Card>
-        <CardContent>
+      {/* Profile Card */}
+      <Card sx={{ mb: 3, overflow: "hidden" }}>
+        {/* Gradient banner */}
+        <Box
+          sx={{
+            height: 96,
+            background: loading
+              ? "linear-gradient(135deg, #78909c 0%, #b0bec5 100%)"
+              : `linear-gradient(135deg, ${roleColor} 0%, ${roleColor}99 100%)`,
+          }}
+        />
+        <CardContent sx={{ pt: 0 }}>
           {loading ? (
-            <Stack spacing={1}>
+            <Stack spacing={1} sx={{ mt: 1 }}>
+              <Skeleton variant="circular" width={72} height={72} sx={{ mt: -4, border: "3px solid white" }} />
               <Skeleton width={220} height={32} />
               <Skeleton width={160} />
-              <Skeleton width={160} />
-              <Skeleton width={240} />
+              <Skeleton width={200} />
             </Stack>
           ) : data ? (
-            <Stack spacing={1}>
-              <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                <Typography variant="h5" fontWeight={700}>
-                  {name}
-                </Typography>
-                <Stack direction="row" spacing={1}>
+            <>
+              {/* Avatar + Action buttons row */}
+              <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mt: -4, mb: 2 }}>
+                <Avatar
+                  sx={{
+                    width: 72, height: 72, fontSize: 26, fontWeight: 700,
+                    bgcolor: roleColor,
+                    border: "3px solid white",
+                    boxShadow: 3,
+                  }}
+                >
+                  {getInitials(name)}
+                </Avatar>
+                <Stack direction="row" spacing={1} sx={{ pb: 0.5 }}>
                   {data.email && !data.hasPortalAccount && !data.hasAdminAccount && (
                     <Button
                       startIcon={<PersonAddIcon />}
@@ -221,12 +263,27 @@ export default function StaffDetail() {
                 </Stack>
               </Stack>
 
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                {data.role && <Chip label={data.role} />}
-                {data.employmentType && <Chip label={data.employmentType} variant="outlined" />}
+              {/* Name */}
+              <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
+                {name}
+              </Typography>
+
+              {/* Status chips */}
+              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 2 }}>
+                {data.role && (
+                  <Chip
+                    label={data.role}
+                    size="small"
+                    sx={{ bgcolor: roleColor, color: "#fff", fontWeight: 600 }}
+                  />
+                )}
+                {data.employmentType && (
+                  <Chip label={data.employmentType} size="small" variant="outlined" />
+                )}
                 <Chip
                   label={data.active ? "Active" : "Inactive"}
                   color={data.active ? "success" : "default"}
+                  size="small"
                 />
                 {data.hasAdminAccount && (
                   <Chip
@@ -234,6 +291,7 @@ export default function StaffDetail() {
                     label="Facility Admin"
                     color="primary"
                     variant="outlined"
+                    size="small"
                   />
                 )}
                 {data.hasPortalAccount && (
@@ -242,35 +300,45 @@ export default function StaffDetail() {
                     label="Portal Account"
                     color="success"
                     variant="outlined"
+                    size="small"
                   />
                 )}
               </Stack>
 
-              <Divider sx={{ my: 2 }} />
+              <Divider sx={{ mb: 2 }} />
 
-              {data.email && (
-                <Typography>
-                  <strong>Email:</strong> {data.email}
-                </Typography>
-              )}
-              {data.unitId && (
-                <Typography>
-                  <strong>Unit ID:</strong> {data.unitId}
-                </Typography>
-              )}
-            </Stack>
+              {/* Info fields */}
+              <Stack spacing={1}>
+                {data.email && (
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <EmailIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                    <Typography variant="body2">{data.email}</Typography>
+                  </Stack>
+                )}
+                {data.unitId && (
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <BusinessIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                    <Typography variant="body2" color="text.secondary">Unit: {data.unitId}</Typography>
+                  </Stack>
+                )}
+              </Stack>
+            </>
           ) : null}
         </CardContent>
       </Card>
 
-      {/* Tabs below the profile card */}
+      {/* Tabs */}
       {data && (
-        <Box sx={{ mt: 3 }}>
-          <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
-            <Tab label="Availability" />
-          </Tabs>
-          {tab === 0 && <AvailabilityPanel staffId={data.id} />}
-        </Box>
+        <Card>
+          <Box sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}>
+            <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+              <Tab label="Availability" icon={<AccessTimeIcon fontSize="small" />} iconPosition="start" />
+            </Tabs>
+          </Box>
+          <CardContent>
+            {tab === 0 && <AvailabilityPanel staffId={data.id} />}
+          </CardContent>
+        </Card>
       )}
 
       {data && (
@@ -284,7 +352,7 @@ export default function StaffDetail() {
         />
       )}
 
-      {/* Portal account creation */}
+      {/* Portal account dialog */}
       <Dialog open={portalDialogOpen} onClose={() => setPortalDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Create Portal Account</DialogTitle>
         <DialogContent>
@@ -312,14 +380,19 @@ export default function StaffDetail() {
             {portalResult ? "Close" : "Cancel"}
           </Button>
           {!portalResult && (
-            <Button variant="contained" onClick={handleCreatePortalAccount} disabled={portalBusy} startIcon={portalBusy ? <CircularProgress size={16} color="inherit" /> : <PersonAddIcon />}>
+            <Button
+              variant="contained"
+              onClick={handleCreatePortalAccount}
+              disabled={portalBusy}
+              startIcon={portalBusy ? <CircularProgress size={16} color="inherit" /> : <PersonAddIcon />}
+            >
               Create Account
             </Button>
           )}
         </DialogActions>
       </Dialog>
 
-      {/* Reset portal password */}
+      {/* Reset password dialog */}
       <Dialog open={resetPwOpen} onClose={() => setResetPwOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Reset Portal Password</DialogTitle>
         <DialogContent>
@@ -346,7 +419,10 @@ export default function StaffDetail() {
             {resetPwResult ? "Close" : "Cancel"}
           </Button>
           {!resetPwResult && (
-            <Button variant="contained" onClick={handleResetPassword} disabled={resetPwBusy}
+            <Button
+              variant="contained"
+              onClick={handleResetPassword}
+              disabled={resetPwBusy}
               startIcon={resetPwBusy ? <CircularProgress size={16} color="inherit" /> : <AccountCircleIcon />}
             >
               Reset Password
@@ -378,6 +454,24 @@ export default function StaffDetail() {
 // ─── Availability Panel ───────────────────────────────────────────────────────
 
 interface AvailEntry { dayOfWeek: number; startLocal: string; endLocal: string }
+
+const DAY_COLORS = [
+  "#e53935", // Sun
+  "#1e88e5", // Mon
+  "#8e24aa", // Tue
+  "#00897b", // Wed
+  "#f4511e", // Thu
+  "#3949ab", // Fri
+  "#43a047", // Sat
+];
+
+function formatTime(t: string) {
+  if (!t) return t;
+  const [h, m] = t.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${ampm}`;
+}
 
 function AvailabilityPanel({ staffId }: { staffId: string }) {
   const [entries, setEntries] = useState<AvailEntry[]>([]);
@@ -424,54 +518,132 @@ function AvailabilityPanel({ staffId }: { staffId: string }) {
     }
   }
 
-  if (loading) return <CircularProgress size={24} />;
+  if (loading) return (
+    <Box sx={{ py: 2 }}>
+      <Stack spacing={1.5}>
+        {[...Array(3)].map((_, i) => <Skeleton key={i} height={64} sx={{ borderRadius: 2 }} />)}
+      </Stack>
+    </Box>
+  );
 
   return (
     <Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Set the days and hours this staff member is available to work. These are used by the scheduler.
-      </Typography>
-
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }}>Availability saved.</Alert>}
-
-      <Stack spacing={1.5}>
-        {entries.map((e, idx) => (
-          <Stack key={idx} direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
-            <FormControl size="small" sx={{ minWidth: 130 }}>
-              <InputLabel>Day</InputLabel>
-              <Select
-                label="Day"
-                value={e.dayOfWeek}
-                onChange={ev => updateEntry(idx, "dayOfWeek", Number(ev.target.value))}
-              >
-                {DAY_NAMES.map((d, i) => <MenuItem key={i} value={i}>{d}</MenuItem>)}
-              </Select>
-            </FormControl>
-            <TextField
-              size="small" label="Start" type="time" value={e.startLocal}
-              onChange={ev => updateEntry(idx, "startLocal", ev.target.value)}
-              InputLabelProps={{ shrink: true }} sx={{ width: 120 }}
-            />
-            <TextField
-              size="small" label="End" type="time" value={e.endLocal}
-              onChange={ev => updateEntry(idx, "endLocal", ev.target.value)}
-              InputLabelProps={{ shrink: true }} sx={{ width: 120 }}
-            />
-            <IconButton size="small" color="error" onClick={() => removeEntry(idx)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Stack>
-        ))}
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2.5 }}>
+        <Box>
+          <Typography variant="subtitle1" fontWeight={600}>Weekly Availability</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Days and hours this staff member is available to work
+          </Typography>
+        </Box>
+        <Button size="small" startIcon={<AddIcon />} onClick={addEntry} variant="outlined">
+          Add Day
+        </Button>
       </Stack>
 
-      <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-        <Button size="small" startIcon={<AddIcon />} onClick={addEntry}>Add Availability</Button>
-        <Button
-          size="small" variant="contained" startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
-          onClick={handleSave} disabled={saving}
+      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>Availability saved successfully.</Alert>}
+
+      {entries.length === 0 ? (
+        <Box
+          sx={{
+            textAlign: "center", py: 5,
+            border: "2px dashed", borderColor: "divider",
+            borderRadius: 2, color: "text.secondary",
+          }}
         >
-          Save
+          <AccessTimeIcon sx={{ fontSize: 36, mb: 1, opacity: 0.4 }} />
+          <Typography variant="body1" fontWeight={500}>No availability set</Typography>
+          <Typography variant="body2">Click "Add Day" to configure work availability.</Typography>
+        </Box>
+      ) : (
+        <Stack spacing={1.5}>
+          {entries.map((e, idx) => {
+            const dayColor = DAY_COLORS[e.dayOfWeek] ?? "#546e7a";
+            return (
+              <Paper
+                key={idx}
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  borderLeft: `4px solid ${dayColor}`,
+                  overflow: "hidden",
+                }}
+              >
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  alignItems="center"
+                  sx={{ px: 2, py: 1.5 }}
+                  flexWrap="wrap"
+                  gap={1}
+                >
+                  {/* Day selector */}
+                  <FormControl size="small" sx={{ minWidth: 140 }}>
+                    <InputLabel>Day</InputLabel>
+                    <Select
+                      label="Day"
+                      value={e.dayOfWeek}
+                      onChange={ev => updateEntry(idx, "dayOfWeek", Number(ev.target.value))}
+                      sx={{ fontWeight: 600 }}
+                    >
+                      {DAY_NAMES.map((d, i) => (
+                        <MenuItem key={i} value={i}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: DAY_COLORS[i] }} />
+                            <span>{d}</span>
+                          </Stack>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  {/* Time range */}
+                  <Stack direction="row" spacing={1} alignItems="center" flex={1}>
+                    <TextField
+                      size="small"
+                      label="Start"
+                      type="time"
+                      value={e.startLocal}
+                      onChange={ev => updateEntry(idx, "startLocal", ev.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ width: 130 }}
+                    />
+                    <Typography color="text.secondary" sx={{ px: 0.5, fontWeight: 500 }}>→</Typography>
+                    <TextField
+                      size="small"
+                      label="End"
+                      type="time"
+                      value={e.endLocal}
+                      onChange={ev => updateEntry(idx, "endLocal", ev.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ width: 130 }}
+                    />
+                  </Stack>
+
+                  {/* Summary label */}
+                  <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", sm: "block" }, minWidth: 140 }}>
+                    {formatTime(e.startLocal)} – {formatTime(e.endLocal)}
+                  </Typography>
+
+                  <IconButton size="small" color="error" onClick={() => removeEntry(idx)}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              </Paper>
+            );
+          })}
+        </Stack>
+      )}
+
+      <Stack direction="row" justifyContent="flex-end" sx={{ mt: 3 }}>
+        <Button
+          variant="contained"
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+          onClick={handleSave}
+          disabled={saving}
+          sx={{ minWidth: 140 }}
+        >
+          {saving ? "Saving…" : "Save Availability"}
         </Button>
       </Stack>
     </Box>

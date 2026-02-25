@@ -123,3 +123,26 @@ export async function resetPortalPassword(staffId: string): Promise<{ email: str
   const { data } = await http.post<{ email: string; tempPassword: string }>(`/staff/${staffId}/reset-password`);
   return data;
 }
+
+// ── Bulk import ───────────────────────────────────────────────────────────────
+
+export interface StaffImportError {
+  row: number;
+  message: string;
+}
+
+export interface StaffImportResult {
+  successCount: number;
+  errorCount: number;
+  errors: StaffImportError[];
+}
+
+export async function importStaff(facilityId: string, file: File): Promise<StaffImportResult> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await http.post<StaffImportResult>("/staff/import", form, {
+    params: { facilityId },
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}

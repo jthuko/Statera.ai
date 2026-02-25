@@ -1,13 +1,15 @@
 // src/pages/timeoff/index.tsx
 import * as React from "react";
 import {
-  Box, Button, Container, Typography, Tabs, Tab,
-  Stack, FormControl, InputLabel, Select, MenuItem,
-  List, ListItemButton, ListItemText, Paper, Divider,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-  Chip, CircularProgress,
+  Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress,
+  Container, Dialog, DialogActions, DialogContent, DialogTitle,
+  Divider, FormControl, InputLabel, List, ListItemButton, ListItemText,
+  MenuItem, Select, Stack, Tab, Tabs, TextField, Typography,
 } from "@mui/material";
+import BeachAccessIcon from "@mui/icons-material/BeachAccess";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import SearchIcon from "@mui/icons-material/Search";
+import EventBusyIcon from "@mui/icons-material/EventBusy";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -20,15 +22,21 @@ import { listStaff, StaffDto } from "../../api/staff";
 import { useFacility } from "../../context/facility";
 import { useAuth } from "../../auth/useAuth";
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const OFF_TYPES = ["Vacation", "Sick", "Personal", "Unpaid", "Other"];
+
+function getInitials(name: string) {
+  return name.trim().split(/\s+/).map(n => n[0] ?? "").join("").toUpperCase().slice(0, 2);
+}
+
 // ─── Assign Off Days Dialog ───────────────────────────────────────────────────
+
 interface AssignOffDaysDialogProps {
-  open: boolean;
-  staff: StaffDto | null;
+  open: boolean; staff: StaffDto | null;
   onClose: () => void;
   onSave: (staffId: string, start: Dayjs, end: Dayjs, type: string) => Promise<void>;
 }
-
-const OFF_TYPES = ["Vacation", "Sick", "Personal", "Unpaid", "Other"];
 
 function AssignOffDaysDialog({ open, staff, onClose, onSave }: AssignOffDaysDialogProps) {
   const [start, setStart] = React.useState<Dayjs | null>(dayjs());
@@ -45,16 +53,13 @@ function AssignOffDaysDialog({ open, staff, onClose, onSave }: AssignOffDaysDial
 
   async function handleSave() {
     if (!staff || !start || !end) return;
-    setBusy(true);
-    setErr(null);
+    setBusy(true); setErr(null);
     try {
       await onSave(staff.id, start.startOf("day"), end.endOf("day"), type);
       onClose();
     } catch (e: any) {
       setErr(e?.response?.data?.detail ?? "Failed to assign off days.");
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
   return (
@@ -64,23 +69,18 @@ function AssignOffDaysDialog({ open, staff, onClose, onSave }: AssignOffDaysDial
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <DatePicker
-            label="Start date"
-            value={start}
-            onChange={d => setStart(d)}
-          />
-          <DatePicker
-            label="End date"
-            value={end}
-            onChange={d => setEnd(d)}
-            minDate={start ?? undefined}
-          />
-          <TextField
-            select label="Type" value={type} onChange={e => setType(e.target.value)}
-          >
+          <DatePicker label="Start date" value={start} onChange={d => {
+            if (d && start && end) {
+              const diffDays = end.diff(start, "day");
+              setEnd(d.add(diffDays, "day"));
+            }
+            setStart(d);
+          }} />
+          <DatePicker label="End date"   value={end}   onChange={d => setEnd(d)} minDate={start ?? undefined} />
+          <TextField select label="Type" value={type} onChange={e => setType(e.target.value)}>
             {OFF_TYPES.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
           </TextField>
-          {err && <Typography color="error" variant="body2">{err}</Typography>}
+          {err && <Alert severity="error">{err}</Alert>}
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -94,25 +94,23 @@ function AssignOffDaysDialog({ open, staff, onClose, onSave }: AssignOffDaysDial
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function TimeOffPage() {
-  const { facilities, selected } = useFacility();
-  const { setSelectedId } = useFacility();
+  const { facilities, selected, setSelectedId } = useFacility();
   const { user } = useAuth();
-  const isOwner = user?.systemRole === "Owner";
+  const isOwner    = user?.systemRole === "Owner";
   const facilityId = selected?.id;
 
-  const [tab, setTab] = React.useState(0);
-  const [open, setOpen] = React.useState(false);
+  const [tab, setTab]           = React.useState(0);
+  const [open, setOpen]         = React.useState(false);
   const [refreshKey, setRefreshKey] = React.useState(0);
 
-  // Staff list state
-  const [staff, setStaff]           = React.useState<StaffDto[]>([]);
+  const [staff, setStaff]             = React.useState<StaffDto[]>([]);
   const [staffSearch, setStaffSearch] = React.useState("");
   const [staffLoading, setStaffLoading] = React.useState(false);
   const [selectedStaff, setSelectedStaff] = React.useState<StaffDto | null>(null);
-  const [assignOpen, setAssignOpen] = React.useState(false);
+  const [assignOpen, setAssignOpen]   = React.useState(false);
 
-  // Load staff when facility changes or tab switches to Staff Off Days
   React.useEffect(() => {
     if (tab !== 1 || !facilityId) return;
     setStaffLoading(true);
@@ -122,7 +120,6 @@ export default function TimeOffPage() {
       .finally(() => setStaffLoading(false));
   }, [tab, facilityId]);
 
-  // Refresh event bus
   React.useEffect(() => {
     const fn = () => setRefreshKey(k => k + 1);
     window.addEventListener("timeoff:refresh", fn);
@@ -132,11 +129,10 @@ export default function TimeOffPage() {
   async function handleCreate(values: TimeOffFormValues) {
     if (!values.startUtc || !values.endUtc) return;
     await createTimeOff({
-      staffId: values.staffId,
-      type: values.type,
+      staffId: values.staffId, type: values.type,
       startUtc: values.startUtc.toDate().toISOString(),
-      endUtc: values.endUtc.toDate().toISOString(),
-      reason: values.reason ?? undefined,
+      endUtc:   values.endUtc.toDate().toISOString(),
+      reason:   values.reason ?? undefined,
     });
     setOpen(false);
     window.dispatchEvent(new Event("timeoff:refresh"));
@@ -144,13 +140,10 @@ export default function TimeOffPage() {
 
   async function handleAssignOffDays(staffId: string, start: Dayjs, end: Dayjs, type: string) {
     const res = await createTimeOff({
-      staffId,
-      type,
-      startUtc: start.toISOString(),
-      endUtc: end.toISOString(),
+      staffId, type,
+      startUtc: start.toISOString(), endUtc: end.toISOString(),
       reason: "Admin-assigned off days",
     });
-    // Immediately approve so scheduling respects it
     await changeTimeOffStatus(res.id, "Approved");
     window.dispatchEvent(new Event("timeoff:refresh"));
   }
@@ -162,35 +155,59 @@ export default function TimeOffPage() {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <Container maxWidth="lg" sx={{ py: 2 }}>
+      <Container maxWidth="lg" sx={{ py: 3 }}>
 
         {/* ── Header ── */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 2 }}>
-          <Typography variant="h5">Time Off</Typography>
-          <Stack direction="row" spacing={2} alignItems="center">
-            {isOwner && (
-              <FormControl size="small" sx={{ minWidth: 220 }}>
-                <InputLabel>Facility</InputLabel>
-                <Select
-                  label="Facility"
-                  value={facilityId ?? ""}
-                  onChange={e => setSelectedId(String(e.target.value))}
-                >
-                  {facilities.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
-                </Select>
-              </FormControl>
-            )}
-            <Button variant="contained" onClick={() => setOpen(true)}>
-              New Time-Off Request
-            </Button>
-          </Stack>
-        </Box>
+        <Card variant="outlined" sx={{
+          mb: 2.5,
+          background: "linear-gradient(90deg, rgba(0,77,77,0.4) 0%, rgba(0,77,77,0.08) 100%)",
+          borderColor: "rgba(0,137,123,0.25)",
+        }}>
+          <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
+            <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }}
+              justifyContent="space-between" gap={2}>
+
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Box sx={{
+                  width: 40, height: 40, borderRadius: 2, flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  bgcolor: "rgba(0,137,123,0.2)", border: "1px solid rgba(0,137,123,0.3)",
+                }}>
+                  <BeachAccessIcon sx={{ color: "#4db6ac", fontSize: 22 }} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" fontWeight={700} lineHeight={1.2}>Time Off</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Manage requests and staff off days
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                {isOwner && (
+                  <FormControl size="small" sx={{ minWidth: 220 }}>
+                    <InputLabel>Facility</InputLabel>
+                    <Select label="Facility" value={facilityId ?? ""}
+                      onChange={e => setSelectedId(String(e.target.value))}>
+                      {facilities.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
+                    </Select>
+                  </FormControl>
+                )}
+                <Button variant="contained" startIcon={<BeachAccessIcon />} onClick={() => setOpen(true)}>
+                  New Request
+                </Button>
+              </Stack>
+            </Stack>
+          </CardContent>
+        </Card>
 
         {/* ── Tabs ── */}
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
-          <Tab label="Requests" />
-          <Tab label="Staff Off Days" />
-        </Tabs>
+        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2.5 }}>
+          <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+            <Tab label="Requests" />
+            <Tab label="Staff Off Days" />
+          </Tabs>
+        </Box>
 
         {/* ── Requests tab ── */}
         {tab === 0 && (
@@ -200,17 +217,21 @@ export default function TimeOffPage() {
         {/* ── Staff Off Days tab ── */}
         {tab === 1 && (
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            {/* Staff list */}
-            <Paper variant="outlined" sx={{ width: { md: 280 }, flexShrink: 0 }}>
-              <Box sx={{ p: 1.5 }}>
+
+            {/* Staff list panel */}
+            <Card variant="outlined" sx={{
+              width: { md: 280 }, flexShrink: 0,
+              borderColor: "rgba(255,255,255,0.06)",
+            }}>
+              <Box sx={{ p: 1.5, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 <TextField
                   size="small" fullWidth placeholder="Search staff…"
                   value={staffSearch} onChange={e => setStaffSearch(e.target.value)}
+                  InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ color: "text.disabled", mr: 0.5 }} /> }}
                 />
               </Box>
-              <Divider />
               {staffLoading ? (
-                <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={24} /></Box>
+                <Box sx={{ p: 3, textAlign: "center" }}><CircularProgress size={24} sx={{ color: "#4db6ac" }} /></Box>
               ) : (
                 <List dense disablePadding sx={{ maxHeight: 520, overflowY: "auto" }}>
                   {filteredStaff.map(s => (
@@ -218,37 +239,60 @@ export default function TimeOffPage() {
                       key={s.id}
                       selected={selectedStaff?.id === s.id}
                       onClick={() => setSelectedStaff(s)}
+                      sx={{
+                        py: 1, px: 1.5,
+                        "&.Mui-selected": {
+                          bgcolor: "rgba(0,137,123,0.15)",
+                          borderLeft: "3px solid #4db6ac",
+                        },
+                        "&.Mui-selected:hover": { bgcolor: "rgba(0,137,123,0.2)" },
+                      }}
                     >
+                      <Avatar sx={{
+                        width: 32, height: 32, fontSize: 12, fontWeight: 700, mr: 1.5, flexShrink: 0,
+                        bgcolor: "rgba(0,137,123,0.2)", color: "#4db6ac",
+                        border: "1px solid rgba(0,137,123,0.3)",
+                      }}>
+                        {getInitials(`${s.firstName} ${s.lastName}`)}
+                      </Avatar>
                       <ListItemText
                         primary={`${s.firstName} ${s.lastName}`}
                         secondary={s.role ?? undefined}
+                        primaryTypographyProps={{ fontSize: 13, fontWeight: selectedStaff?.id === s.id ? 600 : 400 }}
+                        secondaryTypographyProps={{ fontSize: 11 }}
                       />
                     </ListItemButton>
                   ))}
                   {filteredStaff.length === 0 && (
-                    <Box sx={{ p: 2 }}>
+                    <Box sx={{ p: 3, textAlign: "center" }}>
                       <Typography variant="body2" color="text.secondary">No staff found.</Typography>
                     </Box>
                   )}
                 </List>
               )}
-            </Paper>
+            </Card>
 
-            {/* Selected staff panel */}
+            {/* Right panel */}
             <Box sx={{ flex: 1 }}>
               {selectedStaff ? (
                 <>
                   <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-                    <Typography variant="h6">
-                      {selectedStaff.firstName} {selectedStaff.lastName}
-                    </Typography>
-                    {selectedStaff.role && <Chip label={selectedStaff.role} size="small" />}
-                    <Box sx={{ flexGrow: 1 }} />
-                    <Button
-                      variant="contained"
-                      startIcon={<PersonAddIcon />}
-                      onClick={() => setAssignOpen(true)}
-                    >
+                    <Avatar sx={{
+                      width: 40, height: 40, fontSize: 15, fontWeight: 700,
+                      bgcolor: "rgba(0,137,123,0.2)", color: "#4db6ac",
+                      border: "1px solid rgba(0,137,123,0.3)",
+                    }}>
+                      {getInitials(`${selectedStaff.firstName} ${selectedStaff.lastName}`)}
+                    </Avatar>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography fontWeight={600}>{selectedStaff.firstName} {selectedStaff.lastName}</Typography>
+                      {selectedStaff.role && (
+                        <Chip label={selectedStaff.role} size="small"
+                          sx={{ height: 18, fontSize: 11, mt: 0.25 }} />
+                      )}
+                    </Box>
+                    <Button variant="contained" startIcon={<PersonAddIcon />}
+                      onClick={() => setAssignOpen(true)}>
                       Assign Off Days
                     </Button>
                   </Stack>
@@ -259,9 +303,15 @@ export default function TimeOffPage() {
                   />
                 </>
               ) : (
-                <Box sx={{ p: 4, textAlign: "center" }}>
-                  <Typography color="text.secondary">
-                    Select a staff member from the list to view or assign their off days.
+                <Box sx={{
+                  textAlign: "center", py: 8,
+                  border: "2px dashed", borderColor: "rgba(255,255,255,0.08)",
+                  borderRadius: 2,
+                }}>
+                  <EventBusyIcon sx={{ fontSize: 48, color: "text.disabled", opacity: 0.3, mb: 1 }} />
+                  <Typography color="text.secondary" fontWeight={500}>No staff selected</Typography>
+                  <Typography variant="caption" color="text.disabled">
+                    Select a staff member from the list to view or assign off days
                   </Typography>
                 </Box>
               )}

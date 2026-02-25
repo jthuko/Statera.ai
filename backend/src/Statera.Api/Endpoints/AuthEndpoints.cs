@@ -116,7 +116,7 @@ public static class AuthEndpoints
         });
 
         // GET /api/v1/auth/users  — list all AppUsers for chat DM picker
-        g.MapGet("/users", async (
+        g.MapGet("/users", (
             [FromServices] UserManager<AppUser> um,
             HttpContext ctx) =>
         {

@@ -76,12 +76,6 @@ public static class AssignmentsEndpoints
             if (req.UnitId.HasValue && !await db.Set<DomainUnit>().AnyAsync(u => u.Id == req.UnitId.Value))
                 return Results.BadRequest(new { error = "Unit not found" });
 
-            var availError = await CheckAvailabilityAsync(db, req.StaffId,
-                DateTime.SpecifyKind(req.StartUtc, DateTimeKind.Utc),
-                DateTime.SpecifyKind(req.EndUtc,   DateTimeKind.Utc));
-            if (availError is not null)
-                return Results.UnprocessableEntity(new { error = availError, code = "AVAILABILITY_CONFLICT" });
-
             var e = new DomainAssignment
             {
                 Id = Guid.NewGuid(),
@@ -130,12 +124,6 @@ public static class AssignmentsEndpoints
             var start = req.StartUtc ?? e.StartUtc;
             var end = req.EndUtc ?? e.EndUtc;
             if (start >= end) return Results.BadRequest(new { error = "StartUtc must be before EndUtc" });
-
-            var availError = await CheckAvailabilityAsync(db, staffId,
-                DateTime.SpecifyKind(start, DateTimeKind.Utc),
-                DateTime.SpecifyKind(end,   DateTimeKind.Utc));
-            if (availError is not null)
-                return Results.UnprocessableEntity(new { error = availError, code = "AVAILABILITY_CONFLICT" });
 
             e.StaffId = staffId;
             e.FacilityId = facilityId;

@@ -43,9 +43,10 @@ public static class ChatEndpoints
                 return new
                 {
                     r.Id, r.FacilityId, r.Name, r.Type, r.CreatedUtc,
-                    Members     = memberInfos,
-                    LastMessage = lastMsg == null ? null : new { lastMsg.Content, lastMsg.SentUtc, lastMsg.SenderUserId },
-                    UnreadCount = unread,
+                    Members        = memberInfos,
+                    LastMessage    = lastMsg?.Content,
+                    LastMessageUtc = lastMsg?.SentUtc,
+                    UnreadCount    = unread,
                 };
             }));
         });
@@ -83,9 +84,10 @@ public static class ChatEndpoints
                     return Results.Ok(new
                     {
                         exRoom.Id, exRoom.FacilityId, exRoom.Name, exRoom.Type, exRoom.CreatedUtc,
-                        Members     = exRoom.Members.Select(m => new { m.UserId, DisplayName = exUsers.GetValueOrDefault(m.UserId, m.UserId) }),
-                        LastMessage = exLastMsg == null ? null : new { exLastMsg.Content, exLastMsg.SentUtc, exLastMsg.SenderUserId },
-                        UnreadCount = 0,
+                        Members        = exRoom.Members.Select(m => new { m.UserId, DisplayName = exUsers.GetValueOrDefault(m.UserId, m.UserId) }),
+                        LastMessage    = exLastMsg?.Content,
+                        LastMessageUtc = exLastMsg?.SentUtc,
+                        UnreadCount    = 0,
                     });
                 }
             }
@@ -129,9 +131,10 @@ public static class ChatEndpoints
             return Results.Created($"/api/v1/chat/rooms/{room.Id}", new
             {
                 newRoom.Id, newRoom.FacilityId, newRoom.Name, newRoom.Type, newRoom.CreatedUtc,
-                Members     = newRoom.Members.Select(m => new { m.UserId, DisplayName = newUsers.GetValueOrDefault(m.UserId, m.UserId) }),
-                LastMessage = newLastMsg == null ? null : new { newLastMsg.Content, newLastMsg.SentUtc, newLastMsg.SenderUserId },
-                UnreadCount = 0,
+                Members        = newRoom.Members.Select(m => new { m.UserId, DisplayName = newUsers.GetValueOrDefault(m.UserId, m.UserId) }),
+                LastMessage    = newLastMsg?.Content,
+                LastMessageUtc = newLastMsg?.SentUtc,
+                UnreadCount    = 0,
             });
         });
 
@@ -225,7 +228,18 @@ public static class ChatEndpoints
             };
             db.ChatMessages.Add(msg);
             await db.SaveChangesAsync();
-            return Results.Created($"/api/v1/chat/rooms/{id}/messages/{msg.Id}", new { msg.Id, msg.SentUtc });
+
+            var senderName = await db.Users.AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => u.Email ?? u.UserName ?? userId)
+                .FirstOrDefaultAsync() ?? userId;
+
+            return Results.Created($"/api/v1/chat/rooms/{id}/messages/{msg.Id}", new
+            {
+                msg.Id, msg.RoomId, msg.SenderUserId,
+                SenderName  = senderName,
+                msg.Content, msg.SentUtc, msg.IsDeleted,
+            });
         });
 
         // POST /api/v1/chat/rooms/{id}/read  — mark all messages as read
