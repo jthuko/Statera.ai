@@ -118,6 +118,7 @@ public static class AuthEndpoints
         // GET /api/v1/auth/users  — list all AppUsers for chat DM picker
         g.MapGet("/users", async (
             [FromServices] UserManager<AppUser> um,
+            [FromServices] AppDbContext db,
             HttpContext ctx) =>
         {
             var currentId = ctx.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
@@ -125,7 +126,22 @@ public static class AuthEndpoints
                 .Where(u => u.Id != currentId)
                 .Select(u => new { u.Id, u.Email, u.SystemRole })
                 .ToList();
-            return Results.Ok(users);
+
+            // Enrich with staff names where available (matched by email)
+            var emails = users.Select(u => u.Email).Where(e => e != null).ToList();
+            var staffNames = await db.Staff.AsNoTracking()
+                .Where(s => s.Email != null && emails.Contains(s.Email))
+                .Select(s => new { s.Email, Name = s.FirstName + " " + s.LastName })
+                .ToListAsync();
+            var nameMap = staffNames.ToDictionary(s => s.Email!, s => s.Name);
+
+            return Results.Ok(users.Select(u => new
+            {
+                u.Id,
+                u.Email,
+                u.SystemRole,
+                DisplayName = u.Email != null && nameMap.TryGetValue(u.Email, out var n) ? n : u.Email,
+            }));
         })
         .RequireAuthorization();
 

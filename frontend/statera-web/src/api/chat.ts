@@ -4,11 +4,18 @@ export interface AppUserDto {
   id: string;
   email: string;
   systemRole: string;
+  displayName?: string | null;
 }
 
 export async function listUsers(): Promise<AppUserDto[]> {
   const { data } = await api.get<AppUserDto[]>("/auth/users");
   return data;
+}
+
+export interface ChatRoomLastMessage {
+  content: string;
+  sentUtc: string;
+  senderUserId: string;
 }
 
 export interface ChatRoomDto {
@@ -18,8 +25,7 @@ export interface ChatRoomDto {
   type: "Direct" | "Group";
   createdByUserId: string;
   createdUtc: string;
-  lastMessage?: string | null;
-  lastMessageUtc?: string | null;
+  lastMessage?: ChatRoomLastMessage | null;
   unreadCount: number;
   members: ChatRoomMemberDto[];
 }

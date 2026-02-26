@@ -155,7 +155,7 @@ export default function ChatPage() {
                   secondary={
                     <Typography variant="caption" color="text.secondary" noWrap>
                       {room.type === "Group" && <><GroupIcon sx={{ fontSize: 10, mr: 0.5 }} />Group · </>}
-                      {room.lastMessage ?? "No messages yet"}
+                      {room.lastMessage?.content ?? "No messages yet"}
                     </Typography>
                   }
                 />

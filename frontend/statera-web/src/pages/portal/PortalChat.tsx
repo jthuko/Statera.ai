@@ -168,7 +168,7 @@ export default function PortalChat() {
               </Badge>
               <ListItemText
                 primary={roomName(room)}
-                secondary={room.lastMessage ? room.lastMessage.slice(0, 30) : undefined}
+                secondary={room.lastMessage ? room.lastMessage.content.slice(0, 30) : undefined}
                 primaryTypographyProps={{ variant: "body2", fontWeight: room.unreadCount > 0 ? 700 : 400 }}
                 secondaryTypographyProps={{ variant: "caption", noWrap: true }}
               />
@@ -180,8 +180,11 @@ export default function PortalChat() {
       {/* Message area */}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {!selectedRoom ? (
-          <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Typography color="text.secondary">Select a conversation</Typography>
+          <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1.5 }}>
+            <Typography color="text.secondary">No conversation selected</Typography>
+            <Button variant="outlined" size="small" startIcon={<AddIcon />} onClick={openNewMsgDialog}>
+              Start a new message
+            </Button>
           </Box>
         ) : (
           <>
@@ -276,13 +279,13 @@ export default function PortalChat() {
                     onClick={() => startDm(u)}
                     disabled={startingDm}
                   >
-                    <Avatar sx={{ width: 28, height: 28, mr: 1.5, fontSize: 13 }}>
-                      {u.email[0].toUpperCase()}
+                    <Avatar sx={{ width: 32, height: 32, mr: 1.5, fontSize: 14 }}>
+                      {(u.displayName ?? u.email)[0].toUpperCase()}
                     </Avatar>
                     <ListItemText
-                      primary={u.email}
-                      secondary={u.systemRole}
-                      primaryTypographyProps={{ variant: "body2" }}
+                      primary={u.displayName ?? u.email}
+                      secondary={u.systemRole !== u.displayName ? u.email : undefined}
+                      primaryTypographyProps={{ variant: "body2", fontWeight: 500 }}
                       secondaryTypographyProps={{ variant: "caption" }}
                     />
                   </ListItemButton>

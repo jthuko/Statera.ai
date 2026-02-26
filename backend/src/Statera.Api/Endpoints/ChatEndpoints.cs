@@ -225,7 +225,17 @@ public static class ChatEndpoints
             };
             db.ChatMessages.Add(msg);
             await db.SaveChangesAsync();
-            return Results.Created($"/api/v1/chat/rooms/{id}/messages/{msg.Id}", new { msg.Id, msg.SentUtc });
+
+            var senderName = await db.Users.AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => u.Email ?? u.UserName ?? userId)
+                .FirstOrDefaultAsync() ?? userId;
+
+            return Results.Created($"/api/v1/chat/rooms/{id}/messages/{msg.Id}", new
+            {
+                msg.Id, msg.RoomId, msg.SenderUserId, SenderName = senderName,
+                msg.Content, msg.SentUtc, msg.IsDeleted,
+            });
         });
 
         // POST /api/v1/chat/rooms/{id}/read  — mark all messages as read
