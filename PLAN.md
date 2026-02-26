@@ -201,3 +201,12 @@ Unread count badge derived from messages newer than `LastReadUtc`.
 3. Phase 3 Time Clock (backend entity + endpoints + UI)
 4. Phase 4 Timesheet (calendar view + CSV export)
 5. Phase 5 Chat (backend + polling chat UI)
+### Admin Panel — Timesheet Export
+
+- In the Facility Admin Panel, under the "Time Clock" tab, admins can now export timesheet data directly to CSV files formatted for Gusto and QuickBooks.
+- Two buttons are available above the time clock entries table:
+  - **Export to Gusto**: Downloads a CSV with columns: Employee, Date, Clock In, Clock Out, Hours, Status, Notes
+  - **Export to QuickBooks**: Downloads a CSV with columns: Employee, Date, Start Time, End Time, Total Hours, Status, Notes
+- The export includes all currently filtered time clock entries (by status, date, etc.).
+- Geotag and admin notes are included in the Notes column if present.
+- To use: Filter the entries as needed, then click the desired export button. The CSV will be downloaded automatically.
