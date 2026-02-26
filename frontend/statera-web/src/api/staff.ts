@@ -11,6 +11,16 @@ export interface StaffDto {
   unitId?: string | null;
   roles?: { id: string; name: string }[];
   active: boolean;
+  phone?: string | null;
+  address1?: string | null;
+  address2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  dateOfBirth?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  photoUrl?: string | null;
 }
 
 const http = api;
@@ -51,6 +61,16 @@ export type UpdateStaffPayload = {
   role?: string;
   employmentType?: "FullTime" | "PartTime" | "PerDiem" | "Contract";
   active?: boolean;
+  phone?: string | null;
+  address1?: string | null;
+  address2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  dateOfBirth?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  photoUrl?: string | null;
 };
 
 export interface FullStaffDto extends StaffDto {
@@ -61,6 +81,48 @@ export interface FullStaffDto extends StaffDto {
   employmentType?: string;
   hasAdminAccount?: boolean;
   hasPortalAccount?: boolean;
+  phone?: string | null;
+  address1?: string | null;
+  address2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  dateOfBirth?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  photoUrl?: string | null;
+}
+
+export type UpdateStaffProfilePayload = {
+  phone?: string | null;
+  address1?: string | null;
+  address2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  dateOfBirth?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  photoUrl?: string | null;
+};
+
+export async function getMyProfile(): Promise<FullStaffDto> {
+  const { data } = await http.get<FullStaffDto>(`/staff/me`);
+  return data;
+}
+
+export async function updateMyProfile(payload: UpdateStaffProfilePayload): Promise<FullStaffDto> {
+  const { data } = await http.put<FullStaffDto>(`/staff/me/profile`, payload);
+  return data;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await http.post(`/auth/change-password`, { currentPassword, newPassword });
+}
+
+export async function impersonateStaff(staffId: string): Promise<{ accessToken: string; refreshToken?: string }> {
+  const { data } = await http.post<{ accessToken: string; refreshToken?: string }>(`/auth/impersonate`, { staffId });
+  return data;
 }
 
 export async function getStaffById(id: string): Promise<FullStaffDto> {

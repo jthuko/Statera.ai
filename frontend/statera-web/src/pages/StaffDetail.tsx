@@ -39,6 +39,7 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import EmailIcon from "@mui/icons-material/Email";
 import BusinessIcon from "@mui/icons-material/Business";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
 import {
   getStaffById, updateStaff, deleteStaff,
   getStaffAvailability, updateStaffAvailability,
@@ -46,6 +47,7 @@ import {
   type FullStaffDto, type AvailabilityDto, type PortalAccountResult,
 } from "../api/staff";
 import StaffEditDialog, { StaffEditFormValues } from "../components/staff/StaffEditDialog";
+import { useAuth } from "../auth/useAuth";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -86,6 +88,9 @@ export default function StaffDetail() {
   const [resetPwBusy, setResetPwBusy] = useState(false);
   const [resetPwResult, setResetPwResult] = useState<{ email: string; tempPassword: string } | null>(null);
   const [resetPwError, setResetPwError] = useState<string | null>(null);
+  const [impersonateBusy, setImpersonateBusy] = useState(false);
+  const [impersonateError, setImpersonateError] = useState<string | null>(null);
+  const { user, impersonate } = useAuth();
 
   const reload = async () => {
     if (!id) return;
@@ -179,6 +184,22 @@ export default function StaffDetail() {
     }
   };
 
+  const handleImpersonate = async () => {
+    if (!id) return;
+    setImpersonateBusy(true);
+    setImpersonateError(null);
+    try {
+      await impersonate(id);
+      nav("/portal");
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const detail = e?.response?.data?.error ?? e?.message;
+      setImpersonateError(detail ? `Failed to impersonate staff. ${detail}` : (status ? `Failed to impersonate staff (HTTP ${status}).` : "Failed to impersonate staff."));
+    } finally {
+      setImpersonateBusy(false);
+    }
+  };
+
   const name = data
     ? `${data.firstName ?? ""} ${data.lastName ?? ""}`.trim() || `(Unnamed #${id})`
     : "";
@@ -188,6 +209,7 @@ export default function StaffDetail() {
   return (
     <Page title={loading ? "Staff" : name}>
       {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
+      {impersonateError && <Alert severity="error" sx={{ mb: 2 }}>{impersonateError}</Alert>}
 
       {/* Profile Card */}
       <Card sx={{ mb: 3, overflow: "hidden" }}>
@@ -213,6 +235,7 @@ export default function StaffDetail() {
               {/* Avatar + Action buttons row */}
               <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mt: -4, mb: 2 }}>
                 <Avatar
+                  src={data.photoUrl ?? undefined}
                   sx={{
                     width: 72, height: 72, fontSize: 26, fontWeight: 700,
                     bgcolor: roleColor,
@@ -223,6 +246,17 @@ export default function StaffDetail() {
                   {getInitials(name)}
                 </Avatar>
                 <Stack direction="row" spacing={1} sx={{ pb: 0.5 }}>
+                  {user?.systemRole !== "Staff" && (
+                    <Button
+                      startIcon={<SwitchAccountIcon />}
+                      variant="outlined"
+                      size="small"
+                      disabled={impersonateBusy}
+                      onClick={handleImpersonate}
+                    >
+                      Impersonate
+                    </Button>
+                  )}
                   {data.email && !data.hasPortalAccount && !data.hasAdminAccount && (
                     <Button
                       startIcon={<PersonAddIcon />}
@@ -313,6 +347,37 @@ export default function StaffDetail() {
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <EmailIcon fontSize="small" sx={{ color: "text.secondary" }} />
                     <Typography variant="body2">{data.email}</Typography>
+                  </Stack>
+                )}
+                {data.phone && (
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Typography variant="body2" color="text.secondary">Phone:</Typography>
+                    <Typography variant="body2">{data.phone}</Typography>
+                  </Stack>
+                )}
+                {(data.address1 || data.city || data.state || data.zip) && (
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Typography variant="body2" color="text.secondary">Address:</Typography>
+                    <Typography variant="body2">
+                      {data.address1}{data.address2 ? `, ${data.address2}` : ""}
+                      {data.city ? `, ${data.city}` : ""}
+                      {data.state ? `, ${data.state}` : ""}
+                      {data.zip ? ` ${data.zip}` : ""}
+                    </Typography>
+                  </Stack>
+                )}
+                {data.dateOfBirth && (
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Typography variant="body2" color="text.secondary">DOB:</Typography>
+                    <Typography variant="body2">{data.dateOfBirth}</Typography>
+                  </Stack>
+                )}
+                {(data.emergencyContactName || data.emergencyContactPhone) && (
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Typography variant="body2" color="text.secondary">Emergency:</Typography>
+                    <Typography variant="body2">
+                      {data.emergencyContactName ?? ""}{data.emergencyContactPhone ? ` (${data.emergencyContactPhone})` : ""}
+                    </Typography>
                   </Stack>
                 )}
                 {data.unitId && (

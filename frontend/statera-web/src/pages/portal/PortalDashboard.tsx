@@ -2,7 +2,7 @@
 // Staff portal home / dashboard
 import { useEffect, useState } from "react";
 import {
-  Box, Card, CardActionArea, CardContent, Chip, CircularProgress,
+  Box, Button, Card, CardActionArea, CardContent, Chip, CircularProgress,
   Skeleton, Stack, Typography,
 } from "@mui/material";
 import {
@@ -15,6 +15,8 @@ import { useAuth } from "../../auth/useAuth";
 import { listTimeOff } from "../../api/timeoff";
 import { getActiveEntry } from "../../api/timeclock";
 import { listRooms } from "../../api/chat";
+import { listOpenShifts, OpenShiftDto } from "../../api/openShifts";
+import { getMyProfile } from "../../api/staff";
 import api from "../../api/axios";
 
 function getGreeting() {
@@ -80,19 +82,29 @@ export default function PortalDashboard() {
   const [pendingTimeOff, setPendingTimeOff] = useState(0);
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [openShifts, setOpenShifts] = useState<OpenShiftDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [staffName, setStaffName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.staffId) { setLoading(false); return; }
     (async () => {
       try {
-        const [assignments, timeOff, activeEntry, rooms] = await Promise.all([
+        const facilityId = user?.facilityIds?.[0];
+        const weekStart = dayjs().startOf("week");
+        const weekEnd = weekStart.add(7, "day");
+
+        const [assignments, timeOff, activeEntry, rooms, shifts, profile] = await Promise.all([
           api.get("/assignments", {
             params: { staffId: user.staffId, start: dayjs().toISOString(), end: dayjs().add(7, "day").toISOString() },
           }).then(r => r.data as { startUtc: string }[]).catch(() => []),
           listTimeOff({ staffId: user.staffId ?? undefined, status: "Pending", page: 1, pageSize: 5 }).catch(() => ({ items: [] })),
           getActiveEntry(user.staffId ?? undefined).catch(() => null),
           listRooms().catch(() => []),
+          facilityId
+            ? listOpenShifts(facilityId, { start: weekStart.toISOString(), end: weekEnd.toISOString(), status: "Open" }).catch(() => [])
+            : Promise.resolve([] as OpenShiftDto[]),
+          getMyProfile().catch(() => null),
         ]);
 
         const upcoming = assignments
@@ -103,13 +115,19 @@ export default function PortalDashboard() {
         setPendingTimeOff(timeOff.items.length);
         setIsClockedIn(!!activeEntry);
         setUnreadMessages(rooms.reduce((sum: number, r: { unreadCount: number }) => sum + r.unreadCount, 0));
+        setOpenShifts(shifts);
+        if (profile) {
+          const full = `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim();
+          if (full) setStaffName(full);
+        }
       } finally {
         setLoading(false);
       }
     })();
   }, [user?.staffId]);
 
-  const displayName = user?.email?.split("@")[0] ?? "Staff";
+  const displayName = staffName || (user?.email?.split("@")[0] ?? "Staff");
+  const openShiftCount = openShifts.length;
 
   const detailMap: Record<string, { detail: string; badge?: number }> = {
     "/portal/schedule": {
@@ -211,6 +229,37 @@ export default function PortalDashboard() {
           );
         })}
       </Box>
+
+      {/* ── Open Shifts Card ── */}
+      <Card variant="outlined" sx={{
+        mt: 2.5,
+        borderColor: "rgba(0,137,123,0.25)",
+        background: "linear-gradient(90deg, rgba(0,77,77,0.25) 0%, rgba(0,77,77,0.05) 100%)",
+      }}>
+        <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+            <Typography variant="subtitle1" fontWeight={700}>Open Shifts</Typography>
+            <Button size="small" variant="text" onClick={() => navigate("/portal/open-shifts")} sx={{ textTransform: "none" }}>
+              View all
+            </Button>
+          </Stack>
+
+          {loading ? (
+            <Skeleton variant="rounded" height={120} />
+          ) : (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip
+                label={`${openShiftCount} open`}
+                size="small"
+                sx={{ bgcolor: "rgba(0,137,123,0.2)", color: "#4db6ac", border: "1px solid rgba(0,137,123,0.3)" }}
+              />
+              <Typography variant="body2" color="text.secondary">
+                Open shifts matching your role and availability.
+              </Typography>
+            </Stack>
+          )}
+        </CardContent>
+      </Card>
     </Box>
   );
 }

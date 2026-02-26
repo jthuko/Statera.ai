@@ -169,6 +169,9 @@ public static class AssignmentsEndpoints
     private static async Task<string?> CheckAvailabilityAsync(
         AppDbContext db, Guid staffId, DateTime startUtc, DateTime endUtc)
     {
+        var localStart = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc).ToLocalTime();
+        var localEnd   = DateTime.SpecifyKind(endUtc, DateTimeKind.Utc).ToLocalTime();
+
         var avail = await db.StaffAvailabilities
             .AsNoTracking()
             .Where(a => a.StaffId == staffId)
@@ -178,13 +181,13 @@ public static class AssignmentsEndpoints
         if (avail.Count == 0) return null;
 
         // Check every calendar day the shift touches
-        var cursor = startUtc.Date;
-        while (cursor < endUtc.Date || (cursor == startUtc.Date && cursor == endUtc.Date))
+        var cursor = localStart.Date;
+        while (cursor < localEnd.Date || (cursor == localStart.Date && cursor == localEnd.Date))
         {
             var dayOfWeek = cursor.DayOfWeek;
             // The portion of the shift on this day
-            var segStart = cursor == startUtc.Date ? startUtc.TimeOfDay : TimeSpan.Zero;
-            var segEnd   = cursor == endUtc.Date   ? endUtc.TimeOfDay   : TimeSpan.FromHours(24);
+            var segStart = cursor == localStart.Date ? localStart.TimeOfDay : TimeSpan.Zero;
+            var segEnd   = cursor == localEnd.Date   ? localEnd.TimeOfDay   : TimeSpan.FromHours(24);
             // Zero end means midnight exactly (end of previous day already covered)
             if (segEnd == TimeSpan.Zero) { cursor = cursor.AddDays(1); continue; }
 
@@ -196,10 +199,10 @@ public static class AssignmentsEndpoints
             if (!covered)
             {
                 var dayName   = dayOfWeek.ToString();
-                var startStr  = startUtc.ToString("HH:mm");
-                var endStr    = endUtc.ToString("HH:mm");
-                return $"Staff is not available on {dayName} (shift {startStr}–{endStr} UTC). " +
-                       "Check their availability settings or adjust the shift time.";
+                  var startStr  = localStart.ToString("HH:mm");
+                  var endStr    = localEnd.ToString("HH:mm");
+                  return $"Staff is not available on {dayName} (shift {startStr}–{endStr} local). " +
+                      "Check their availability settings or adjust the shift time.";
             }
 
             cursor = cursor.AddDays(1);

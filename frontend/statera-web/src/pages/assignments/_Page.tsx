@@ -43,6 +43,9 @@ export default function AssignmentsPage() {
   const facilityId = selected?.id;
 
   const [weekStart, setWeekStart] = React.useState<Dayjs>(startOfWeekMonday(dayjs()));
+  const [viewMode, setViewMode]   = React.useState<"week" | "range">("week");
+  const [rangeStart, setRangeStart] = React.useState<string>(dayjs().format("YYYY-MM-DD"));
+  const [rangeEnd, setRangeEnd]     = React.useState<string>(dayjs().format("YYYY-MM-DD"));
   const [units, setUnits]         = React.useState<UnitDto[]>([]);
   const [staff, setStaff]         = React.useState<StaffDto[]>([]);
   const [unitId, setUnitId]       = React.useState<string>("");
@@ -80,13 +83,25 @@ export default function AssignmentsPage() {
     if (!facilityId) return;
     try {
       setLoading(true);
-      const start = weekStart.startOf("day").toISOString();
-      const end   = weekStart.add(7, "day").startOf("day").toISOString();
+      let start: string;
+      let end: string;
+
+      if (viewMode === "week") {
+        start = weekStart.startOf("day").toISOString();
+        end   = weekStart.add(7, "day").startOf("day").toISOString();
+      } else {
+        const rs = dayjs(rangeStart);
+        const re = dayjs(rangeEnd);
+        if (!rs.isValid() || !re.isValid()) { setAssignments([]); return; }
+        start = rs.startOf("day").toISOString();
+        end   = re.add(1, "day").startOf("day").toISOString();
+      }
+
       const data  = await listAssignments(facilityId, { start, end, unitId: unitId || undefined, roleId: roleId || undefined });
       setAssignments(data);
     } catch { setError("Failed to load assignments"); }
     finally { setLoading(false); }
-  }, [facilityId, weekStart, unitId, roleId]);
+  }, [facilityId, weekStart, unitId, roleId, viewMode, rangeStart, rangeEnd]);
 
   React.useEffect(() => {
     setUnitId(""); setStaff([]); setUnits([]); setAssignments([]);
@@ -113,6 +128,12 @@ export default function AssignmentsPage() {
     const unitName = units.find(u => u.id === a.unitId)?.name;
     return { id: a.id, staffId: a.staffId, dayISO, startISO: a.start, endISO: a.end, roleName, unitName, notes: a.notes ?? null };
   }), [assignments, units]);
+
+  const staffNameMap = React.useMemo(() => new Map(staff.map(s => [s.id, s.displayName ?? `${s.firstName} ${s.lastName}`])), [staff]);
+
+  const sortedAssignments = React.useMemo(() =>
+    [...assignments].sort((a, b) => dayjs(a.start).valueOf() - dayjs(b.start).valueOf()),
+  [assignments]);
 
   const openCreate = (staffId: string, dayISO: string) => {
     const start = dayjs(dayISO).hour(7).minute(0).second(0).millisecond(0);
@@ -168,6 +189,24 @@ export default function AssignmentsPage() {
 
   const moveWeek  = (delta: number) => setWeekStart(p => startOfWeekMonday(p.add(delta, "week")));
   const weekLabel = `${weekStart.format("MMM D")} – ${weekStart.add(6, "day").format("MMM D, YYYY")}`;
+  const rangeLabel = `${dayjs(rangeStart).format("MMM D, YYYY")} – ${dayjs(rangeEnd).format("MMM D, YYYY")}`;
+
+  const rangeWeekStarts = React.useMemo(() => {
+    if (viewMode !== "range") return [] as Dayjs[];
+    const rs = dayjs(rangeStart);
+    const re = dayjs(rangeEnd);
+    if (!rs.isValid() || !re.isValid()) return [] as Dayjs[];
+
+    let cursor = startOfWeekMonday(rs);
+    const end = re.startOf("day");
+    const weeks: Dayjs[] = [];
+    while (cursor.isBefore(end) || cursor.isSame(end))
+    {
+      weeks.push(cursor);
+      cursor = cursor.add(1, "week");
+    }
+    return weeks;
+  }, [viewMode, rangeStart, rangeEnd]);
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
@@ -203,25 +242,54 @@ export default function AssignmentsPage() {
             )}
 
             <Stack direction="row" spacing={0.5} alignItems="center">
-              <Button variant="outlined" size="small" onClick={() => moveWeek(-1)}
-                sx={{ minWidth: 34, px: 0.5, borderColor: "rgba(255,255,255,0.15)" }}>
-                <ChevronLeftIcon fontSize="small" />
+              <Button variant={viewMode === "week" ? "contained" : "outlined"} size="small"
+                onClick={() => setViewMode("week")}
+                sx={{ minWidth: 70, fontSize: 12 }}>
+                Week
               </Button>
-              <Button variant="outlined" size="small"
-                onClick={() => setWeekStart(startOfWeekMonday(dayjs()))}
-                startIcon={<TodayIcon sx={{ fontSize: "16px !important" }} />}
-                sx={{ borderColor: "rgba(255,255,255,0.15)", fontSize: 12 }}>
-                Today
+              <Button variant={viewMode === "range" ? "contained" : "outlined"} size="small"
+                onClick={() => setViewMode("range")}
+                sx={{ minWidth: 70, fontSize: 12 }}>
+                Range
               </Button>
-              <Button variant="outlined" size="small" onClick={() => moveWeek(1)}
-                sx={{ minWidth: 34, px: 0.5, borderColor: "rgba(255,255,255,0.15)" }}>
-                <ChevronRightIcon fontSize="small" />
-              </Button>
-              <Chip label={weekLabel} size="small" sx={{
-                ml: 0.5,
-                bgcolor: "rgba(0,77,77,0.4)", color: "#4db6ac",
-                border: "1px solid rgba(0,137,123,0.3)", fontWeight: 600, fontSize: 12,
-              }} />
+
+              {viewMode === "week" ? (
+                <>
+                  <Button variant="outlined" size="small" onClick={() => moveWeek(-1)}
+                    sx={{ minWidth: 34, px: 0.5, borderColor: "rgba(255,255,255,0.15)" }}>
+                    <ChevronLeftIcon fontSize="small" />
+                  </Button>
+                  <Button variant="outlined" size="small"
+                    onClick={() => setWeekStart(startOfWeekMonday(dayjs()))}
+                    startIcon={<TodayIcon sx={{ fontSize: "16px !important" }} />}
+                    sx={{ borderColor: "rgba(255,255,255,0.15)", fontSize: 12 }}>
+                    Today
+                  </Button>
+                  <Button variant="outlined" size="small" onClick={() => moveWeek(1)}
+                    sx={{ minWidth: 34, px: 0.5, borderColor: "rgba(255,255,255,0.15)" }}>
+                    <ChevronRightIcon fontSize="small" />
+                  </Button>
+                  <Chip label={weekLabel} size="small" sx={{
+                    ml: 0.5,
+                    bgcolor: "rgba(0,77,77,0.4)", color: "#4db6ac",
+                    border: "1px solid rgba(0,137,123,0.3)", fontWeight: 600, fontSize: 12,
+                  }} />
+                </>
+              ) : (
+                <>
+                  <Button variant="outlined" size="small"
+                    onClick={() => { const t = dayjs().format("YYYY-MM-DD"); setRangeStart(t); setRangeEnd(t); }}
+                    startIcon={<TodayIcon sx={{ fontSize: "16px !important" }} />}
+                    sx={{ borderColor: "rgba(255,255,255,0.15)", fontSize: 12 }}>
+                    Today
+                  </Button>
+                  <Chip label={rangeLabel} size="small" sx={{
+                    ml: 0.5,
+                    bgcolor: "rgba(0,77,77,0.4)", color: "#4db6ac",
+                    border: "1px solid rgba(0,137,123,0.3)", fontWeight: 600, fontSize: 12,
+                  }} />
+                </>
+              )}
             </Stack>
 
             {loading && <CircularProgress size={20} sx={{ color: "#4db6ac" }} />}
@@ -258,6 +326,29 @@ export default function AssignmentsPage() {
               </Button>
             )}
 
+            {viewMode === "range" && (
+              <>
+                <TextField
+                  label="Start"
+                  type="date"
+                  value={rangeStart}
+                  onChange={e => setRangeStart(e.target.value)}
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 150 }}
+                />
+                <TextField
+                  label="End"
+                  type="date"
+                  value={rangeEnd}
+                  onChange={e => setRangeEnd(e.target.value)}
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 150 }}
+                />
+              </>
+            )}
+
             <Box sx={{ flex: 1 }} />
 
             {assignments.length > 0 && (
@@ -274,7 +365,7 @@ export default function AssignmentsPage() {
       {/* ── Grid ── */}
       {!facilityId ? (
         <Alert severity="info" sx={{ borderRadius: 2 }}>Select a facility to view and manage assignments.</Alert>
-      ) : (
+      ) : viewMode === "week" ? (
         <WeekGrid
           weekStart={weekStart}
           staff={staffRows}
@@ -282,6 +373,23 @@ export default function AssignmentsPage() {
           onCreate={openCreate}
           onEdit={openEdit}
         />
+      ) : (
+        rangeWeekStarts.length === 0 ? (
+          <Alert severity="info" sx={{ borderRadius: 2 }}>Select a valid date range to view assignments.</Alert>
+        ) : (
+          <Stack spacing={2}>
+            {rangeWeekStarts.map(ws => (
+              <WeekGrid
+                key={ws.toISOString()}
+                weekStart={ws}
+                staff={staffRows}
+                assignments={assignmentCells}
+                onCreate={openCreate}
+                onEdit={openEdit}
+              />
+            ))}
+          </Stack>
+        )
       )}
 
       <AssignmentFormDialog

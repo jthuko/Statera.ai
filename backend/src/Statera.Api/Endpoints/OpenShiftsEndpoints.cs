@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Statera.Domain;
 using Statera.Domain.Staffing;
 using Statera.Infrastructure;
+using Statera.Application;
 using System.Security.Claims;
 
 namespace Statera.Api.Endpoints;
@@ -25,6 +26,8 @@ public static class OpenShiftsEndpoints
             Guid facilityId,
             HttpContext ctx,
             [FromServices] AppDbContext db,
+            [FromQuery] string? start,
+            [FromQuery] string? end,
             [FromQuery] string? status,
             [FromQuery] string? role,
             [FromQuery] Guid? unitId) =>
@@ -38,17 +41,27 @@ public static class OpenShiftsEndpoints
                 .AsNoTracking()
                 .Where(s => s.FacilityId == facilityId);
 
+            if (!string.IsNullOrWhiteSpace(start) && DateTimeOffset.TryParse(start, out var startDto))
+            {
+                var sUtc = startDto.UtcDateTime;
+                query = query.Where(s => s.EndUtc > sUtc);
+            }
+            if (!string.IsNullOrWhiteSpace(end) && DateTimeOffset.TryParse(end, out var endDto))
+            {
+                var eUtc = endDto.UtcDateTime;
+                query = query.Where(s => s.StartUtc < eUtc);
+            }
+
             if (isStaff)
             {
-                // Staff: only open shifts, only matching their role
+                // Staff: only open shifts matching role and availability; no overlapping assignments
                 var staffMember = await db.Staff.AsNoTracking()
                     .FirstOrDefaultAsync(s => s.Id == staffGuid!.Value);
                 if (staffMember is null) return Results.Unauthorized();
 
-                query = query.Where(s => s.Status == "Open" &&
-                    s.Role == staffMember.Role);
+                var staffRole = staffMember.Role?.Trim().ToLower();
+                query = query.Where(s => s.Status == "Open" && s.Role.ToLower() == staffRole);
 
-                // Also filter by availability
                 var avail = await db.StaffAvailabilities.AsNoTracking()
                     .Where(a => a.StaffId == staffGuid!.Value)
                     .ToListAsync();
@@ -57,14 +70,39 @@ public static class OpenShiftsEndpoints
                     .OrderBy(s => s.StartUtc)
                     .ToListAsync();
 
+                if (allShifts.Count == 0) return Results.Ok(Array.Empty<object>());
+
+                var minStart = allShifts.Min(s => s.StartUtc);
+                var maxEnd   = allShifts.Max(s => s.EndUtc);
+                var myAssignments = await db.Assignments.AsNoTracking()
+                    .Where(a => a.StaffId == staffGuid!.Value &&
+                                a.StartUtc < maxEnd &&
+                                a.EndUtc > minStart)
+                    .ToListAsync();
+
                 // Load this staff member's requests
                 var myRequests = await db.OpenShiftRequests.AsNoTracking()
                     .Where(r => r.StaffId == staffGuid!.Value &&
                                 allShifts.Select(s => s.Id).Contains(r.OpenShiftId))
                     .ToListAsync();
 
+                var facilityStates = await db.Facilities.AsNoTracking()
+                    .Where(f => allShifts.Select(s => s.FacilityId).Contains(f.Id))
+                    .Select(f => new { f.Id, f.State })
+                    .ToListAsync();
+
+                var stateMap = facilityStates.ToDictionary(x => x.Id, x => x.State);
+                string? ResolveState(Guid fid) => stateMap.TryGetValue(fid, out var st) ? st : null;
+
                 var filtered = allShifts
-                    .Where(s => avail.Count == 0 || ShiftFitsAvailability(avail, s.StartUtc, s.EndUtc))
+                    .Where(s =>
+                    {
+                        if (avail.Count > 0 && !ShiftFitsAvailability(avail, s.StartUtc, s.EndUtc, ResolveState(s.FacilityId)))
+                            return false;
+                        if (myAssignments.Any(a => a.StartUtc < s.EndUtc && a.EndUtc > s.StartUtc))
+                            return false;
+                        return true;
+                    })
                     .Select(s =>
                     {
                         var myReq = myRequests.FirstOrDefault(r => r.OpenShiftId == s.Id);
@@ -450,7 +488,12 @@ public static class OpenShiftsEndpoints
             .Where(a => a.StaffId == staff.Id)
             .ToListAsync();
 
-        if (avail.Count > 0 && !ShiftFitsAvailability(avail, startUtc, endUtc))
+        var facilityState = await db.Facilities.AsNoTracking()
+            .Where(f => f.Id == facilityId)
+            .Select(f => f.State)
+            .FirstOrDefaultAsync();
+
+        if (avail.Count > 0 && !ShiftFitsAvailability(avail, startUtc, endUtc, facilityState))
             return $"Staff is not available for this shift time. Check their availability settings.";
 
         // 2. Overlapping assignment
@@ -560,14 +603,32 @@ public static class OpenShiftsEndpoints
     private static bool ShiftFitsAvailability(
         List<StaffAvailability> avail,
         DateTime startUtc,
-        DateTime endUtc)
+        DateTime endUtc,
+        string? facilityState)
     {
-        var cursor = startUtc.Date;
-        while (cursor < endUtc.Date || (cursor == startUtc.Date && cursor == endUtc.Date))
+        var localStart = TimeZoneHelper.ToFacilityLocal(startUtc, facilityState);
+        var localEnd   = TimeZoneHelper.ToFacilityLocal(endUtc, facilityState);
+
+        if (ShiftFitsAvailabilityLocal(avail, localStart, localEnd))
+            return true;
+
+        var serverStart = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc).ToLocalTime();
+        var serverEnd   = DateTime.SpecifyKind(endUtc, DateTimeKind.Utc).ToLocalTime();
+        return ShiftFitsAvailabilityLocal(avail, serverStart, serverEnd);
+    }
+
+    private static bool ShiftFitsAvailabilityLocal(
+        List<StaffAvailability> avail,
+        DateTime localStart,
+        DateTime localEnd)
+    {
+
+        var cursor = localStart.Date;
+        while (cursor < localEnd.Date || (cursor == localStart.Date && cursor == localEnd.Date))
         {
             var dow      = cursor.DayOfWeek;
-            var segStart = cursor == startUtc.Date ? startUtc.TimeOfDay : TimeSpan.Zero;
-            var segEnd   = cursor == endUtc.Date   ? endUtc.TimeOfDay   : TimeSpan.FromHours(24);
+            var segStart = cursor == localStart.Date ? localStart.TimeOfDay : TimeSpan.Zero;
+            var segEnd   = cursor == localEnd.Date   ? localEnd.TimeOfDay   : TimeSpan.FromHours(24);
             if (segEnd == TimeSpan.Zero) { cursor = cursor.AddDays(1); continue; }
 
             var covered = avail.Any(a =>

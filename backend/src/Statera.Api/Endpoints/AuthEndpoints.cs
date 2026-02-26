@@ -103,6 +103,71 @@ public static class AuthEndpoints
             return Results.Ok(new { ok = true });
         });
 
+        // POST /api/v1/auth/change-password
+        g.MapPost("/change-password", async (
+            HttpContext ctx,
+            [FromBody] ChangePasswordRequest req,
+            [FromServices] UserManager<AppUser> um) =>
+        {
+            var userId = ctx.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            if (userId is null) return Results.Unauthorized();
+
+            if (string.IsNullOrWhiteSpace(req.CurrentPassword) || string.IsNullOrWhiteSpace(req.NewPassword))
+                return Results.BadRequest(new { error = "CurrentPassword and NewPassword are required" });
+
+            var user = await um.FindByIdAsync(userId);
+            if (user is null) return Results.Unauthorized();
+
+            var result = await um.ChangePasswordAsync(user, req.CurrentPassword, req.NewPassword);
+            if (!result.Succeeded)
+            {
+                var errs = string.Join(", ", result.Errors.Select(e => e.Description));
+                return Results.BadRequest(new { error = errs });
+            }
+
+            return Results.Ok(new { ok = true });
+        })
+        .RequireAuthorization();
+
+        // POST /api/v1/auth/impersonate
+        g.MapPost("/impersonate", async (
+            HttpContext ctx,
+            [FromBody] ImpersonateRequest req,
+            [FromServices] UserManager<AppUser> um,
+            [FromServices] AppDbContext db,
+            [FromServices] IJwtService jwt,
+            CancellationToken ct) =>
+        {
+            var userId = ctx.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            var sysRole = ctx.User.FindFirstValue("system_role") ?? "FacilityAdmin";
+
+            if (userId is null) return Results.Unauthorized();
+            if (sysRole != "Owner" && sysRole != "FacilityAdmin")
+                return Results.Json(new { error = "Impersonation not allowed for this role" }, statusCode: StatusCodes.Status403Forbidden);
+
+            var staff = await db.Staff.AsNoTracking().FirstOrDefaultAsync(s => s.Id == req.StaffId, ct);
+            if (staff is null) return Results.NotFound(new { error = "Staff not found" });
+
+            if (sysRole != "Owner")
+            {
+                var allowedIds = ctx.User.FindAll("facility_id").Select(c => c.Value).ToHashSet();
+                if (!allowedIds.Contains(staff.FacilityId.ToString()))
+                    return Results.Json(new { error = "No access to staff facility" }, statusCode: StatusCodes.Status403Forbidden);
+            }
+
+            var impersonated = new AppUser
+            {
+                Id = userId,
+                Email = staff.Email ?? "staff@impersonated.local",
+                UserName = staff.Email ?? "staff@impersonated.local",
+                SystemRole = "Staff"
+            };
+
+            var tokens = await jwt.CreateAsync(impersonated, new List<Guid> { staff.FacilityId }, ct, staff.Id);
+            return Results.Ok(new AuthResponse(tokens.AccessToken, tokens.RefreshToken));
+        })
+        .RequireAuthorization();
+
         g.MapPost("/register", ([FromBody] RegisterUserRequest req) =>
         {
             if (string.IsNullOrWhiteSpace(req.Email) ||

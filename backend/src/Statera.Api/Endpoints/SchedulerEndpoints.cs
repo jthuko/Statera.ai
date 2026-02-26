@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Globalization;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
@@ -23,10 +24,13 @@ public static class SchedulerEndpoints
         {
             if (req is null) return Results.BadRequest(new { error = "Missing body" });
 
-            if (!DateTime.TryParse(req.StartUtc, out var start))
+            if (!DateTimeOffset.TryParse(req.StartUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var startDto))
                 return Results.BadRequest(new { error = "Invalid StartUtc" });
-            if (!DateTime.TryParse(req.EndUtc, out var end))
+            if (!DateTimeOffset.TryParse(req.EndUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var endDto))
                 return Results.BadRequest(new { error = "Invalid EndUtc" });
+
+            var start = startDto.UtcDateTime;
+            var end   = endDto.UtcDateTime;
 
             // Resolve FacilityId
             Guid? facilityId = null;

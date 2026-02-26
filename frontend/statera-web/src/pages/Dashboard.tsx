@@ -16,6 +16,7 @@ import { listAssignments } from "../api/assignments";
 import { listTimeOff } from "../api/timeoff";
 import { listConstraints } from "../api/constraints";
 import { listUnits } from "../api/units";
+import { listOpenShifts } from "../api/openShifts";
 import { useFacility } from "../context/facility";
 import { useAuth } from "../auth/useAuth";
 
@@ -300,6 +301,7 @@ export default function Dashboard() {
   const [assignmentsThisWeek, setAssignments] = useState<number | null>(null);
   const [pendingTimeOff, setPendingTimeOff]  = useState<number | null>(null);
   const [constraintCount, setConstraints]    = useState<number | null>(null);
+  const [openShiftCount, setOpenShiftCount]  = useState<number | null>(null);
   const [upcomingRows, setUpcomingRows]      = useState<UpcomingRow[]>([]);
   const [loading, setLoading]                = useState(false);
   const [error, setError]                    = useState<string | null>(null);
@@ -320,14 +322,16 @@ export default function Dashboard() {
       listAssignments(facilityId, { start: weekStart, end: weekEnd }).catch(() => []),
       listTimeOff({ facilityId, status: "Pending" }).catch(() => ({ total: 0, items: [] })),
       listConstraints(facilityId).catch(() => []),
+      listOpenShifts(facilityId, { status: "Open" }).catch(() => []),
       listAssignments(facilityId, { start: now, end: threeDays }).catch(() => []),
       listUnits(facilityId).catch(() => []),
-    ]).then(([staff, assignments, timeOff, constraints, upcoming, units]) => {
+    ]).then(([staff, assignments, timeOff, constraints, openShifts, upcoming, units]) => {
       if (!active) return;
       setStaffCount(staff.length);
       setAssignments(assignments.length);
       setPendingTimeOff(timeOff.total);
       setConstraints(constraints.length);
+      setOpenShiftCount(openShifts.length);
 
       const staffMap = new Map<string, string>(
         staff.map((s) => [s.id, `${s.firstName} ${s.lastName}`])
@@ -394,6 +398,9 @@ export default function Dashboard() {
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <Stat label="Pending Time-Off"        value={pendingTimeOff ?? "—"}      icon={<BeachAccessIcon />} color={pendingTimeOff ? "#e65100" : "#757575"} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Stat label="Open Shifts"             value={openShiftCount ?? "—"}      icon={<CalendarTodayIcon />} color="#00897b" />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <Stat label="Active Constraints"      value={constraintCount ?? "—"}     icon={<RuleIcon />}       color="#6a1b9a" />

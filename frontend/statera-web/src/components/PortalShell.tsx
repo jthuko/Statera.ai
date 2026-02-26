@@ -7,7 +7,7 @@ import {
 import {
   CalendarMonth, AccessAlarm, BeachAccess, Chat, Receipt, Logout,
   WbSunny as WbSunnyIcon, DarkMode as DarkModeIcon,
-  WorkHistory as WorkHistoryIcon,
+  WorkHistory as WorkHistoryIcon, AccountCircle, SwitchAccount,
 } from "@mui/icons-material";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -20,11 +20,12 @@ const NAV_ITEMS = [
   { label: "Clock",     icon: <AccessAlarm />,     path: "/portal/timeclock"   },
   { label: "Timesheet", icon: <Receipt />,          path: "/portal/timesheet"   },
   { label: "Shifts",    icon: <WorkHistoryIcon />, path: "/portal/open-shifts" },
+  { label: "Profile",   icon: <AccountCircle />,  path: "/portal/profile"     },
   { label: "Chat",      icon: <Chat />,             path: "/portal/chat"        },
 ];
 
 export default function PortalShell() {
-  const { logout, user } = useAuth();
+  const { logout, user, isImpersonating, stopImpersonation } = useAuth();
   const { mode, toggleMode } = useColorMode();
   const isDark = mode === "dark";
   const navigate = useNavigate();
@@ -55,6 +56,28 @@ export default function PortalShell() {
           <Typography variant="body2" sx={{ opacity: 0.75, mr: 1, display: { xs: "none", sm: "block" } }}>
             {user?.email}
           </Typography>
+
+          {isImpersonating && (
+            <Tooltip title="Return to admin">
+              <IconButton
+                onClick={async () => {
+                  await stopImpersonation();
+                  navigate("/");
+                }}
+                size="small"
+                color="inherit"
+                sx={{
+                  mr: 0.5,
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  borderRadius: 1.5,
+                  p: 0.75,
+                  "&:hover": { bgcolor: "rgba(255,255,255,0.1)" },
+                }}
+              >
+                <SwitchAccount sx={{ fontSize: 17 }} />
+              </IconButton>
+            </Tooltip>
+          )}
 
           {/* Dark/Light toggle */}
           <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>

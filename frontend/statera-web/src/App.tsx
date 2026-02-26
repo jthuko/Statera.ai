@@ -34,6 +34,7 @@ import PortalTimeClock from "./pages/portal/PortalTimeClock";
 import PortalTimesheet from "./pages/portal/PortalTimesheet";
 import PortalChat from "./pages/portal/PortalChat";
 import PortalOpenShifts from "./pages/portal/PortalOpenShifts";
+import PortalProfile from "./pages/portal/PortalProfile";
 
 export default function App() {
   return (
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="timesheet" element={<PortalTimesheet />} />
         <Route path="chat" element={<PortalChat />} />
         <Route path="open-shifts" element={<PortalOpenShifts />} />
+        <Route path="profile" element={<PortalProfile />} />
         <Route path="*" element={<Navigate to="/portal" replace />} />
       </Route>
 

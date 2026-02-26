@@ -15,6 +15,9 @@ interface AuthContextValue {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  impersonate: (staffId: string) => Promise<void>;
+  stopImpersonation: () => Promise<void>;
+  isImpersonating: boolean;
   isAuthorized: (roles?: SystemRole[]) => boolean;
   hasFacilityAccess: (facilityId: string) => boolean;
 }
@@ -23,6 +26,9 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isImpersonating, setIsImpersonating] = useState<boolean>(() => {
+    return !!localStorage.getItem("statera:impersonatorAccessToken");
+  });
 
   useEffect(() => {
     const raw = localStorage.getItem("statera:user");
@@ -35,18 +41,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  async function login(email: string, password: string) {
-    const res = await api.post("/auth/login", { email, password });
-    const { accessToken, refreshToken } = res.data ?? {};
-
-    if (typeof accessToken !== "string" || !accessToken) {
-      throw new Error("No access token received");
+  function setUserPersist(next: User | null) {
+    if (next) {
+      localStorage.setItem("statera:user", JSON.stringify(next));
+    } else {
+      localStorage.removeItem("statera:user");
     }
-    localStorage.setItem("statera:accessToken", accessToken);
-    if (typeof refreshToken === "string" && refreshToken) {
-      localStorage.setItem("statera:refreshToken", refreshToken);
-    }
+    setUser(next);
+  }
 
+  async function loadMeAndSet(fallbackEmail?: string) {
     try {
       const meRes = await api.get<{
         id: string;
@@ -65,17 +69,106 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         staffId: staffId ?? null,
       };
 
-      localStorage.setItem("statera:user", JSON.stringify(parsed));
-      setUser(parsed);
+      setUserPersist(parsed);
+      return parsed;
     } catch {
+      if (!fallbackEmail) throw new Error("Failed to load user");
       const fallback: User = {
         id: "self",
-        email,
+        email: fallbackEmail,
         systemRole: "FacilityAdmin",
         facilityIds: [],
       };
-      localStorage.setItem("statera:user", JSON.stringify(fallback));
-      setUser(fallback);
+      setUserPersist(fallback);
+      return fallback;
+    }
+  }
+
+  async function login(email: string, password: string) {
+    const res = await api.post("/auth/login", { email, password });
+    const { accessToken, refreshToken } = res.data ?? {};
+
+    if (typeof accessToken !== "string" || !accessToken) {
+      throw new Error("No access token received");
+    }
+    localStorage.setItem("statera:accessToken", accessToken);
+    if (typeof refreshToken === "string" && refreshToken) {
+      localStorage.setItem("statera:refreshToken", refreshToken);
+    }
+
+    localStorage.removeItem("statera:impersonatorAccessToken");
+    localStorage.removeItem("statera:impersonatorRefreshToken");
+    localStorage.removeItem("statera:impersonatorUser");
+    setIsImpersonating(false);
+
+    await loadMeAndSet(email);
+  }
+
+  async function impersonate(staffId: string) {
+    const currentAccess = localStorage.getItem("statera:accessToken");
+    const currentRefresh = localStorage.getItem("statera:refreshToken");
+    const currentUser = localStorage.getItem("statera:user");
+
+    if (currentAccess && !localStorage.getItem("statera:impersonatorAccessToken")) {
+      localStorage.setItem("statera:impersonatorAccessToken", currentAccess);
+      if (currentRefresh) localStorage.setItem("statera:impersonatorRefreshToken", currentRefresh);
+      if (currentUser) localStorage.setItem("statera:impersonatorUser", currentUser);
+    }
+
+    const res = await api.post("/auth/impersonate", { staffId });
+    const { accessToken, refreshToken } = res.data ?? {};
+
+    if (typeof accessToken !== "string" || !accessToken) {
+      throw new Error("No access token received");
+    }
+
+    localStorage.setItem("statera:accessToken", accessToken);
+    if (typeof refreshToken === "string" && refreshToken) {
+      localStorage.setItem("statera:refreshToken", refreshToken);
+    } else {
+      localStorage.removeItem("statera:refreshToken");
+    }
+
+    setIsImpersonating(true);
+    await loadMeAndSet();
+  }
+
+  async function stopImpersonation() {
+    const originalAccess = localStorage.getItem("statera:impersonatorAccessToken");
+    const originalRefresh = localStorage.getItem("statera:impersonatorRefreshToken");
+    const originalUser = localStorage.getItem("statera:impersonatorUser");
+
+    if (originalAccess) {
+      localStorage.setItem("statera:accessToken", originalAccess);
+    } else {
+      localStorage.removeItem("statera:accessToken");
+    }
+
+    if (originalRefresh) {
+      localStorage.setItem("statera:refreshToken", originalRefresh);
+    } else {
+      localStorage.removeItem("statera:refreshToken");
+    }
+
+    localStorage.removeItem("statera:impersonatorAccessToken");
+    localStorage.removeItem("statera:impersonatorRefreshToken");
+    localStorage.removeItem("statera:impersonatorUser");
+    setIsImpersonating(false);
+
+    if (originalUser) {
+      try {
+        const parsed = JSON.parse(originalUser) as User;
+        setUserPersist(parsed);
+        return;
+      } catch {
+        // fall through
+      }
+    }
+
+    if (originalAccess) {
+      await loadMeAndSet();
+    } else {
+      setUserPersist(null);
     }
   }
 
@@ -83,7 +176,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("statera:accessToken");
     localStorage.removeItem("statera:refreshToken");
     localStorage.removeItem("statera:user");
+    localStorage.removeItem("statera:impersonatorAccessToken");
+    localStorage.removeItem("statera:impersonatorRefreshToken");
+    localStorage.removeItem("statera:impersonatorUser");
     setUser(null);
+    setIsImpersonating(false);
   }
 
   function isAuthorized(roles?: SystemRole[]) {
@@ -98,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthorized, hasFacilityAccess }}>
+    <AuthContext.Provider value={{ user, login, logout, impersonate, stopImpersonation, isImpersonating, isAuthorized, hasFacilityAccess }}>
       {children}
     </AuthContext.Provider>
   );

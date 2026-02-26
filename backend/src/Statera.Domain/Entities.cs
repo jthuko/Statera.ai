@@ -20,6 +20,18 @@ public class Staff
     public string LastName { get; set; } = default!;
     public string? Email { get; set; }   // unique index (nullable allowed in model, filtered index in DbContext)
 
+    // Demographics / profile
+    public string? Phone { get; set; }
+    public string? Address1 { get; set; }
+    public string? Address2 { get; set; }
+    public string? City { get; set; }
+    public string? State { get; set; }
+    public string? Zip { get; set; }
+    public DateOnly? DateOfBirth { get; set; }
+    public string? EmergencyContactName { get; set; }
+    public string? EmergencyContactPhone { get; set; }
+    public string? PhotoUrl { get; set; }
+
     public Guid FacilityId { get; set; }
     public Guid? UnitId { get; set; }
 

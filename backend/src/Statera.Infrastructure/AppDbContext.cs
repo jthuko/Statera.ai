@@ -117,6 +117,15 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
             entity.Property(s => s.LastName).IsRequired();
             entity.HasIndex(s => s.Email).IsUnique().HasFilter("[Email] IS NOT NULL");
             entity.HasIndex(s => s.UnitId);
+            entity.Property(s => s.Phone).HasMaxLength(30);
+            entity.Property(s => s.Address1).HasMaxLength(200);
+            entity.Property(s => s.Address2).HasMaxLength(200);
+            entity.Property(s => s.City).HasMaxLength(100);
+            entity.Property(s => s.State).HasMaxLength(2);
+            entity.Property(s => s.Zip).HasMaxLength(20);
+            entity.Property(s => s.EmergencyContactName).HasMaxLength(120);
+            entity.Property(s => s.EmergencyContactPhone).HasMaxLength(30);
+            entity.Property(s => s.PhotoUrl).HasMaxLength(512);
         });
 
         // Role catalog (domain role)

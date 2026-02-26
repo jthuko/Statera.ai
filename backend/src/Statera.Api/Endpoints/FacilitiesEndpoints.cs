@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Statera.Infrastructure;            // AppDbContext
+using Statera.Application;              // TimeZoneHelper
 using Statera.Api.Contracts;            // DTOs
 using DomFacility = Statera.Domain.Facility;
 using DomAssignment = Statera.Domain.Assignment;
@@ -285,7 +286,7 @@ public static class FacilitiesEndpoints
                 r.StartUtc < eUtc && r.EndUtc > sUtc, ct);
             if (onLeave) return Results.UnprocessableEntity(new { error = "Staff has approved time off during this shift.", code = "ON_TIME_OFF" });
 
-            var availError = await CheckAvailabilityAsync(db, req.StaffId, sUtc, eUtc, ct);
+            var availError = await CheckAvailabilityAsync(db, req.StaffId, sUtc, eUtc, facility.State, ct);
             if (availError is not null) return Results.UnprocessableEntity(new { error = availError, code = "AVAILABILITY_CONFLICT" });
 
             var e = new DomAssignment
@@ -350,7 +351,11 @@ public static class FacilitiesEndpoints
 
             if (req.Notes is not null) e.Notes = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim();
 
-            var availErr = await CheckAvailabilityAsync(db, e.StaffId, e.StartUtc, e.EndUtc, ct);
+            var facilityState = await db.Facilities.AsNoTracking()
+                .Where(f => f.Id == facilityId)
+                .Select(f => f.State)
+                .FirstOrDefaultAsync(ct);
+            var availErr = await CheckAvailabilityAsync(db, e.StaffId, e.StartUtc, e.EndUtc, facilityState ?? e.FacilityState, ct);
             if (availErr is not null) return Results.UnprocessableEntity(new { error = availErr, code = "AVAILABILITY_CONFLICT" });
 
             await db.SaveChangesAsync(ct);
@@ -388,20 +393,31 @@ public static class FacilitiesEndpoints
     }
 
     private static async Task<string?> CheckAvailabilityAsync(
-        AppDbContext db, Guid staffId, DateTime startUtc, DateTime endUtc, CancellationToken ct)
+        AppDbContext db, Guid staffId, DateTime startUtc, DateTime endUtc, string? facilityState, CancellationToken ct)
     {
+        var localStart = TimeZoneHelper.ToFacilityLocal(startUtc, facilityState);
+        var localEnd   = TimeZoneHelper.ToFacilityLocal(endUtc, facilityState);
+
         var avail = await db.StaffAvailabilities.AsNoTracking()
             .Where(a => a.StaffId == staffId)
             .ToListAsync(ct);
 
         if (avail.Count == 0) return null; // no restrictions defined
 
-        var cursor = startUtc.Date;
-        while (cursor <= endUtc.Date)
+        if (ShiftFitsAvailabilityLocal(avail, localStart, localEnd))
+            return null;
+
+        var serverStart = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc).ToLocalTime();
+        var serverEnd   = DateTime.SpecifyKind(endUtc, DateTimeKind.Utc).ToLocalTime();
+        if (ShiftFitsAvailabilityLocal(avail, serverStart, serverEnd))
+            return null;
+
+        var cursor = localStart.Date;
+        while (cursor <= localEnd.Date)
         {
             var dow     = cursor.DayOfWeek;
-            var segStart = cursor == startUtc.Date ? startUtc.TimeOfDay : TimeSpan.Zero;
-            var segEnd   = cursor == endUtc.Date   ? endUtc.TimeOfDay   : TimeSpan.FromHours(24);
+            var segStart = cursor == localStart.Date ? localStart.TimeOfDay : TimeSpan.Zero;
+            var segEnd   = cursor == localEnd.Date   ? localEnd.TimeOfDay   : TimeSpan.FromHours(24);
             if (segEnd == TimeSpan.Zero) { cursor = cursor.AddDays(1); continue; }
 
             var covered = avail.Any(a =>
@@ -415,5 +431,26 @@ public static class FacilitiesEndpoints
             cursor = cursor.AddDays(1);
         }
         return null;
+    }
+
+    private static bool ShiftFitsAvailabilityLocal(List<Statera.Domain.StaffAvailability> avail, DateTime localStart, DateTime localEnd)
+    {
+        var cursor = localStart.Date;
+        while (cursor <= localEnd.Date)
+        {
+            var dow     = cursor.DayOfWeek;
+            var segStart = cursor == localStart.Date ? localStart.TimeOfDay : TimeSpan.Zero;
+            var segEnd   = cursor == localEnd.Date   ? localEnd.TimeOfDay   : TimeSpan.FromHours(24);
+            if (segEnd == TimeSpan.Zero) { cursor = cursor.AddDays(1); continue; }
+
+            var covered = avail.Any(a =>
+                a.DayOfWeek == dow &&
+                a.StartLocal <= segStart &&
+                a.EndLocal   >= segEnd);
+
+            if (!covered) return false;
+            cursor = cursor.AddDays(1);
+        }
+        return true;
     }
 }

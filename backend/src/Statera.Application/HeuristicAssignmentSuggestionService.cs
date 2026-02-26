@@ -134,7 +134,7 @@ public class HeuristicAssignmentSuggestionService
             // ── Availability windows ───────────────────────────────────
             // If staff has defined availability, the shift must fit within it.
             // If no availability is defined, there are no restrictions (opt-in).
-            if (s.Availabilities?.Count > 0 && !ShiftFitsAvailability(s.Availabilities, startUtc, endUtc))
+            if (s.Availabilities?.Count > 0 && !ShiftFitsAvailability(s.Availabilities, startUtc, endUtc, facilityStateForUnit))
                 continue;
 
             // ── Overlapping assignment ────────────────────────────────
@@ -216,14 +216,29 @@ public class HeuristicAssignmentSuggestionService
     /// Returns true if the shift window fits within the staff member's recorded availability.
     /// Checks each calendar day the shift spans.
     /// </summary>
-    private static bool ShiftFitsAvailability(ICollection<StaffAvailability> avail, DateTime startUtc, DateTime endUtc)
+    private static bool ShiftFitsAvailability(ICollection<StaffAvailability> avail, DateTime startUtc, DateTime endUtc, string? facilityState)
     {
-        var cursor = startUtc.Date;
-        while (cursor <= endUtc.Date)
+        var localStart = TimeZoneHelper.ToFacilityLocal(startUtc, facilityState);
+        var localEnd   = TimeZoneHelper.ToFacilityLocal(endUtc, facilityState);
+
+        if (ShiftFitsAvailabilityLocal(avail, localStart, localEnd))
+            return true;
+
+        // Fallback to server-local interpretation (prevents false negatives when facility TZ is unknown/mismatched)
+        var serverStart = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc).ToLocalTime();
+        var serverEnd   = DateTime.SpecifyKind(endUtc, DateTimeKind.Utc).ToLocalTime();
+        return ShiftFitsAvailabilityLocal(avail, serverStart, serverEnd);
+    }
+
+    private static bool ShiftFitsAvailabilityLocal(ICollection<StaffAvailability> avail, DateTime localStart, DateTime localEnd)
+    {
+
+        var cursor = localStart.Date;
+        while (cursor <= localEnd.Date)
         {
             var dow      = cursor.DayOfWeek;
-            var segStart = cursor == startUtc.Date ? startUtc.TimeOfDay : TimeSpan.Zero;
-            var segEnd   = cursor == endUtc.Date   ? endUtc.TimeOfDay   : TimeSpan.FromHours(24);
+            var segStart = cursor == localStart.Date ? localStart.TimeOfDay : TimeSpan.Zero;
+            var segEnd   = cursor == localEnd.Date   ? localEnd.TimeOfDay   : TimeSpan.FromHours(24);
             if (segEnd == TimeSpan.Zero) { cursor = cursor.AddDays(1); continue; }
 
             var covered = avail.Any(a =>

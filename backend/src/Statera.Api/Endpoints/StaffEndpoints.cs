@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using ClosedXML.Excel;
 using CsvHelper;
@@ -130,10 +131,69 @@ public static class StaffEndpoints
             {
                 e.Id, e.FirstName, e.LastName, e.Email,
                 e.FacilityId, e.UnitId, e.Role, e.EmploymentType, e.Active,
+                e.Phone, e.Address1, e.Address2, e.City, e.State, e.Zip,
+                e.DateOfBirth, e.EmergencyContactName, e.EmergencyContactPhone,
+                e.PhotoUrl,
                 HasAdminAccount  = hasAdminAccount,
                 HasPortalAccount = hasPortalAccount,
             });
         });
+
+        // GET /api/v1/staff/me — staff self profile
+        g.MapGet("/me", async (HttpContext ctx, [FromServices] AppDbContext db) =>
+        {
+            var staffIdStr = ctx.User.FindFirstValue("staff_id");
+            if (!Guid.TryParse(staffIdStr, out var staffId)) return Results.Unauthorized();
+
+            var e = await db.Staff.AsNoTracking().FirstOrDefaultAsync(s => s.Id == staffId);
+            if (e is null) return Results.NotFound();
+
+            return Results.Ok(new
+            {
+                e.Id, e.FirstName, e.LastName, e.Email,
+                e.FacilityId, e.UnitId, e.Role, e.EmploymentType, e.Active,
+                e.Phone, e.Address1, e.Address2, e.City, e.State, e.Zip,
+                e.DateOfBirth, e.EmergencyContactName, e.EmergencyContactPhone,
+                e.PhotoUrl,
+            });
+        })
+        .RequireAuthorization("Authenticated");
+
+        // PUT /api/v1/staff/me/profile — staff updates profile/demographics
+        g.MapPut("/me/profile", async (
+            HttpContext ctx,
+            [FromBody] UpdateStaffProfileRequest req,
+            [FromServices] AppDbContext db) =>
+        {
+            var staffIdStr = ctx.User.FindFirstValue("staff_id");
+            if (!Guid.TryParse(staffIdStr, out var staffId)) return Results.Unauthorized();
+
+            var e = await db.Staff.FirstOrDefaultAsync(s => s.Id == staffId);
+            if (e is null) return Results.NotFound();
+
+            e.Phone = req.Phone?.Trim();
+            e.Address1 = req.Address1?.Trim();
+            e.Address2 = req.Address2?.Trim();
+            e.City = req.City?.Trim();
+            e.State = req.State?.Trim();
+            e.Zip = req.Zip?.Trim();
+            e.DateOfBirth = req.DateOfBirth;
+            e.EmergencyContactName = req.EmergencyContactName?.Trim();
+            e.EmergencyContactPhone = req.EmergencyContactPhone?.Trim();
+            e.PhotoUrl = req.PhotoUrl?.Trim();
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new
+            {
+                e.Id, e.FirstName, e.LastName, e.Email,
+                e.FacilityId, e.UnitId, e.Role, e.EmploymentType, e.Active,
+                e.Phone, e.Address1, e.Address2, e.City, e.State, e.Zip,
+                e.DateOfBirth, e.EmergencyContactName, e.EmergencyContactPhone,
+                e.PhotoUrl,
+            });
+        })
+        .RequireAuthorization("Authenticated");
 
         // POST /api/v1/staff
         g.MapPost("/", async (
@@ -182,7 +242,17 @@ public static class StaffEndpoints
                 UnitId = req.UnitId,
                 Role = req.Role.Trim(),
                 EmploymentType = et,
-                Active = req.Active
+                Active = req.Active,
+                Phone = req.Phone?.Trim(),
+                Address1 = req.Address1?.Trim(),
+                Address2 = req.Address2?.Trim(),
+                City = req.City?.Trim(),
+                State = req.State?.Trim(),
+                Zip = req.Zip?.Trim(),
+                DateOfBirth = req.DateOfBirth,
+                EmergencyContactName = req.EmergencyContactName?.Trim(),
+                EmergencyContactPhone = req.EmergencyContactPhone?.Trim(),
+                PhotoUrl = req.PhotoUrl?.Trim(),
             };
 
             db.Staff.Add(e);
@@ -217,6 +287,9 @@ public static class StaffEndpoints
                 e.UnitId,
                 e.Role,
                 e.Active,
+                e.Phone, e.Address1, e.Address2, e.City, e.State, e.Zip,
+                e.DateOfBirth, e.EmergencyContactName, e.EmergencyContactPhone,
+                e.PhotoUrl,
                 LoginCreated = tempPassword is not null,
                 TempPassword = tempPassword
             });
@@ -265,6 +338,17 @@ public static class StaffEndpoints
                 }
                 e.EmploymentType = et;
             }
+
+            if (req.Phone is not null) e.Phone = req.Phone?.Trim();
+            if (req.Address1 is not null) e.Address1 = req.Address1?.Trim();
+            if (req.Address2 is not null) e.Address2 = req.Address2?.Trim();
+            if (req.City is not null) e.City = req.City?.Trim();
+            if (req.State is not null) e.State = req.State?.Trim();
+            if (req.Zip is not null) e.Zip = req.Zip?.Trim();
+            if (req.DateOfBirth.HasValue) e.DateOfBirth = req.DateOfBirth;
+            if (req.EmergencyContactName is not null) e.EmergencyContactName = req.EmergencyContactName?.Trim();
+            if (req.EmergencyContactPhone is not null) e.EmergencyContactPhone = req.EmergencyContactPhone?.Trim();
+            if (req.PhotoUrl is not null) e.PhotoUrl = req.PhotoUrl?.Trim();
 
             if (req.Active.HasValue) e.Active = req.Active.Value;
 

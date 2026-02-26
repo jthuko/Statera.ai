@@ -13,7 +13,17 @@ public record CreateStaffRequest(
     string Role,
     string EmploymentType, // "FullTime","PartTime","PerDiem","Contract"
     bool Active,
-    bool AdminAccess = false  // when true + email provided, creates a FacilityAdmin login account
+    bool AdminAccess = false,  // when true + email provided, creates a FacilityAdmin login account
+    string? Phone = null,
+    string? Address1 = null,
+    string? Address2 = null,
+    string? City = null,
+    string? State = null,
+    string? Zip = null,
+    DateOnly? DateOfBirth = null,
+    string? EmergencyContactName = null,
+    string? EmergencyContactPhone = null,
+    string? PhotoUrl = null
 );
 
 public record UpdateStaffRequest(
@@ -24,7 +34,30 @@ public record UpdateStaffRequest(
     Guid? UnitId,
     string? Role,
     string? EmploymentType,
-    bool? Active
+    bool? Active,
+    string? Phone = null,
+    string? Address1 = null,
+    string? Address2 = null,
+    string? City = null,
+    string? State = null,
+    string? Zip = null,
+    DateOnly? DateOfBirth = null,
+    string? EmergencyContactName = null,
+    string? EmergencyContactPhone = null,
+    string? PhotoUrl = null
+);
+
+public record UpdateStaffProfileRequest(
+    string? Phone,
+    string? Address1,
+    string? Address2,
+    string? City,
+    string? State,
+    string? Zip,
+    DateOnly? DateOfBirth,
+    string? EmergencyContactName,
+    string? EmergencyContactPhone,
+    string? PhotoUrl
 );
 
 // ---------- Assignments (replaces Shifts; time-based) ----------
