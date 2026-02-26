@@ -331,3 +331,41 @@ public class HelpArticle
     public int SortOrder { get; set; }
 }
 
+// ── Open Shifts ───────────────────────────────────────────────────────────────
+
+/// <summary>
+/// An open/unfilled shift posted by an admin that staff can request.
+/// Status: Open | Filled | Cancelled
+/// </summary>
+public class OpenShift
+{
+    public Guid Id { get; set; }
+    public Guid FacilityId { get; set; }
+    public Guid? UnitId { get; set; }
+    public string Role { get; set; } = default!;
+    public DateTime StartUtc { get; set; }
+    public DateTime EndUtc { get; set; }
+    public string? Notes { get; set; }
+    public string Status { get; set; } = "Open";
+    public string CreatedByUserId { get; set; } = default!;
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+    public ICollection<OpenShiftRequest> Requests { get; set; } = new List<OpenShiftRequest>();
+}
+
+/// <summary>
+/// A staff member's request to fill an OpenShift.
+/// Status: Pending | Approved | Denied | Withdrawn
+/// </summary>
+public class OpenShiftRequest
+{
+    public Guid Id { get; set; }
+    public Guid OpenShiftId { get; set; }
+    public OpenShift OpenShift { get; set; } = default!;
+    public Guid StaffId { get; set; }
+    public string Status { get; set; } = "Pending";
+    public DateTime RequestedUtc { get; set; } = DateTime.UtcNow;
+    public string? ReviewedByUserId { get; set; }
+    public DateTime? ReviewedUtc { get; set; }
+    public string? Notes { get; set; }
+}
+

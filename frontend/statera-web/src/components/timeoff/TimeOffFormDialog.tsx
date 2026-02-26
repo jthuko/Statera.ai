@@ -78,7 +78,14 @@ export default function TimeOffFormDialog({
           <DateTimePicker
             label="Start"
             value={v.startUtc}
-            onChange={(d) => setV({ ...v, startUtc: d })}
+            onChange={(d) => {
+              if (d && v.startUtc && v.endUtc) {
+                const durationMs = v.endUtc.valueOf() - v.startUtc.valueOf();
+                setV({ ...v, startUtc: d, endUtc: d.add(durationMs, "millisecond") });
+              } else {
+                setV({ ...v, startUtc: d });
+              }
+            }}
           />
 
           <DateTimePicker

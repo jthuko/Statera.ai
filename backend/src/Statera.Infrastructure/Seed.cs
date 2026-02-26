@@ -754,6 +754,66 @@ public static class DevDataSeeder
             logger.LogInformation("DevDataSeeder: seeded help articles.");
         }
 
+        // ── Supplemental help articles (added after initial seed) ────────────
+        const string importTitle = "Bulk Importing Staff (CSV / Excel)";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == importTitle))
+        {
+            static string J(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string S(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Staff",
+                Title        = importTitle,
+                SortOrder    = 3,
+                TagsJson     = J("import", "csv", "excel", "bulk", "upload", "staff"),
+                SectionsJson = S(
+                    (null, "The Import feature lets you add many staff members at once by uploading a .csv or .xlsx file. This saves time when onboarding a new facility or adding a large group of employees."),
+                    ("Opening the dialog", "Go to Staff Directory. Click the Import button (next to New Staff). The Import dialog opens."),
+                    ("Downloading the template", "Click 'Download Template CSV' inside the dialog to get a pre-formatted file. Open it in Excel or any spreadsheet app to fill in your data."),
+                    ("Required columns", "• firstName — staff member's first name\n• lastName — staff member's last name\n• role — job role (e.g. RN, LPN, CNA, Manager)\n• employmentType — one of: FullTime, PartTime, PerDiem, Contract"),
+                    ("Optional columns", "• email — must be unique across the facility; leave blank to skip\n• unitId — GUID or unit name to assign the staff member to a unit\n• active — true or false (defaults to true if omitted)"),
+                    ("Running the import", "1. Fill in the template (or create your own file with matching column headers).\n2. Save as .csv or .xlsx.\n3. Click the upload area in the dialog and select your file.\n4. Click Import. The system processes each row and creates valid staff records."),
+                    ("Reviewing results", "After import completes, a summary shows how many staff were created successfully and how many rows had errors. Each failed row is listed with its row number and a description of the problem (e.g. duplicate email, invalid employmentType). Fix those rows and re-upload as needed."),
+                    ("Partial imports", "Valid rows are always saved even if some rows fail. You do not need to re-upload rows that already succeeded."))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", importTitle);
+        }
+
+        const string openShiftsTitle = "Open Shifts & Shift Marketplace";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == openShiftsTitle))
+        {
+            static string JO(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string SO(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Staff",
+                Title        = openShiftsTitle,
+                SortOrder    = 4,
+                TagsJson     = JO("open shift", "marketplace", "coverage", "claim", "request", "shift"),
+                SectionsJson = SO(
+                    (null, "Open Shifts is a shift marketplace that lets admins post unfilled shifts and staff volunteer to cover them. Admins approve or deny each request, and approved shifts are automatically added to the staff member's schedule."),
+                    ("Posting an open shift (Admin)", "1. Go to Open Shifts in the sidebar.\n2. Click Post Shift.\n3. Fill in the role, date, start/end time, unit (optional), and notes.\n4. Save — the shift is now visible to eligible staff in their portal."),
+                    ("Browsing open shifts (Staff)", "Open the Staff Portal and tap Open Shifts. You will only see shifts that match your role and fit within your availability windows. Shifts outside your availability or role are not shown."),
+                    ("Requesting a shift (Staff)", "Tap the Request button on any open shift card. Your request is sent to the admin with a 'Pending' status. You can have multiple pending requests at once."),
+                    ("Withdrawing a request (Staff)", "If you change your mind before the admin reviews it, tap Withdraw on the pending card. You can only withdraw Pending requests — not ones already Approved or Denied."),
+                    ("Approving or denying a request (Admin)", "On the Open Shifts page, click View Requests on a shift. You will see all staff who requested it. Click Approve to assign the shift — this automatically creates a schedule assignment and denies all other pending requests for that shift. Click Deny to decline a specific request without affecting others."),
+                    ("Constraint enforcement", "All scheduling constraints apply:\n• Role match — staff must have the matching role.\n• Availability — shift must fall within the staff member's availability windows.\n• No overlapping assignments — staff cannot be double-booked.\n• Approved time off — blocked if time off covers the shift.\n• Weekly hours limit and overtime cap.\n• Minimum rest between shifts.\n• Maximum consecutive working days.\nIf a constraint is violated, the request or approval is blocked with a clear error message."))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", openShiftsTitle);
+        }
+
         logger.LogInformation("DevDataSeeder: seeding complete.");
     }
 }

@@ -73,6 +73,10 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
     // Help documentation
     public DbSet<HelpArticle> HelpArticles => Set<HelpArticle>();
 
+    // Open Shifts / Shift Marketplace
+    public DbSet<OpenShift> OpenShifts => Set<OpenShift>();
+    public DbSet<OpenShiftRequest> OpenShiftRequests => Set<OpenShiftRequest>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
@@ -280,6 +284,34 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
             e.Property(x => x.TagsJson).HasColumnType("nvarchar(max)").HasDefaultValue("[]");
             e.Property(x => x.SectionsJson).HasColumnType("nvarchar(max)").HasDefaultValue("[]");
             e.HasIndex(x => new { x.Category, x.SortOrder });
+        });
+
+        // OpenShift
+        b.Entity<OpenShift>(e =>
+        {
+            e.ToTable("OpenShifts", "staff");
+            e.Property(x => x.Role).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Notes).HasMaxLength(512);
+            e.Property(x => x.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Open");
+            e.Property(x => x.CreatedByUserId).HasMaxLength(450).IsRequired();
+            e.ToTable(t => t.HasCheckConstraint("CK_OpenShift_EndAfterStart", "[EndUtc] > [StartUtc]"));
+            e.HasIndex(x => new { x.FacilityId, x.StartUtc });
+            e.HasIndex(x => x.Status);
+            e.HasMany(x => x.Requests)
+             .WithOne(r => r.OpenShift)
+             .HasForeignKey(r => r.OpenShiftId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // OpenShiftRequest
+        b.Entity<OpenShiftRequest>(e =>
+        {
+            e.ToTable("OpenShiftRequests", "staff");
+            e.Property(x => x.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Pending");
+            e.Property(x => x.ReviewedByUserId).HasMaxLength(450);
+            e.Property(x => x.Notes).HasMaxLength(512);
+            e.HasIndex(x => new { x.OpenShiftId, x.StaffId }).IsUnique();
+            e.HasIndex(x => x.StaffId);
         });
     }
 }

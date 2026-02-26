@@ -24,6 +24,7 @@ import DemandTemplateEditorPage from "./pages/demand-templates/editor";
 import FacilityAdminPage from "./pages/facilities/FacilityAdminPage";
 import ChatPage from "./pages/ChatPage";
 import AdminTimeClock from "./pages/AdminTimeClock";
+import OpenShiftsPage from "./pages/OpenShifts";
 
 // Portal pages (staff)
 import PortalDashboard from "./pages/portal/PortalDashboard";
@@ -32,6 +33,7 @@ import PortalTimeOff from "./pages/portal/PortalTimeOff";
 import PortalTimeClock from "./pages/portal/PortalTimeClock";
 import PortalTimesheet from "./pages/portal/PortalTimesheet";
 import PortalChat from "./pages/portal/PortalChat";
+import PortalOpenShifts from "./pages/portal/PortalOpenShifts";
 
 export default function App() {
   return (
@@ -56,6 +58,7 @@ export default function App() {
         <Route path="timeclock" element={<PortalTimeClock />} />
         <Route path="timesheet" element={<PortalTimesheet />} />
         <Route path="chat" element={<PortalChat />} />
+        <Route path="open-shifts" element={<PortalOpenShifts />} />
         <Route path="*" element={<Navigate to="/portal" replace />} />
       </Route>
 
@@ -86,6 +89,7 @@ export default function App() {
         <Route path="/coverage" element={<CoveragePage/>} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="timeclock" element={<AdminTimeClock />} />
+        <Route path="open-shifts" element={<OpenShiftsPage />} />
         <Route path="dashboard" element={<Navigate to="/" replace />} />
         <Route path="/demand-templates" element={<DemandTemplatesListPage />} />
         <Route path="/demand-templates/:id" element={<DemandTemplateEditorPage />} />

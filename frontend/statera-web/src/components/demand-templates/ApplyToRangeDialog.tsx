@@ -1,5 +1,6 @@
 // src/components/demand-templates/ApplyToRangeDialog.tsx
 import * as React from "react";
+import dayjs from "dayjs";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, Stack, TextField, FormControlLabel, Switch
@@ -49,7 +50,14 @@ export default function ApplyToRangeDialog({
               type="date"
               fullWidth
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                const newStart = e.target.value;
+                if (newStart && startDate && endDate) {
+                  const diffDays = dayjs(endDate).diff(dayjs(startDate), "day");
+                  setEndDate(dayjs(newStart).add(diffDays, "day").format("YYYY-MM-DD"));
+                }
+                setStartDate(newStart);
+              }}
               InputLabelProps={{ shrink: true }}
             />
             <TextField

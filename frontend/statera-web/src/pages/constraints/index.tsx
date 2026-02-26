@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  Alert, Box, Button, Container, Snackbar, Typography,
-  FormControl, InputLabel, Select, MenuItem,
+  Alert, Box, Button, Card, CardContent, Container, Snackbar,
+  Stack, Typography, FormControl, InputLabel, Select, MenuItem,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import RuleIcon from "@mui/icons-material/Rule";
 import {
   ConstraintDto, CreateConstraintRequest, UpdateConstraintRequest,
   listConstraints, createConstraint, updateConstraint, deleteConstraint,
@@ -36,9 +37,7 @@ export default function ConstraintsRulesPage() {
       setRows(data);
     } catch {
       setToast({ msg: "Failed to load constraints", sev: "error" });
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [facilityId]);
 
   useEffect(() => { reload(); }, [reload]);
@@ -82,53 +81,78 @@ export default function ConstraintsRulesPage() {
     }
   }
 
+  const activeCount   = rows.filter(r => r.isActive).length;
+  const inactiveCount = rows.length - activeCount;
+
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 2 }}>
-        <Typography variant="h5">Constraints & Rules</Typography>
 
-        <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
-          <FormControl size="small" sx={{ minWidth: 240 }}>
-            <InputLabel>Facility</InputLabel>
-            <Select
-              label="Facility"
-              value={facilityId}
-              onChange={e => setSelectedId(String(e.target.value))}
-            >
-              {facilities.map(f => (
-                <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+      {/* ── Header ── */}
+      <Card variant="outlined" sx={{
+        mb: 2.5,
+        background: "linear-gradient(90deg, rgba(0,77,77,0.4) 0%, rgba(0,77,77,0.08) 100%)",
+        borderColor: "rgba(0,137,123,0.25)",
+      }}>
+        <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
+          <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" gap={2}>
 
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            disabled={!facilityId}
-            onClick={() => setDialog({ mode: "create" })}
-          >
-            New Rule
-          </Button>
-        </Box>
-      </Box>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Box sx={{
+                width: 40, height: 40, borderRadius: 2, flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                bgcolor: "rgba(0,137,123,0.2)", border: "1px solid rgba(0,137,123,0.3)",
+              }}>
+                <RuleIcon sx={{ color: "#4db6ac", fontSize: 22 }} />
+              </Box>
+              <Box>
+                <Typography variant="h6" fontWeight={700} lineHeight={1.2}>Constraints & Rules</Typography>
+                {facilityId && !loading && (
+                  <Typography variant="caption" color="text.secondary">
+                    {activeCount} active · {inactiveCount} inactive · {rows.length} total
+                  </Typography>
+                )}
+              </Box>
+            </Stack>
+
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <FormControl size="small" sx={{ minWidth: 240 }}>
+                <InputLabel>Facility</InputLabel>
+                <Select label="Facility" value={facilityId}
+                  onChange={e => setSelectedId(String(e.target.value))}>
+                  {facilities.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                disabled={!facilityId}
+                onClick={() => setDialog({ mode: "create" })}
+              >
+                New Rule
+              </Button>
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
 
       {!facilityId && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Select a facility above to view and manage its constraints.
+        <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+          Select a facility above to view and manage its scheduling rules.
         </Alert>
       )}
 
+      {/* ── Table ── */}
       <ConstraintsTable
         loading={loading}
         rows={rows}
+        units={units}
         onEdit={row => setDialog({ mode: "edit", row })}
         onDelete={handleDelete}
       />
 
       <ConstraintFormDialog
         open={dialog.mode === "create"}
-        title="New Constraint"
-        submitLabel="Create"
+        title="New Constraint" submitLabel="Create"
         units={units}
         onClose={() => setDialog({ mode: "closed" })}
         onSubmit={handleCreate}
@@ -136,11 +160,8 @@ export default function ConstraintsRulesPage() {
 
       {dialog.mode === "edit" && (
         <ConstraintFormDialog
-          open
-          title="Edit Constraint"
-          submitLabel="Save"
-          units={units}
-          initial={dialog.row}
+          open title="Edit Constraint" submitLabel="Save"
+          units={units} initial={dialog.row}
           onClose={() => setDialog({ mode: "closed" })}
           onSubmit={handleEdit}
         />

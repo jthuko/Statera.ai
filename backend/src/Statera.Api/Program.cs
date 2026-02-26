@@ -149,6 +149,7 @@ v1.MapDemandTemplatesEndpoints();
 v1.MapTimeClockEndpoints();
 v1.MapChatEndpoints();
 v1.MapHelpEndpoints();
+v1.MapOpenShiftEndpoints();
 
 
 // Convenience: root -> Swagger

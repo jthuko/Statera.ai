@@ -5,12 +5,12 @@ import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress,
   Divider, Stack, Typography,
 } from "@mui/material";
-import { Download as DownloadIcon, ChevronLeft, ChevronRight } from "@mui/icons-material";
+import { Download as DownloadIcon, ChevronLeft, ChevronRight, Receipt } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { useAuth } from "../../auth/useAuth";
 import { listTimeClockEntries, type TimeClockEntryDto } from "../../api/timeclock";
 
-const STATUS_COLOR: Record<string, "default" | "warning" | "success" | "error" | "info"> = {
+const STATUS_META: Record<string, "default" | "warning" | "success" | "error" | "info"> = {
   ClockedIn: "warning", OnLunch: "info", ClockedOut: "default",
   Approved: "success", Denied: "error", Adjusted: "success", PendingCorrection: "warning",
 };
@@ -39,7 +39,7 @@ export default function PortalTimesheet() {
   const [error, setError] = useState<string | null>(null);
   const [monthOffset, setMonthOffset] = useState(0);
 
-  const month = dayjs().startOf("month").add(monthOffset, "month");
+  const month      = dayjs().startOf("month").add(monthOffset, "month");
   const monthStart = month.startOf("month");
   const monthEnd   = month.endOf("month");
 
@@ -50,9 +50,8 @@ export default function PortalTimesheet() {
       const res = await listTimeClockEntries({
         staffId: user.staffId,
         from: monthStart.toISOString(),
-        to: monthEnd.toISOString(),
-        page: 1,
-        pageSize: 200,
+        to:   monthEnd.toISOString(),
+        page: 1, pageSize: 200,
       });
       setEntries(res.items);
     } catch (e: any) {
@@ -86,14 +85,11 @@ export default function PortalTimesheet() {
       rows.push([
         dayjs(e.clockInUtc).format("YYYY-MM-DD"),
         dayjs(e.clockInUtc).format("ddd"),
-        fmt(e.clockInUtc),
-        fmt(e.clockOutUtc),
-        fmt(e.lunchOutUtc),
-        fmt(e.lunchInUtc),
+        fmt(e.clockInUtc), fmt(e.clockOutUtc),
+        fmt(e.lunchOutUtc), fmt(e.lunchInUtc),
         lh > 0 ? lh.toFixed(2) : "",
         netHours(e).toFixed(2),
-        e.status,
-        e.adminNotes ?? "",
+        e.status, e.adminNotes ?? "",
       ]);
     }
     rows.push(["", "", "", "", "", "TOTAL", totalLunch.toFixed(2), totalNet.toFixed(2), "", ""]);
@@ -107,83 +103,135 @@ export default function PortalTimesheet() {
     URL.revokeObjectURL(url);
   }
 
-  if (loading) return <Box sx={{ pt: 4, textAlign: "center" }}><CircularProgress /></Box>;
-  if (error)   return <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>;
+  if (loading) return (
+    <Box sx={{ pt: 4, textAlign: "center" }}>
+      <CircularProgress sx={{ color: "#4db6ac" }} />
+    </Box>
+  );
+  if (error) return <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>;
 
   return (
-    <Box sx={{ pt: 2 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }} flexWrap="wrap" gap={1}>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Button size="small" onClick={() => setMonthOffset(o => o - 1)}><ChevronLeft /></Button>
-          <Box>
-            <Typography variant="h6" fontWeight={700}>{monthStart.format("MMMM YYYY")}</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Net: <strong>{totalNet.toFixed(2)}h</strong>
-              {totalLunch > 0 && <span style={{ marginLeft: 8 }}>Lunch: <strong>{totalLunch.toFixed(2)}h</strong></span>}
-            </Typography>
+    <Box sx={{ pt: 1 }}>
+      {/* ── Header ── */}
+      <Card variant="outlined" sx={{
+        mb: 2,
+        background: "linear-gradient(90deg, rgba(0,77,77,0.4) 0%, rgba(0,77,77,0.08) 100%)",
+        borderColor: "rgba(0,137,123,0.25)",
+      }}>
+        <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Box sx={{
+                width: 36, height: 36, borderRadius: 1.5, flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                bgcolor: "rgba(0,137,123,0.2)", border: "1px solid rgba(0,137,123,0.3)",
+              }}>
+                <Receipt sx={{ color: "#4db6ac", fontSize: 20 }} />
+              </Box>
+              <Box>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Button size="small" onClick={() => setMonthOffset(o => o - 1)}
+                    sx={{ minWidth: 28, p: 0.5, color: "rgba(255,255,255,0.6)" }}>
+                    <ChevronLeft fontSize="small" />
+                  </Button>
+                  <Typography variant="h6" fontWeight={700} lineHeight={1.2}>
+                    {monthStart.format("MMMM YYYY")}
+                  </Typography>
+                  <Button size="small" onClick={() => setMonthOffset(o => o + 1)}
+                    sx={{ minWidth: 28, p: 0.5, color: "rgba(255,255,255,0.6)" }}>
+                    <ChevronRight fontSize="small" />
+                  </Button>
+                </Stack>
+                <Stack direction="row" spacing={1.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Net: <strong style={{ color: "#4db6ac" }}>{totalNet.toFixed(2)}h</strong>
+                  </Typography>
+                  {totalLunch > 0 && (
+                    <Typography variant="caption" color="text.secondary">
+                      Lunch: <strong>{totalLunch.toFixed(2)}h</strong>
+                    </Typography>
+                  )}
+                </Stack>
+              </Box>
+            </Stack>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              size="small"
+              onClick={downloadCsv}
+              disabled={completedEntries.length === 0}
+              sx={{ borderColor: "rgba(0,137,123,0.4)", color: "#4db6ac", "&:hover": { borderColor: "#4db6ac", bgcolor: "rgba(0,137,123,0.08)" } }}
+            >
+              Download CSV
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {/* ── Calendar grid ── */}
+      <Card variant="outlined" sx={{ mb: 2.5, borderColor: "rgba(255,255,255,0.06)" }}>
+        <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 0.5 }}>
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
+              <Typography key={d} variant="caption" color="text.secondary" align="center"
+                fontWeight={600} sx={{ py: 0.5, fontSize: 10 }}>
+                {d}
+              </Typography>
+            ))}
+            {Array.from({ length: dayjs(calDays[0]).day() }, (_, i) => <Box key={`b${i}`} />)}
+            {calDays.map(d => {
+              const dayEntries = byDate[d] ?? [];
+              const totalHrs   = dayEntries.reduce((s, e) => s + netHours(e), 0);
+              const lunchHrs   = dayEntries.reduce((s, e) => s + lunchHours(e), 0);
+              const isToday    = d === dayjs().format("YYYY-MM-DD");
+              const hasPending = dayEntries.some(e => e.status === "PendingCorrection");
+              return (
+                <Box key={d} sx={{
+                  height: 56, borderRadius: 1, p: 0.5,
+                  border: "1px solid",
+                  borderColor: isToday ? "#4db6ac" : hasPending ? "#f57c00" : "rgba(255,255,255,0.06)",
+                  background: isToday ? "rgba(0,137,123,0.12)" : dayEntries.length > 0 ? "rgba(46,125,50,0.08)" : "transparent",
+                }}>
+                  <Typography variant="caption" fontWeight={isToday ? 700 : 400}
+                    color={isToday ? "#4db6ac" : "text.secondary"} sx={{ fontSize: 10 }}>
+                    {dayjs(d).date()}
+                  </Typography>
+                  {totalHrs > 0 && (
+                    <Typography variant="caption" color="success.main" display="block"
+                      fontWeight={600} sx={{ fontSize: 9 }}>
+                      {totalHrs.toFixed(1)}h
+                    </Typography>
+                  )}
+                  {lunchHrs > 0 && (
+                    <Typography variant="caption" color="info.main" display="block" sx={{ fontSize: 9 }}>
+                      🍴{lunchHrs.toFixed(1)}h
+                    </Typography>
+                  )}
+                  {hasPending && (
+                    <Typography variant="caption" color="warning.main" display="block" sx={{ fontSize: 9 }}>⏳</Typography>
+                  )}
+                </Box>
+              );
+            })}
           </Box>
-          <Button size="small" onClick={() => setMonthOffset(o => o + 1)}><ChevronRight /></Button>
-        </Stack>
-        <Button variant="outlined" startIcon={<DownloadIcon />} size="small" onClick={downloadCsv}
-          disabled={completedEntries.length === 0}>
-          Download CSV
-        </Button>
-      </Stack>
+        </CardContent>
+      </Card>
 
-      {/* Calendar grid */}
-      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 0.5, mb: 3 }}>
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-          <Typography key={d} variant="caption" color="text.secondary" align="center" fontWeight={600} sx={{ py: 0.5 }}>
-            {d}
-          </Typography>
-        ))}
-        {Array.from({ length: dayjs(calDays[0]).day() }, (_, i) => <Box key={`b${i}`} />)}
-        {calDays.map(d => {
-          const dayEntries = byDate[d] ?? [];
-          const totalHrs   = dayEntries.reduce((s, e) => s + netHours(e), 0);
-          const lunchHrs   = dayEntries.reduce((s, e) => s + lunchHours(e), 0);
-          const isToday    = d === dayjs().format("YYYY-MM-DD");
-          const hasPending = dayEntries.some(e => e.status === "PendingCorrection");
-          return (
-            <Card key={d} variant="outlined" sx={{
-              height: 60,
-              borderColor: isToday ? "primary.main" : hasPending ? "warning.main" : undefined,
-              background: dayEntries.length > 0 ? "rgba(0,180,120,0.07)" : undefined,
-            }}>
-              <CardContent sx={{ p: 0.5, "&:last-child": { pb: 0.5 } }}>
-                <Typography variant="caption" fontWeight={isToday ? 700 : 400}
-                  color={isToday ? "primary.main" : "text.secondary"}>
-                  {dayjs(d).date()}
-                </Typography>
-                {totalHrs > 0 && (
-                  <Typography variant="caption" color="success.main" display="block" fontWeight={600}>
-                    {totalHrs.toFixed(1)}h
-                  </Typography>
-                )}
-                {lunchHrs > 0 && (
-                  <Typography variant="caption" color="info.main" display="block" sx={{ fontSize: 9 }}>
-                    🍴{lunchHrs.toFixed(1)}h
-                  </Typography>
-                )}
-                {hasPending && (
-                  <Typography variant="caption" color="warning.main" display="block" sx={{ fontSize: 9 }}>⏳</Typography>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </Box>
+      <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.06)" }} />
 
-      <Divider sx={{ my: 2 }} />
-
-      {/* Entry list */}
-      <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>All Entries</Typography>
+      {/* ── Entry list ── */}
+      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: "rgba(255,255,255,0.7)" }}>
+        All Entries
+      </Typography>
       {entries.length === 0 ? (
         <Typography color="text.secondary" variant="body2">No entries this month.</Typography>
       ) : (
-        <Stack spacing={0.75}>
+        <Stack spacing={0.5}>
           {entries.map(e => (
-            <Card key={e.id} variant="outlined">
+            <Card key={e.id} variant="outlined" sx={{
+              borderColor: "rgba(255,255,255,0.07)",
+              borderLeft: `3px solid ${e.status === "Approved" ? "#2e7d32" : e.status === "PendingCorrection" ? "#f57c00" : "rgba(255,255,255,0.1)"}`,
+            }}>
               <CardContent sx={{ py: 1, px: 1.5, "&:last-child": { pb: 1 } }}>
                 <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }}
                   justifyContent="space-between" flexWrap="wrap" gap={0.5}>
@@ -191,7 +239,7 @@ export default function PortalTimesheet() {
                     {dayjs(e.clockInUtc).format("ddd, MMM D")}
                   </Typography>
                   <Box>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
                       {fmt(e.clockInUtc)} – {fmt(e.clockOutUtc) || "In progress"}
                     </Typography>
                     {e.lunchOutUtc && (
@@ -201,10 +249,11 @@ export default function PortalTimesheet() {
                       </Typography>
                     )}
                   </Box>
-                  <Typography variant="body2" fontWeight={600}>
+                  <Typography variant="body2" fontWeight={600} sx={{ color: "#4db6ac" }}>
                     {e.clockOutUtc ? `${netHours(e).toFixed(2)}h` : "—"}
                   </Typography>
-                  <Chip label={e.status} size="small" color={STATUS_COLOR[e.status] ?? "default"} />
+                  <Chip label={e.status} size="small" color={STATUS_META[e.status] ?? "default"}
+                    sx={{ height: 20, fontSize: 11 }} />
                 </Stack>
                 {e.adminNotes && (
                   <Typography variant="caption" color="warning.main" display="block" sx={{ mt: 0.5 }}>
@@ -215,9 +264,13 @@ export default function PortalTimesheet() {
             </Card>
           ))}
           <Stack direction="row" justifyContent="flex-end" sx={{ pt: 1 }}>
-            <Typography variant="subtitle2">
+            <Typography variant="subtitle2" sx={{ color: "#4db6ac" }}>
               Total: {totalNet.toFixed(2)} hrs worked
-              {totalLunch > 0 && ` | ${totalLunch.toFixed(2)} hrs lunch`}
+              {totalLunch > 0 && (
+                <span style={{ color: "rgba(255,255,255,0.5)", marginLeft: 8 }}>
+                  | {totalLunch.toFixed(2)} hrs lunch
+                </span>
+              )}
             </Typography>
           </Stack>
         </Stack>

@@ -29,6 +29,14 @@ const CATEGORY_COLOR: Record<string, string> = {
   "Staff Portal":        "#0277bd",
 };
 
+// Categories visible to staff users only (excludes all admin-only sections)
+const STAFF_CATEGORIES = new Set([
+  "Staff Portal",
+  "Time Off",
+  "Time Clock",
+  "Chat",
+]);
+
 function categoryColor(cat: string) {
   return CATEGORY_COLOR[cat] ?? "#607d8b";
 }
@@ -76,7 +84,12 @@ function ArticleView({ article, onBack }: { article: HelpArticleDto; onBack: () 
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function AppHelpAssistant() {
+interface AppHelpAssistantProps {
+  /** When true, only shows articles relevant to staff (hides all admin-only sections) */
+  staffOnly?: boolean;
+}
+
+export default function AppHelpAssistant({ staffOnly = false }: AppHelpAssistantProps) {
   const [open, setOpen] = useState(false);
   const [articles, setArticles] = useState<HelpArticleDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -95,11 +108,17 @@ export default function AppHelpAssistant() {
       .finally(() => setLoading(false));
   }, [open, articles.length]);
 
+  // Apply staff-only category filter when needed
+  const visibleArticles = useMemo(
+    () => (staffOnly ? articles.filter(a => STAFF_CATEGORIES.has(a.category)) : articles),
+    [articles, staffOnly]
+  );
+
   // Filter articles by search query
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return articles;
-    return articles.filter(
+    if (!q) return visibleArticles;
+    return visibleArticles.filter(
       (a) =>
         a.title.toLowerCase().includes(q) ||
         a.category.toLowerCase().includes(q) ||
@@ -110,7 +129,7 @@ export default function AppHelpAssistant() {
             (s.heading?.toLowerCase().includes(q) ?? false)
         )
     );
-  }, [articles, query]);
+  }, [visibleArticles, query]);
 
   // Group by category
   const grouped = useMemo(() => {
@@ -214,7 +233,7 @@ export default function AppHelpAssistant() {
                 Retry
               </Button>
             </Box>
-          ) : articles.length === 0 ? (
+          ) : visibleArticles.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: "center" }}>
               No help articles found.
             </Typography>
