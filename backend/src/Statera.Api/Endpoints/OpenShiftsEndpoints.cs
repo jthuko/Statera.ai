@@ -179,7 +179,7 @@ public static class OpenShiftsEndpoints
                 MapShiftDto(shift, null, null, 0));
         });
 
-        // PATCH /api/v1/open-shifts/{id} — update notes/times/status
+        // PATCH /api/v1/open-shifts/{id} — update notes/times/status/role/unit
         g.MapPatch("/{id:guid}", async (
             Guid id,
             HttpContext ctx,
@@ -196,6 +196,9 @@ public static class OpenShiftsEndpoints
 
             if (req.Notes is not null) shift.Notes = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim();
             if (!string.IsNullOrWhiteSpace(req.Status)) shift.Status = req.Status;
+
+            if (!string.IsNullOrWhiteSpace(req.Role)) shift.Role = req.Role.Trim();
+            if (req.UnitId.HasValue) shift.UnitId = req.UnitId;
 
             await db.SaveChangesAsync();
             return Results.Ok(MapShiftDto(shift, null, null, null));
@@ -622,7 +625,6 @@ public static class OpenShiftsEndpoints
         DateTime localStart,
         DateTime localEnd)
     {
-
         var cursor = localStart.Date;
         while (cursor < localEnd.Date || (cursor == localStart.Date && cursor == localEnd.Date))
         {
@@ -631,10 +633,13 @@ public static class OpenShiftsEndpoints
             var segEnd   = cursor == localEnd.Date   ? localEnd.TimeOfDay   : TimeSpan.FromHours(24);
             if (segEnd == TimeSpan.Zero) { cursor = cursor.AddDays(1); continue; }
 
+            // Relaxed: allow partial overlap of at least 4 hours
             var covered = avail.Any(a =>
                 a.DayOfWeek == dow &&
-                a.StartLocal <= segStart &&
-                a.EndLocal   >= segEnd);
+                a.StartLocal < segEnd &&
+                a.EndLocal > segStart &&
+                (a.EndLocal - a.StartLocal).TotalHours >= 4 // at least 4h block
+            );
 
             if (!covered) return false;
             cursor = cursor.AddDays(1);
@@ -657,6 +662,8 @@ public record UpdateOpenShiftRequest(
     DateTime? StartUtc,
     DateTime? EndUtc,
     string? Notes,
-    string? Status);
+    string? Status,
+    string? Role,
+    Guid? UnitId);
 
 public record ReviewRequestBody(string Action); // "Approve" | "Deny"

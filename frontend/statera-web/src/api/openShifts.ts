@@ -41,6 +41,8 @@ export interface UpdateOpenShiftPayload {
   endUtc?: string | null;
   notes?: string | null;
   status?: string | null;
+  role?: string | null;
+  unitId?: string | null;
 }
 
 export interface ListOpenShiftsParams {
