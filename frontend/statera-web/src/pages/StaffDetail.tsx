@@ -132,6 +132,9 @@ export default function StaffDetail() {
         active: vals.active,
         gustoEmployeeId: vals.gustoEmployeeId || null,
         quickBooksEmployeeId: vals.quickBooksEmployeeId || null,
+        licenseNumber: vals.licenseNumber || null,
+        licenseExpiresOn: vals.licenseExpiresOn || null,
+        cprExpiresOn: vals.cprExpiresOn || null,
       });
       await reload();
       setEditOpen(false);
@@ -384,6 +387,24 @@ export default function StaffDetail() {
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <Typography variant="body2" color="text.secondary">QuickBooks ID:</Typography>
                     <Typography variant="body2">{data.quickBooksEmployeeId}</Typography>
+                  </Stack>
+                )}
+                {data.licenseNumber && (
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Typography variant="body2" color="text.secondary">License #:</Typography>
+                    <Typography variant="body2">{data.licenseNumber}</Typography>
+                  </Stack>
+                )}
+                {data.licenseExpiresOn && (
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Typography variant="body2" color="text.secondary">License Expiry:</Typography>
+                    <Typography variant="body2">{data.licenseExpiresOn}</Typography>
+                  </Stack>
+                )}
+                {data.cprExpiresOn && (
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Typography variant="body2" color="text.secondary">CPR Expiry:</Typography>
+                    <Typography variant="body2">{data.cprExpiresOn}</Typography>
                   </Stack>
                 )}
                 {(data.emergencyContactName || data.emergencyContactPhone) && (

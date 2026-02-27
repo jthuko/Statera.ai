@@ -301,21 +301,31 @@ public static class TimeClockEndpoints
         return Math.Max(0, total);
     }
 
+    private static DateTime AsUtc(DateTime value) =>
+        value.Kind == DateTimeKind.Utc ? value : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+
+    private static DateTime? AsUtc(DateTime? value) =>
+        value.HasValue ? AsUtc(value.Value) : null;
+
     private static object MapDto(TimeClockEntry e, Statera.Domain.Staff? s) => new
     {
         e.Id, e.StaffId,
         StaffName  = s != null ? $"{s.FirstName} {s.LastName}" : null,
         e.FacilityId, e.UnitId,
-        e.ClockInUtc, e.ClockOutUtc,
-        e.LunchOutUtc, e.LunchInUtc,
+        ClockInUtc  = AsUtc(e.ClockInUtc),
+        ClockOutUtc = AsUtc(e.ClockOutUtc),
+        LunchOutUtc = AsUtc(e.LunchOutUtc),
+        LunchInUtc  = AsUtc(e.LunchInUtc),
         DurationMinutes = e.ClockOutUtc.HasValue ? (int)NetWorkedMinutes(e) : (int?)null,
         LunchMinutes    = (e.LunchOutUtc.HasValue && e.LunchInUtc.HasValue)
                           ? (int)(e.LunchInUtc.Value - e.LunchOutUtc.Value).TotalMinutes : (int?)null,
         e.IsManual, e.Status, e.Notes, e.AdminNotes,
-        e.ReviewedByUserId, e.ReviewedUtc,
+        e.ReviewedByUserId, ReviewedUtc = AsUtc(e.ReviewedUtc),
         e.CorrectionNotes,
-        e.CorrectedClockInUtc, e.CorrectedClockOutUtc,
-        e.CorrectedLunchOutUtc, e.CorrectedLunchInUtc,
+        CorrectedClockInUtc  = AsUtc(e.CorrectedClockInUtc),
+        CorrectedClockOutUtc = AsUtc(e.CorrectedClockOutUtc),
+        CorrectedLunchOutUtc = AsUtc(e.CorrectedLunchOutUtc),
+        CorrectedLunchInUtc  = AsUtc(e.CorrectedLunchInUtc),
     };
 
     private record ClockInRequest(Guid? StaffId, Guid? UnitId, string? Notes);

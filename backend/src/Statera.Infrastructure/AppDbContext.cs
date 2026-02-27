@@ -131,6 +131,7 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
             entity.Property(s => s.PhotoUrl).HasMaxLength(512);
             entity.Property(s => s.GustoEmployeeId).HasMaxLength(128);
             entity.Property(s => s.QuickBooksEmployeeId).HasMaxLength(128);
+            entity.Property(s => s.LicenseNumber).HasMaxLength(32);
         });
 
         // Role catalog (domain role)

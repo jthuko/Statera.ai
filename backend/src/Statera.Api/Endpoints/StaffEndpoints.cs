@@ -135,6 +135,7 @@ public static class StaffEndpoints
                 e.DateOfBirth, e.EmergencyContactName, e.EmergencyContactPhone,
                 e.PhotoUrl,
                 e.GustoEmployeeId, e.QuickBooksEmployeeId,
+                e.LicenseNumber, e.LicenseExpiresOn, e.CprExpiresOn,
                 HasAdminAccount  = hasAdminAccount,
                 HasPortalAccount = hasPortalAccount,
             });
@@ -157,6 +158,7 @@ public static class StaffEndpoints
                 e.DateOfBirth, e.EmergencyContactName, e.EmergencyContactPhone,
                 e.PhotoUrl,
                 e.GustoEmployeeId, e.QuickBooksEmployeeId,
+                e.LicenseNumber, e.LicenseExpiresOn, e.CprExpiresOn,
             });
         })
         .RequireAuthorization("Authenticated");
@@ -194,6 +196,7 @@ public static class StaffEndpoints
                 e.DateOfBirth, e.EmergencyContactName, e.EmergencyContactPhone,
                 e.PhotoUrl,
                 e.GustoEmployeeId, e.QuickBooksEmployeeId,
+                e.LicenseNumber, e.LicenseExpiresOn, e.CprExpiresOn,
             });
         })
         .RequireAuthorization("Authenticated");
@@ -258,6 +261,9 @@ public static class StaffEndpoints
                 PhotoUrl = req.PhotoUrl?.Trim(),
                 GustoEmployeeId = req.GustoEmployeeId?.Trim(),
                 QuickBooksEmployeeId = req.QuickBooksEmployeeId?.Trim(),
+                LicenseNumber = req.LicenseNumber?.Trim(),
+                LicenseExpiresOn = req.LicenseExpiresOn,
+                CprExpiresOn = req.CprExpiresOn,
             };
 
             db.Staff.Add(e);
@@ -296,6 +302,7 @@ public static class StaffEndpoints
                 e.DateOfBirth, e.EmergencyContactName, e.EmergencyContactPhone,
                 e.PhotoUrl,
                 e.GustoEmployeeId, e.QuickBooksEmployeeId,
+                e.LicenseNumber, e.LicenseExpiresOn, e.CprExpiresOn,
                 LoginCreated = tempPassword is not null,
                 TempPassword = tempPassword
             });
@@ -357,6 +364,9 @@ public static class StaffEndpoints
             if (req.PhotoUrl is not null) e.PhotoUrl = req.PhotoUrl?.Trim();
             if (req.GustoEmployeeId is not null) e.GustoEmployeeId = req.GustoEmployeeId?.Trim();
             if (req.QuickBooksEmployeeId is not null) e.QuickBooksEmployeeId = req.QuickBooksEmployeeId?.Trim();
+            if (req.LicenseNumber is not null) e.LicenseNumber = req.LicenseNumber?.Trim();
+            if (req.LicenseExpiresOn.HasValue) e.LicenseExpiresOn = req.LicenseExpiresOn;
+            if (req.CprExpiresOn.HasValue) e.CprExpiresOn = req.CprExpiresOn;
 
             if (req.Active.HasValue) e.Active = req.Active.Value;
 

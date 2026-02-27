@@ -25,7 +25,10 @@ public record CreateStaffRequest(
     string? EmergencyContactPhone = null,
     string? PhotoUrl = null,
     string? GustoEmployeeId = null,
-    string? QuickBooksEmployeeId = null
+    string? QuickBooksEmployeeId = null,
+    string? LicenseNumber = null,
+    DateOnly? LicenseExpiresOn = null,
+    DateOnly? CprExpiresOn = null
 );
 
 public record UpdateStaffRequest(
@@ -48,7 +51,10 @@ public record UpdateStaffRequest(
     string? EmergencyContactPhone = null,
     string? PhotoUrl = null,
     string? GustoEmployeeId = null,
-    string? QuickBooksEmployeeId = null
+    string? QuickBooksEmployeeId = null,
+    string? LicenseNumber = null,
+    DateOnly? LicenseExpiresOn = null,
+    DateOnly? CprExpiresOn = null
 );
 
 public record UpdateStaffProfileRequest(

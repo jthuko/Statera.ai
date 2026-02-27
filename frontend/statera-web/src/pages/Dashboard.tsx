@@ -17,8 +17,10 @@ import { listTimeOff } from "../api/timeoff";
 import { listConstraints } from "../api/constraints";
 import { listUnits } from "../api/units";
 import { listOpenShifts } from "../api/openShifts";
+import { getClockedInCount } from "../api/timeclock";
 import { useFacility } from "../context/facility";
 import { useAuth } from "../auth/useAuth";
+import { useNotifications } from "../context/NotificationContext";
 
 // ─── Stat card ───────────────────────────────────────────────────────────────
 
@@ -296,12 +298,16 @@ export default function Dashboard() {
   const { facilities, selected: facility, setSelectedId } = useFacility();
   const facilityId = facility?.id ?? "";
   const isOwner = user?.systemRole === "Owner";
+  const { addNotification } = useNotifications();
 
   const [staffCount, setStaffCount]          = useState<number | null>(null);
   const [assignmentsThisWeek, setAssignments] = useState<number | null>(null);
   const [pendingTimeOff, setPendingTimeOff]  = useState<number | null>(null);
   const [constraintCount, setConstraints]    = useState<number | null>(null);
   const [openShiftCount, setOpenShiftCount]  = useState<number | null>(null);
+  const [clockedInCount, setClockedInCount]  = useState<number | null>(null);
+  const [licenseExpiringSoon, setLicenseExpiringSoon] = useState<number | null>(null);
+  const [licenseExpired, setLicenseExpired] = useState<number | null>(null);
   const [upcomingRows, setUpcomingRows]      = useState<UpcomingRow[]>([]);
   const [loading, setLoading]                = useState(false);
   const [error, setError]                    = useState<string | null>(null);
@@ -323,15 +329,50 @@ export default function Dashboard() {
       listTimeOff({ facilityId, status: "Pending" }).catch(() => ({ total: 0, items: [] })),
       listConstraints(facilityId).catch(() => []),
       listOpenShifts(facilityId, { status: "Open" }).catch(() => []),
+      getClockedInCount(facilityId).catch(() => null),
       listAssignments(facilityId, { start: now, end: threeDays }).catch(() => []),
       listUnits(facilityId).catch(() => []),
-    ]).then(([staff, assignments, timeOff, constraints, openShifts, upcoming, units]) => {
+    ]).then(([staff, assignments, timeOff, constraints, openShifts, clockedIn, upcoming, units]) => {
       if (!active) return;
       setStaffCount(staff.length);
       setAssignments(assignments.length);
       setPendingTimeOff(timeOff.total);
       setConstraints(constraints.length);
       setOpenShiftCount(openShifts.length);
+      setClockedInCount(clockedIn);
+
+      const today = dayjs().startOf("day");
+      const soonCutoff = today.add(30, "day");
+      const expiringSoon = staff.filter(s => {
+        if (!s.licenseExpiresOn) return false;
+        const exp = dayjs(s.licenseExpiresOn);
+        return (exp.isAfter(today, "day") || exp.isSame(today, "day")) && (exp.isBefore(soonCutoff, "day") || exp.isSame(soonCutoff, "day"));
+      });
+      const expired = staff.filter(s => {
+        if (!s.licenseExpiresOn) return false;
+        return dayjs(s.licenseExpiresOn).isBefore(today, "day");
+      });
+      const cprExpiringSoon = staff.filter(s => {
+        if (!s.cprExpiresOn) return false;
+        const exp = dayjs(s.cprExpiresOn);
+        return (exp.isAfter(today, "day") || exp.isSame(today, "day")) && (exp.isBefore(soonCutoff, "day") || exp.isSame(soonCutoff, "day"));
+      });
+      setLicenseExpiringSoon(expiringSoon.length);
+      setLicenseExpired(expired.length);
+
+      const notifyKey = `statera:license-alert:${facilityId}:${today.format("YYYY-MM-DD")}`;
+      if (!localStorage.getItem(notifyKey)) {
+        if (expiringSoon.length > 0) {
+          addNotification(`${expiringSoon.length} staff license(s) expiring within 30 days.`, "warning");
+        }
+        if (expired.length > 0) {
+          addNotification(`${expired.length} staff license(s) expired.`, "error");
+        }
+        if (cprExpiringSoon.length > 0) {
+          addNotification(`${cprExpiringSoon.length} CPR certification(s) expiring within 30 days.`, "warning");
+        }
+        localStorage.setItem(notifyKey, "1");
+      }
 
       const staffMap = new Map<string, string>(
         staff.map((s) => [s.id, `${s.firstName} ${s.lastName}`])
@@ -403,7 +444,16 @@ export default function Dashboard() {
               <Stat label="Open Shifts"             value={openShiftCount ?? "—"}      icon={<CalendarTodayIcon />} color="#00897b" />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
+              <Stat label="Clocked In"              value={clockedInCount ?? "—"}     icon={<AccessTimeIcon />}    color="#2e7d32" />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
               <Stat label="Active Constraints"      value={constraintCount ?? "—"}     icon={<RuleIcon />}       color="#6a1b9a" />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Stat label="Licenses Expiring Soon"   value={licenseExpiringSoon ?? "—"} icon={<AssignmentIcon />} color="#f57c00" />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Stat label="Expired Licenses"         value={licenseExpired ?? "—"}      icon={<AssignmentIcon />} color="#c62828" />
             </Grid>
           </Grid>
 

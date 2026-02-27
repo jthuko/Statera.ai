@@ -171,7 +171,10 @@ public static class DevDataSeeder
                 {
                     FirstName      = first, LastName = last, Email = email,
                     FacilityId     = facilityId, UnitId = unitId,
-                    Role           = role, EmploymentType = emp, Active = true
+                    Role           = role, EmploymentType = emp, Active = true,
+                    LicenseNumber  = $"LIC{counter:D5}",
+                    LicenseExpiresOn = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(8 + counter % 10)),
+                    CprExpiresOn   = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6 + counter % 8))
                 };
                 s.Licenses = new List<StaffLicense>
                 {
@@ -324,6 +327,25 @@ public static class DevDataSeeder
             db.Staff.AddRange(staffBatch);
             await db.SaveChangesAsync();
             logger.LogInformation("DevDataSeeder: seeded {Count} staff members.", staffBatch.Count);
+        }
+
+        // ── Backfill license/CPR fields for existing staff (dummy info) ─────
+        var existing = await db.Staff.ToListAsync();
+        if (existing.Count > 0)
+        {
+            var now = DateTime.UtcNow;
+            var idx = 1;
+            foreach (var s in existing)
+            {
+                if (string.IsNullOrWhiteSpace(s.LicenseNumber))
+                    s.LicenseNumber = $"LIC{idx:D5}";
+                if (!s.LicenseExpiresOn.HasValue)
+                    s.LicenseExpiresOn = DateOnly.FromDateTime(now.AddMonths(9 + idx % 6));
+                if (!s.CprExpiresOn.HasValue)
+                    s.CprExpiresOn = DateOnly.FromDateTime(now.AddMonths(7 + idx % 5));
+                idx++;
+            }
+            await db.SaveChangesAsync();
         }
 
         // ── Time-Off Requests ─────────────────────────────────────────────────
@@ -589,6 +611,8 @@ public static class DevDataSeeder
                         (null, "The Staff Directory lists all staff members. Use the search bar to filter by name or role. Click a row to open the full profile."),
                         ("Adding a new staff member", "Click Add Staff. Fill in first name, last name, role (RN, CNA, etc.), facility, and unit. Save to create the profile."),
                         ("Editing a profile", "Click on a staff member's name to open their detail page. Edit personal info, credentials, licenses, and availability windows."),
+                        ("License & CPR tracking", "Add a license number and expiration date on the staff profile. Optional CPR expiration can also be recorded. The system shows expiring (within 30 days) and expired counts on the Dashboard and notifies staff and admins 30 days before expiration."),
+                        ("Scheduling restrictions", "If a staff license is expired, they cannot request or pick up new shifts until the license is updated."),
                         ("Deactivating staff", "On the staff detail page, toggle the Active switch off. Inactive staff are hidden from scheduling suggestions but their history is preserved."))
                 },
                 new HelpArticle
@@ -739,7 +763,8 @@ public static class DevDataSeeder
                         (null, "Chat lets staff and admins communicate within Statera without leaving the app."),
                         ("Starting a direct message", "Open Chat → click New Message → search for a user by name → Start conversation."),
                         ("Group rooms", "Click New Group Room → give it a name and add members. All members can send and read messages."),
-                        ("Sending messages", "Type in the input box and press Enter to send. Messages are ordered by most recent."))
+                        ("Sending messages", "Type in the input box and press Enter to send. Messages are ordered by most recent."),
+                        ("Read receipts", "A single check mark means your message was sent but not yet read. Two blue check marks mean all other members have read it."))
                 },
                 // ── Staff Portal ───────────────────────────────────────────────
                 new HelpArticle

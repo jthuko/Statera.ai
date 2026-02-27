@@ -108,9 +108,15 @@ export default function AppHelpAssistant({ staffOnly = false }: AppHelpAssistant
       .finally(() => setLoading(false));
   }, [open, articles.length]);
 
-  // Apply staff-only category filter when needed
+  const isAdminArticle = (a: HelpArticleDto) =>
+    a.title.toLowerCase().includes("admin") ||
+    a.tags.some(t => t.toLowerCase().includes("admin"));
+
+  // Apply staff-only category + admin exclusion filter when needed
   const visibleArticles = useMemo(
-    () => (staffOnly ? articles.filter(a => STAFF_CATEGORIES.has(a.category)) : articles),
+    () => (staffOnly
+      ? articles.filter(a => STAFF_CATEGORIES.has(a.category) && !isAdminArticle(a))
+      : articles),
     [articles, staffOnly]
   );
 

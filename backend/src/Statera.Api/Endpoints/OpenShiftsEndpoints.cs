@@ -286,7 +286,13 @@ public static class OpenShiftsEndpoints
                 var constraintError = await ValidateShiftConstraintsAsync(
                     db, staff, shift.FacilityId, startUtc, endUtc);
                 if (constraintError is not null)
-                    return Results.UnprocessableEntity(new { error = constraintError });
+                    return Results.UnprocessableEntity(new
+                    {
+                        error = constraintError,
+                        code = constraintError.StartsWith("License is expired", StringComparison.OrdinalIgnoreCase)
+                            ? "LICENSE_EXPIRED"
+                            : "CONSTRAINT_VIOLATION"
+                    });
 
                 // Create the assignment
                 var facilityState = await db.Facilities.AsNoTracking()
@@ -379,7 +385,13 @@ public static class OpenShiftsEndpoints
             var constraintError = await ValidateShiftConstraintsAsync(
                 db, staff, shift.FacilityId, startUtc, endUtc);
             if (constraintError is not null)
-                return Results.UnprocessableEntity(new { error = constraintError });
+                return Results.UnprocessableEntity(new
+                {
+                    error = constraintError,
+                    code = constraintError.StartsWith("License is expired", StringComparison.OrdinalIgnoreCase)
+                        ? "LICENSE_EXPIRED"
+                        : "CONSTRAINT_VIOLATION"
+                });
 
             var req = new OpenShiftRequest
             {
@@ -486,6 +498,10 @@ public static class OpenShiftsEndpoints
         DateTime startUtc,
         DateTime endUtc)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (staff.LicenseExpiresOn.HasValue && staff.LicenseExpiresOn.Value < today)
+            return "License is expired. Please update your license to request shifts.";
+
         // 1. Availability
         var avail = await db.StaffAvailabilities.AsNoTracking()
             .Where(a => a.StaffId == staff.Id)

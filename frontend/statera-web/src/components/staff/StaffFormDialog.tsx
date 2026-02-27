@@ -29,6 +29,9 @@ const Schema = z.object({
   employmentType: z.enum(["FullTime", "PartTime", "PerDiem", "Contract"]),
   active: z.boolean(),
   adminAccess: z.boolean(),
+  licenseNumber: z.string().optional(),
+  licenseExpiresOn: z.string().optional(),
+  cprExpiresOn: z.string().optional(),
 });
 
 export type StaffFormValues = z.infer<typeof Schema>;
@@ -44,7 +47,7 @@ export default function StaffFormDialog(props: {
   const { open, onClose, onSave, defaultFacilityId, defaultUnitId, duplicateError } = props;
   const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<StaffFormValues & { roleOther?: string }>({
     resolver: zodResolver(Schema),
-    defaultValues: { firstName: "", lastName: "", email: "", unitId: "", role: "CNA", roleOther: "", employmentType: "FullTime", active: true, adminAccess: false }
+    defaultValues: { firstName: "", lastName: "", email: "", unitId: "", role: "CNA", roleOther: "", employmentType: "FullTime", active: true, adminAccess: false, licenseNumber: "", licenseExpiresOn: "", cprExpiresOn: "" }
   });
   const { selected: facility } = useFacility();
   const [units, setUnits] = React.useState<UnitDto[]>([]);
@@ -62,7 +65,7 @@ export default function StaffFormDialog(props: {
 
   React.useEffect(() => {
     if (open) {
-      reset({ firstName: "", lastName: "", email: "", unitId: defaultUnitId ?? "", role: "CNA", roleOther: "", employmentType: "FullTime", active: true, adminAccess: false });
+      reset({ firstName: "", lastName: "", email: "", unitId: defaultUnitId ?? "", role: "CNA", roleOther: "", employmentType: "FullTime", active: true, adminAccess: false, licenseNumber: "", licenseExpiresOn: "", cprExpiresOn: "" });
     }
   }, [open, reset, defaultUnitId]);
 
@@ -108,6 +111,23 @@ export default function StaffFormDialog(props: {
                 <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
               ))}
             </TextField>
+            <TextField label="License Number" fullWidth {...register('licenseNumber')} />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="License Expiry"
+                type="date"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                {...register('licenseExpiresOn')}
+              />
+              <TextField
+                label="CPR Expiry (optional)"
+                type="date"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                {...register('cprExpiresOn')}
+              />
+            </Stack>
             <FormControlLabel control={<Switch defaultChecked {...register('active') as any} />} label="Active" />
             <Tooltip title={!hasEmail ? "An email address is required to grant admin access" : ""} placement="top-start">
               <span>

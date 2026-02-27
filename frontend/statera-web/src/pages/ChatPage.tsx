@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import {
   Add as AddIcon, Send as SendIcon, Group as GroupIcon,
-  PersonAdd as PersonAddIcon,
+  PersonAdd as PersonAddIcon, Done as DoneIcon, DoneAll as DoneAllIcon,
 } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { useAuth } from "../auth/useAuth";
@@ -102,6 +102,12 @@ export default function ChatPage() {
       setSending(false);
     }
   }
+
+  const otherMembers = selected?.members?.filter(m => m.userId !== user?.id) ?? [];
+  const isMessageReadByAll = (sentUtc: string) =>
+    otherMembers.length > 0 && otherMembers.every(m =>
+      m.lastReadUtc && new Date(m.lastReadUtc).getTime() >= new Date(sentUtc).getTime()
+    );
 
   if (roomsLoading) return <Box sx={{ pt: 4, textAlign: "center" }}><CircularProgress /></Box>;
 
@@ -208,9 +214,18 @@ export default function ChatPage() {
                               </Typography>
                             )}
                             <Typography variant="body2">{m.content}</Typography>
-                            <Typography variant="caption" color="text.secondary" display="block" align={isMe ? "right" : "left"}>
-                              {dayjs(m.sentUtc).format("MMM D · h:mm a")}
-                            </Typography>
+                            <Stack direction="row" alignItems="center" justifyContent={isMe ? "flex-end" : "flex-start"} spacing={0.5}>
+                              <Typography variant="caption" color="text.secondary">
+                                {dayjs(m.sentUtc).format("MMM D · h:mm a")}
+                              </Typography>
+                              {isMe && (
+                                isMessageReadByAll(m.sentUtc) ? (
+                                  <DoneAllIcon sx={{ fontSize: 14, color: "#2196f3" }} />
+                                ) : (
+                                  <DoneIcon sx={{ fontSize: 14, color: "text.secondary" }} />
+                                )
+                              )}
+                            </Stack>
                           </Box>
                         </Stack>
                       );

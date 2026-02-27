@@ -14,6 +14,7 @@ import { listStaff, createStaff, importStaff, StaffImportResult, CreateStaffPayl
 import { useNavigate } from "react-router-dom";
 import { useFacility } from "../context/facility";
 import StaffFormDialog, { StaffFormValues } from "../components/staff/StaffFormDialog";
+import dayjs from "dayjs";
 
 // ── Staff Import Dialog ───────────────────────────────────────────────────────
 const TEMPLATE_CSV =
@@ -188,6 +189,7 @@ function getRoleColor(role: string) {
 export default function Staff() {
   const [rows, setRows] = useState<StaffDto[]>([]);
   const [search, setSearch] = useState("");
+  const [licenseFilter, setLicenseFilter] = useState<"all" | "expiring" | "expired">("all");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [duplicatePopup, setDuplicatePopup] = useState(false);
@@ -235,6 +237,9 @@ export default function Staff() {
         employmentType: vals.employmentType,
         active: vals.active,
         adminAccess: vals.adminAccess,
+        licenseNumber: vals.licenseNumber || null,
+        licenseExpiresOn: vals.licenseExpiresOn || null,
+        cprExpiresOn: vals.cprExpiresOn || null,
       };
       const result = await createStaff(payload);
       const data = await listStaff(facility.id);
@@ -274,6 +279,15 @@ export default function Staff() {
       const name = (r.displayName ?? `${r.firstName} ${r.lastName}`).toLowerCase();
       const role = (r.role ?? r.roles?.[0]?.name ?? "").toLowerCase();
       return name.includes(q) || role.includes(q);
+    })
+    .filter(r => {
+      if (licenseFilter === "all") return true;
+      if (!r.licenseExpiresOn) return false;
+      const today = dayjs().startOf("day");
+      const exp = dayjs(r.licenseExpiresOn);
+      if (licenseFilter === "expired") return exp.isBefore(today, "day");
+      const soonCutoff = today.add(30, "day");
+      return (exp.isAfter(today, "day") || exp.isSame(today, "day")) && (exp.isBefore(soonCutoff, "day") || exp.isSame(soonCutoff, "day"));
     })
     .map(r => ({
       id: r.id,
@@ -335,6 +349,16 @@ export default function Staff() {
           {facilities.map(f => (
             <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
           ))}
+        </TextField>
+        <TextField
+          select size="small" label="License"
+          value={licenseFilter}
+          onChange={(e) => setLicenseFilter(e.target.value as "all" | "expiring" | "expired")}
+          sx={{ minWidth: 220 }}
+        >
+          <MenuItem value="all">All</MenuItem>
+          <MenuItem value="expiring">Expiring Soon (30 days)</MenuItem>
+          <MenuItem value="expired">Expired</MenuItem>
         </TextField>
         <TextField
           size="small"

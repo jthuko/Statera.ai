@@ -36,6 +36,11 @@ public class Staff
     public string? GustoEmployeeId { get; set; }
     public string? QuickBooksEmployeeId { get; set; }
 
+    // Licensing & certifications
+    public string? LicenseNumber { get; set; }
+    public DateOnly? LicenseExpiresOn { get; set; }
+    public DateOnly? CprExpiresOn { get; set; }
+
     public Guid FacilityId { get; set; }
     public Guid? UnitId { get; set; }
 

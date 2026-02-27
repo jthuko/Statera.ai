@@ -23,6 +23,9 @@ export interface StaffDto {
   photoUrl?: string | null;
   gustoEmployeeId?: string | null;
   quickBooksEmployeeId?: string | null;
+  licenseNumber?: string | null;
+  licenseExpiresOn?: string | null;
+  cprExpiresOn?: string | null;
 }
 
 const http = api;
@@ -43,6 +46,9 @@ export type CreateStaffPayload = {
   employmentType: "FullTime" | "PartTime" | "PerDiem" | "Contract";
   active: boolean;
   adminAccess?: boolean;
+  licenseNumber?: string | null;
+  licenseExpiresOn?: string | null;
+  cprExpiresOn?: string | null;
 };
 
 export interface CreateStaffResult extends StaffDto {
@@ -75,6 +81,9 @@ export type UpdateStaffPayload = {
   photoUrl?: string | null;
   gustoEmployeeId?: string | null;
   quickBooksEmployeeId?: string | null;
+  licenseNumber?: string | null;
+  licenseExpiresOn?: string | null;
+  cprExpiresOn?: string | null;
 };
 
 export interface FullStaffDto extends StaffDto {
@@ -97,6 +106,9 @@ export interface FullStaffDto extends StaffDto {
   photoUrl?: string | null;
   gustoEmployeeId?: string | null;
   quickBooksEmployeeId?: string | null;
+  licenseNumber?: string | null;
+  licenseExpiresOn?: string | null;
+  cprExpiresOn?: string | null;
 }
 
 export type UpdateStaffProfilePayload = {

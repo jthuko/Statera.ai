@@ -2,7 +2,7 @@
 import * as React from "react";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress,
-  Container, MenuItem, Snackbar, Stack, TextField, Typography,
+  Container, MenuItem, Snackbar, Stack, TextField, Typography, useTheme,
 } from "@mui/material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
@@ -37,6 +37,19 @@ function startOfWeekMonday(d: Dayjs) {
 }
 
 export default function AssignmentsPage() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const weekBtnSx = {
+    bgcolor: "#00897b !important",
+    color: "#fff !important",
+    borderColor: "#00897b !important",
+    textTransform: "none",
+    "&:hover": {
+      bgcolor: "#00796b !important",
+      borderColor: "#00796b !important",
+    },
+  } as const;
+
   const { facilities, selected, setSelectedId } = useFacility();
   const { user } = useAuth();
   const { addNotification } = useNotifications();
@@ -52,6 +65,7 @@ export default function AssignmentsPage() {
   const [unitId, setUnitId]       = React.useState<string>("");
   const [roleId, setRoleId]       = React.useState<string>("");
   const [nameSearch, setNameSearch] = React.useState<string>("");
+  const [clockedFilter, setClockedFilter] = React.useState<"all" | "clockedIn">("all");
 
   const [loading, setLoading]         = React.useState(false);
   const [assignments, setAssignments] = React.useState<AssignmentDto[]>([]);
@@ -249,31 +263,31 @@ export default function AssignmentsPage() {
             )}
 
             <Stack direction="row" spacing={0.5} alignItems="center">
-              <Button variant={viewMode === "week" ? "contained" : "outlined"} size="small"
+              <Button variant="contained" size="small"
                 onClick={() => setViewMode("week")}
-                sx={{ minWidth: 70, fontSize: 12 }}>
+                sx={{ minWidth: 70, fontSize: 12, ...weekBtnSx }}>
                 Week
               </Button>
-              <Button variant={viewMode === "range" ? "contained" : "outlined"} size="small"
+              <Button variant="contained" size="small"
                 onClick={() => setViewMode("range")}
-                sx={{ minWidth: 70, fontSize: 12 }}>
+                sx={{ minWidth: 70, fontSize: 12, ...weekBtnSx }}>
                 Range
               </Button>
 
               {viewMode === "week" ? (
                 <>
-                  <Button variant="outlined" size="small" onClick={() => moveWeek(-1)}
-                    sx={{ minWidth: 34, px: 0.5, borderColor: "rgba(255,255,255,0.15)" }}>
+                  <Button variant="contained" size="small" onClick={() => moveWeek(-1)}
+                    sx={{ minWidth: 34, px: 0.5, ...weekBtnSx }}>
                     <ChevronLeftIcon fontSize="small" />
                   </Button>
-                  <Button variant="outlined" size="small"
+                  <Button variant="contained" size="small"
                     onClick={() => setWeekStart(startOfWeekMonday(dayjs()))}
                     startIcon={<TodayIcon sx={{ fontSize: "16px !important" }} />}
-                    sx={{ borderColor: "rgba(255,255,255,0.15)", fontSize: 12 }}>
+                    sx={{ fontSize: 12, ...weekBtnSx }}>
                     Today
                   </Button>
-                  <Button variant="outlined" size="small" onClick={() => moveWeek(1)}
-                    sx={{ minWidth: 34, px: 0.5, borderColor: "rgba(255,255,255,0.15)" }}>
+                  <Button variant="contained" size="small" onClick={() => moveWeek(1)}
+                    sx={{ minWidth: 34, px: 0.5, ...weekBtnSx }}>
                     <ChevronRightIcon fontSize="small" />
                   </Button>
                   <Chip label={weekLabel} size="small" sx={{
@@ -284,10 +298,10 @@ export default function AssignmentsPage() {
                 </>
               ) : (
                 <>
-                  <Button variant="outlined" size="small"
+                  <Button variant="contained" size="small"
                     onClick={() => { const t = dayjs().format("YYYY-MM-DD"); setRangeStart(t); setRangeEnd(t); }}
                     startIcon={<TodayIcon sx={{ fontSize: "16px !important" }} />}
-                    sx={{ borderColor: "rgba(255,255,255,0.15)", fontSize: 12 }}>
+                    sx={{ fontSize: 12, ...weekBtnSx }}>
                     Today
                   </Button>
                   <Chip label={rangeLabel} size="small" sx={{
@@ -324,6 +338,13 @@ export default function AssignmentsPage() {
               onChange={e => setNameSearch(e.target.value)} size="small" sx={{ minWidth: 180 }}
               InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ color: "text.disabled", mr: 0.5 }} /> }}
             />
+
+            <TextField select label="Clocked" value={clockedFilter}
+              onChange={e => setClockedFilter(e.target.value as "all" | "clockedIn")}
+              size="small" sx={{ minWidth: 150 }}>
+              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="clockedIn">Clocked In</MenuItem>
+            </TextField>
 
             {(unitId || roleId || nameSearch) && (
               <Button size="small" variant="text"
@@ -382,6 +403,7 @@ export default function AssignmentsPage() {
           weekStart={weekStart}
           staff={staffRows}
           assignments={assignmentCells}
+          clockedInFilter={clockedFilter}
           onCreate={openCreate}
           onEdit={openEdit}
         />
@@ -396,6 +418,7 @@ export default function AssignmentsPage() {
                 weekStart={ws}
                 staff={staffRows}
                 assignments={assignmentCells}
+                clockedInFilter={clockedFilter}
                 onCreate={openCreate}
                 onEdit={openEdit}
               />

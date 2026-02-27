@@ -3,6 +3,8 @@ import * as React from "react";
 import { Avatar, Box, Chip, Tooltip, Typography, useTheme } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import dayjs, { Dayjs } from "dayjs";
+import utc from "dayjs/plugin/utc";
+dayjs.extend(utc);
 
 export interface StaffRow {
   id: string;
@@ -25,6 +27,7 @@ export interface WeekGridProps {
   weekStart: Dayjs;
   staff: StaffRow[];
   assignments: AssignmentCell[];
+  clockedInFilter?: "all" | "clockedIn";
   onCreate: (staffId: string, dayISO: string) => void;
   onEdit: (assignmentId: string) => void;
 }
@@ -65,7 +68,7 @@ function getInitials(label: string) {
 
 const COL_STAFF_W = 200;
 
-export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEdit }: WeekGridProps) {
+export default function WeekGrid({ weekStart, staff, assignments, clockedInFilter = "all", onCreate, onEdit }: WeekGridProps) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
@@ -81,6 +84,41 @@ export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEd
     () => Array.from({ length: 7 }, (_, i) => weekStart.add(i, "day")),
     [weekStart]
   );
+
+  // State for clocked-in status per staff
+  const [clockedInStatus, setClockedInStatus] = React.useState<Record<string, { status: string; clockInUtc?: string | null }>>({});
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function fetchStatuses() {
+      const statuses: Record<string, { status: string; clockInUtc?: string | null }> = {};
+      await Promise.all(
+        staff.map(async s => {
+          try {
+            const entry = await (await import("../../api/timeclock")).getActiveEntry(s.id);
+            statuses[s.id] = {
+              status: entry && entry.status ? entry.status : "ClockedOut",
+              clockInUtc: entry?.clockInUtc ?? null,
+            };
+          } catch {
+            statuses[s.id] = { status: "ClockedOut", clockInUtc: null };
+          }
+        })
+      );
+      if (!cancelled) setClockedInStatus(statuses);
+    }
+    fetchStatuses();
+    return () => { cancelled = true; };
+  }, [staff]);
+
+  const hasStatuses = React.useMemo(() => Object.keys(clockedInStatus).length > 0, [clockedInStatus]);
+  const filteredStaff = React.useMemo(() => {
+    if (clockedInFilter !== "clockedIn" || !hasStatuses) return staff;
+    return staff.filter(s => {
+      const st = clockedInStatus[s.id]?.status;
+      return st === "ClockedIn" || st === "OnLunch";
+    });
+  }, [clockedInFilter, hasStatuses, staff, clockedInStatus]);
 
   const byStaffDay = React.useMemo(() => {
     const map = new Map<string, AssignmentCell[]>();
@@ -108,7 +146,7 @@ export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEd
   const todayHeaderBg  = isDark ? "rgba(0,137,123,0.15)"   : "rgba(0,137,123,0.1)";
   const emptyBorderColor = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.1)";
 
-  if (staff.length === 0) {
+  if (filteredStaff.length === 0) {
     return (
       <Box sx={{
         py: 8, textAlign: "center",
@@ -119,29 +157,6 @@ export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEd
       </Box>
     );
   }
-
-  // State for clocked-in status per staff
-  const [clockedInStatus, setClockedInStatus] = React.useState<Record<string, string>>({});
-
-  React.useEffect(() => {
-    let cancelled = false;
-    async function fetchStatuses() {
-      const statuses: Record<string, string> = {};
-      await Promise.all(
-        staff.map(async s => {
-          try {
-            const entry = await (await import("../../api/timeclock")).getActiveEntry(s.id);
-            statuses[s.id] = entry && entry.status ? entry.status : "ClockedOut";
-          } catch {
-            statuses[s.id] = "ClockedOut";
-          }
-        })
-      );
-      if (!cancelled) setClockedInStatus(statuses);
-    }
-    fetchStatuses();
-    return () => { cancelled = true; };
-  }, [staff]);
 
   return (
     <Box sx={{
@@ -203,8 +218,16 @@ export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEd
       </Box>
 
       {/* ── Staff rows ── */}
-      {staff.map((s, rowIdx) => {
+      {filteredStaff.map((s, rowIdx) => {
         const rc = getRoleColor(s.role);
+            const status = clockedInStatus[s.id]?.status ?? "ClockedOut";
+            const clockInUtc = clockedInStatus[s.id]?.clockInUtc ?? null;
+            const statusLabel = status === "ClockedIn" ? "Clocked In" : status === "OnLunch" ? "On Lunch" : "Clocked Out";
+            const statusColors = status === "ClockedIn"
+              ? { bg: isDark ? "rgba(76,175,80,0.2)" : "rgba(76,175,80,0.15)", border: isDark ? "#66bb6a" : "#2e7d32", text: isDark ? "#c8e6c9" : "#2e7d32" }
+              : status === "OnLunch"
+              ? { bg: isDark ? "rgba(255,167,38,0.2)" : "rgba(255,167,38,0.2)", border: isDark ? "#ffb74d" : "#f57c00", text: isDark ? "#fff3e0" : "#f57c00" }
+              : { bg: isDark ? "rgba(189,189,189,0.12)" : "rgba(189,189,189,0.2)", border: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)", text: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.6)" };
         return (
           <Box
             key={s.id}
@@ -221,6 +244,7 @@ export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEd
               px: 1.5, py: 1,
               borderRight: `1px solid ${borderColorSub}`,
               display: "flex", alignItems: "center", gap: 1, minWidth: 0,
+              borderLeft: status === "ClockedOut" ? "none" : `3px solid ${statusColors.border}`,
             }}>
               <Avatar sx={{
                 width: 28, height: 28, fontSize: 10, fontWeight: 700, flexShrink: 0,
@@ -242,27 +266,24 @@ export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEd
                 )}
                 {/* Clocked-in status indicator */}
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
+                  <Box sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    bgcolor: statusColors.border,
+                    boxShadow: isDark ? "0 0 6px rgba(0,0,0,0.6)" : "0 0 4px rgba(0,0,0,0.2)",
+                  }} />
                   <Chip
                     size="small"
-                    label={clockedInStatus[s.id] === "ClockedIn" ? "Clocked In" : clockedInStatus[s.id] === "OnLunch" ? "On Lunch" : "Clocked Out"}
+                    label={statusLabel}
                     sx={{
-                      height: 18,
-                      fontSize: 10,
-                      fontWeight: 600,
-                      bgcolor:
-                        clockedInStatus[s.id] === "ClockedIn"
-                          ? (isDark ? "#43a047" : "#c8e6c9")
-                          : clockedInStatus[s.id] === "OnLunch"
-                          ? (isDark ? "#ffa726" : "#ffe0b2")
-                          : (isDark ? "#bdbdbd" : "#eeeeee"),
-                      color:
-                        clockedInStatus[s.id] === "ClockedIn"
-                          ? (isDark ? "#c8e6c9" : "#388e3c")
-                          : clockedInStatus[s.id] === "OnLunch"
-                          ? (isDark ? "#fff3e0" : "#f57c00")
-                          : (isDark ? "#212121" : "#757575"),
-                      border: "none",
-                      px: 1,
+                      height: 20,
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      bgcolor: statusColors.bg,
+                      color: statusColors.text,
+                      border: `1px solid ${statusColors.border}`,
+                      px: 0.75,
                     }}
                   />
                 </Box>
@@ -276,6 +297,7 @@ export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEd
               const key     = `${s.id}:${dateStr}`;
               const items   = byStaffDay.get(key) ?? [];
 
+              const clockedInText = clockInUtc ? `Clocked in ${dayjs(clockInUtc).local().format("h:mm A")}` : "Clocked in";
               return (
                 <Box
                   key={colIdx}
@@ -294,6 +316,37 @@ export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEd
                     },
                   }}
                 >
+                  {isToday && status !== "ClockedOut" && (
+                    <Box sx={{
+                      position: "absolute",
+                      top: 6,
+                      right: 6,
+                      px: 0.75,
+                      py: 0.1,
+                      borderRadius: 10,
+                      bgcolor: statusColors.bg,
+                      border: `1px solid ${statusColors.border}`,
+                    }}>
+                      <Typography sx={{ fontSize: 9.5, fontWeight: 800, color: statusColors.text }}>
+                        {status === "ClockedIn" ? "IN" : "LUNCH"}
+                      </Typography>
+                    </Box>
+                  )}
+                  {isToday && (status === "ClockedIn" || status === "OnLunch") && (
+                    <Box sx={{
+                      mb: 0.5,
+                      px: 0.75,
+                      py: 0.35,
+                      borderRadius: 1,
+                      background: statusColors.bg,
+                      border: `1.5px solid ${statusColors.border}`,
+                    }}>
+                      <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: statusColors.text, lineHeight: 1.2 }}>
+                        {clockedInText}
+                      </Typography>
+                    </Box>
+                  )}
+
                   {items.map(item => {
                     const roleC = getRoleColor(item.roleName);
                     return (

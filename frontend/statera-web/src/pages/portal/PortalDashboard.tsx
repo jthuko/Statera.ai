@@ -12,6 +12,7 @@ import {
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
+import { useNotifications } from "../../context/NotificationContext";
 import { listTimeOff } from "../../api/timeoff";
 import { getActiveEntry } from "../../api/timeclock";
 import { listRooms } from "../../api/chat";
@@ -85,6 +86,8 @@ export default function PortalDashboard() {
   const [openShifts, setOpenShifts] = useState<OpenShiftDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [staffName, setStaffName] = useState<string | null>(null);
+  const [licenseExpired, setLicenseExpired] = useState(false);
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     if (!user?.staffId) { setLoading(false); return; }
@@ -119,6 +122,28 @@ export default function PortalDashboard() {
         if (profile) {
           const full = `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim();
           if (full) setStaffName(full);
+
+          const today = dayjs().startOf("day");
+          const soonCutoff = today.add(30, "day");
+          const licenseExp = profile.licenseExpiresOn ? dayjs(profile.licenseExpiresOn) : null;
+          const cprExp = profile.cprExpiresOn ? dayjs(profile.cprExpiresOn) : null;
+
+          const licExpired = !!licenseExp && licenseExp.isBefore(today, "day");
+          setLicenseExpired(licExpired);
+
+          const notifyKey = `statera:staff-license-alert:${user?.staffId}:${today.format("YYYY-MM-DD")}`;
+          if (!localStorage.getItem(notifyKey)) {
+            if (licenseExp && licenseExp.isSameOrBefore(soonCutoff) && !licExpired) {
+              addNotification("Your license expires within 30 days. Please update it.", "warning");
+            }
+            if (licExpired) {
+              addNotification("Your license is expired. You cannot pick shifts until it is updated.", "error");
+            }
+            if (cprExp && cprExp.isSameOrBefore(soonCutoff) && cprExp.isSameOrAfter(today)) {
+              addNotification("Your CPR certification expires within 30 days.", "warning");
+            }
+            localStorage.setItem(notifyKey, "1");
+          }
         }
       } finally {
         setLoading(false);
@@ -173,6 +198,14 @@ export default function PortalDashboard() {
               size="small"
               color="success"
               sx={{ mt: 1, height: 20, fontSize: 11 }}
+            />
+          )}
+          {licenseExpired && (
+            <Chip
+              label="License expired"
+              size="small"
+              color="error"
+              sx={{ mt: 1, ml: 1, height: 20, fontSize: 11 }}
             />
           )}
         </CardContent>

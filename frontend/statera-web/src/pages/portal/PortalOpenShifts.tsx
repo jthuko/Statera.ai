@@ -17,6 +17,7 @@ import {
   listOpenShifts, claimShift, withdrawRequest, listMyRequests,
   OpenShiftDto, OpenShiftRequestDto,
 } from "../../api/openShifts";
+import { getMyProfile } from "../../api/staff";
 
 dayjs.extend(isoWeek);
 
@@ -36,9 +37,10 @@ interface ShiftCardProps {
   onClaim: (shift: OpenShiftDto) => void;
   onWithdraw: (shift: OpenShiftDto) => void;
   claimBusy: boolean;
+  disableClaim?: boolean;
 }
 
-function ShiftCard({ shift, onClaim, onWithdraw, claimBusy }: ShiftCardProps) {
+function ShiftCard({ shift, onClaim, onWithdraw, claimBusy, disableClaim }: ShiftCardProps) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const myStatus = shift.myRequestStatus;
@@ -75,7 +77,7 @@ function ShiftCard({ shift, onClaim, onWithdraw, claimBusy }: ShiftCardProps) {
           <Button
             size="small"
             variant="contained"
-            disabled={claimBusy}
+            disabled={claimBusy || disableClaim}
             onClick={() => onClaim(shift)}
             sx={{
               fontSize: 10, py: 0.2, px: 0.75, minWidth: 0, height: 20,
@@ -124,26 +126,35 @@ export default function PortalOpenShifts() {
   const [error, setError]         = useState<string | null>(null);
   const [claimBusy, setClaimBusy] = useState<string | null>(null); // shiftId
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [licenseExpired, setLicenseExpired] = useState(false);
 
   const weekEnd = weekStart.endOf("week");
   const today = dayjs().format("YYYY-MM-DD");
   const isCurrentWeek = weekStart.format("YYYY-MM-DD") === dayjs().startOf("week").format("YYYY-MM-DD");
+  const staffRole = user?.role?.trim().toLowerCase();
 
   const load = useCallback(async () => {
     const facilityId = user?.facilityIds?.[0];
     if (!facilityId) return;
     setLoading(true); setError(null);
     try {
-      const [data, reqs] = await Promise.all([
+      const [data, reqs, profile] = await Promise.all([
         listOpenShifts(facilityId, {
           start: weekStart.toISOString(),
           end: weekEnd.toISOString(),
           status: "Open",
         }),
         listMyRequests(),
+        getMyProfile().catch(() => null),
       ]);
       setShifts(data);
       setMyRequests(reqs);
+      if (profile?.licenseExpiresOn) {
+        const today = dayjs().startOf("day");
+        setLicenseExpired(dayjs(profile.licenseExpiresOn).isBefore(today, "day"));
+      } else {
+        setLicenseExpired(false);
+      }
     } catch (e: any) {
       setError(e?.response?.data?.detail ?? "Failed to load open shifts.");
     } finally {
@@ -154,12 +165,16 @@ export default function PortalOpenShifts() {
   useEffect(() => { load(); }, [load]);
 
   async function handleClaim(shift: OpenShiftDto) {
+    if (licenseExpired) {
+      setClaimError("Your license is expired. You cannot request shifts until it is updated.");
+      return;
+    }
     setClaimBusy(shift.id); setClaimError(null);
     try {
       await claimShift(shift.id);
       await load();
     } catch (e: any) {
-      setClaimError(e?.response?.data?.detail ?? "Failed to request shift.");
+      setClaimError(e?.response?.data?.error ?? e?.response?.data?.detail ?? "Failed to request shift.");
     } finally {
       setClaimBusy(null);
     }
@@ -178,9 +193,13 @@ export default function PortalOpenShifts() {
     }
   }
 
+  const matchingShifts = staffRole
+    ? shifts.filter(s => s.role?.trim().toLowerCase() === staffRole)
+    : shifts;
+
   // Group open shifts by calendar date
   const byDate: Record<string, OpenShiftDto[]> = {};
-  for (const s of shifts) {
+  for (const s of matchingShifts) {
     const d = dayjs(s.startUtc).format("YYYY-MM-DD");
     (byDate[d] ??= []).push(s);
   }
@@ -219,9 +238,9 @@ export default function PortalOpenShifts() {
             </Stack>
 
             <Stack direction="row" spacing={0.75} alignItems="center">
-              {shifts.length > 0 && (
+              {matchingShifts.length > 0 && (
                 <Chip
-                  label={`${shifts.length} available`}
+                  label={`${matchingShifts.length} available`}
                   size="small"
                   sx={{ bgcolor: "rgba(0,137,123,0.2)", color: "#4db6ac", border: "1px solid rgba(0,137,123,0.3)", height: 22, fontSize: 11 }}
                 />
@@ -252,6 +271,11 @@ export default function PortalOpenShifts() {
       </Card>
 
       {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
+      {licenseExpired && (
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+          Your license is expired. You cannot request shifts until it is updated.
+        </Alert>
+      )}
       {claimError && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setClaimError(null)}>{claimError}</Alert>}
 
       {/* ── Calendar Grid ── */}
@@ -319,6 +343,7 @@ export default function PortalOpenShifts() {
                         onClaim={handleClaim}
                         onWithdraw={handleWithdraw}
                         claimBusy={claimBusy === s.id}
+                        disableClaim={licenseExpired}
                       />
                     ))
                   ) : !loading ? (
@@ -387,7 +412,7 @@ export default function PortalOpenShifts() {
       )}
 
       {/* Empty state (no shifts at all this week) */}
-      {!loading && shifts.length === 0 && (
+      {!loading && matchingShifts.length === 0 && (
         <Box sx={{ mt: 4, textAlign: "center", py: 3 }}>
           <WorkHistoryIcon sx={{ fontSize: 40, color: "text.disabled", mb: 1 }} />
           <Typography color="text.secondary" variant="body2">

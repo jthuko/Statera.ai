@@ -35,6 +35,9 @@ const Schema = z.object({
   active: z.boolean(),
   gustoEmployeeId: z.string().optional(),
   quickBooksEmployeeId: z.string().optional(),
+  licenseNumber: z.string().optional(),
+  licenseExpiresOn: z.string().optional(),
+  cprExpiresOn: z.string().optional(),
 });
 
 export type StaffEditFormValues = z.infer<typeof Schema>;
@@ -61,6 +64,9 @@ export default function StaffEditDialog({ open, onClose, onSave, onAdminAccessCh
       active: staff.active ?? true,
       gustoEmployeeId: staff.gustoEmployeeId ?? "",
       quickBooksEmployeeId: staff.quickBooksEmployeeId ?? "",
+      licenseNumber: staff.licenseNumber ?? "",
+      licenseExpiresOn: staff.licenseExpiresOn ?? "",
+      cprExpiresOn: staff.cprExpiresOn ?? "",
     },
   });
   const [units, setUnits] = React.useState<UnitDto[]>([]);
@@ -88,6 +94,11 @@ export default function StaffEditDialog({ open, onClose, onSave, onAdminAccessCh
         role: staff.role ?? "CNA",
         employmentType: (staff.employmentType as any) ?? "FullTime",
         active: staff.active ?? true,
+        gustoEmployeeId: staff.gustoEmployeeId ?? "",
+        quickBooksEmployeeId: staff.quickBooksEmployeeId ?? "",
+        licenseNumber: staff.licenseNumber ?? "",
+        licenseExpiresOn: staff.licenseExpiresOn ?? "",
+        cprExpiresOn: staff.cprExpiresOn ?? "",
       });
       setIsAdmin(staff.hasAdminAccount ?? false);
       setAdminError(null);
@@ -160,6 +171,23 @@ export default function StaffEditDialog({ open, onClose, onSave, onAdminAccessCh
               </TextField>
               <TextField label="Gusto Employee ID" fullWidth {...register("gustoEmployeeId")} />
               <TextField label="QuickBooks Employee ID" fullWidth {...register("quickBooksEmployeeId")} />
+              <TextField label="License Number" fullWidth {...register("licenseNumber")} />
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField
+                  label="License Expiry"
+                  type="date"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  {...register("licenseExpiresOn")}
+                />
+                <TextField
+                  label="CPR Expiry (optional)"
+                  type="date"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  {...register("cprExpiresOn")}
+                />
+              </Stack>
               <FormControlLabel
                 control={<Switch defaultChecked={staff.active ?? true} {...register("active") as any} />}
                 label="Active"
