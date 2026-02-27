@@ -174,6 +174,20 @@ public static class TimeClockEndpoints
             });
         });
 
+        // GET /api/v1/timeclock/clocked-in-count?facilityId=
+        g.MapGet("/clocked-in-count", async (
+            [FromServices] AppDbContext db,
+            [FromQuery] Guid facilityId) =>
+        {
+            var count = await db.TimeClockEntries
+                .AsNoTracking()
+                .Where(e => e.FacilityId == facilityId && e.ClockOutUtc == null)
+                .Select(e => e.StaffId)
+                .Distinct()
+                .CountAsync();
+            return Results.Ok(new { count });
+        });
+
         // PUT /api/v1/timeclock/{id}  — admin manual entry or adjustment (includes lunch)
         g.MapPut("/{id:guid}", async (
             Guid id,

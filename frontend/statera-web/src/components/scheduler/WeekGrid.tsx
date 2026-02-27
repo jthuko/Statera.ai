@@ -120,6 +120,29 @@ export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEd
     );
   }
 
+  // State for clocked-in status per staff
+  const [clockedInStatus, setClockedInStatus] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function fetchStatuses() {
+      const statuses: Record<string, string> = {};
+      await Promise.all(
+        staff.map(async s => {
+          try {
+            const entry = await (await import("../../api/timeclock")).getActiveEntry(s.id);
+            statuses[s.id] = entry && entry.status ? entry.status : "ClockedOut";
+          } catch {
+            statuses[s.id] = "ClockedOut";
+          }
+        })
+      );
+      if (!cancelled) setClockedInStatus(statuses);
+    }
+    fetchStatuses();
+    return () => { cancelled = true; };
+  }, [staff]);
+
   return (
     <Box sx={{
       border: `1px solid ${borderColor}`,
@@ -201,8 +224,10 @@ export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEd
             }}>
               <Avatar sx={{
                 width: 28, height: 28, fontSize: 10, fontWeight: 700, flexShrink: 0,
-                bgcolor: rc.bg, color: rc.text,
-                border: `1px solid ${rc.border}`,
+                bgcolor: rc.bg,
+                color: rc.text,
+                border: `1.5px solid ${rc.border}`,
+                boxShadow: isDark ? "0 0 0 2px #222" : "0 0 0 2px #fff",
               }}>
                 {getInitials(s.label)}
               </Avatar>
@@ -215,6 +240,32 @@ export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEd
                     {s.role}
                   </Typography>
                 )}
+                {/* Clocked-in status indicator */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
+                  <Chip
+                    size="small"
+                    label={clockedInStatus[s.id] === "ClockedIn" ? "Clocked In" : clockedInStatus[s.id] === "OnLunch" ? "On Lunch" : "Clocked Out"}
+                    sx={{
+                      height: 18,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      bgcolor:
+                        clockedInStatus[s.id] === "ClockedIn"
+                          ? (isDark ? "#43a047" : "#c8e6c9")
+                          : clockedInStatus[s.id] === "OnLunch"
+                          ? (isDark ? "#ffa726" : "#ffe0b2")
+                          : (isDark ? "#bdbdbd" : "#eeeeee"),
+                      color:
+                        clockedInStatus[s.id] === "ClockedIn"
+                          ? (isDark ? "#c8e6c9" : "#388e3c")
+                          : clockedInStatus[s.id] === "OnLunch"
+                          ? (isDark ? "#fff3e0" : "#f57c00")
+                          : (isDark ? "#212121" : "#757575"),
+                      border: "none",
+                      px: 1,
+                    }}
+                  />
+                </Box>
               </Box>
             </Box>
 
@@ -261,16 +312,21 @@ export default function WeekGrid({ weekStart, staff, assignments, onCreate, onEd
                         <Box
                           onClick={e => { e.stopPropagation(); onEdit(item.id); }}
                           sx={{
-                            mb: 0.5, px: 0.75, py: 0.4, borderRadius: 1,
+                            mb: 0.5,
+                            px: 0.75,
+                            py: 0.4,
+                            borderRadius: 1,
                             background: roleC.bg,
-                            border: `1px solid ${roleC.border}`,
-                            borderLeft: `3px solid ${roleC.text}`,
+                            border: `1.5px solid ${roleC.border}`,
+                            borderLeft: `4px solid ${roleC.text}`,
                             cursor: "pointer",
                             transition: "filter 0.1s",
+                            boxShadow: isDark ? "0 2px 8px 0 #222" : "0 2px 8px 0 #eee",
+                            outline: isDark ? "1px solid #333" : "1px solid #ddd",
                             "&:hover": { filter: "brightness(0.95)" },
                           }}
                         >
-                          <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: roleC.text, lineHeight: 1.2 }}>
+                          <Typography sx={{ fontSize: 11, fontWeight: 700, color: roleC.text, lineHeight: 1.2, textShadow: isDark ? "0 1px 2px #111" : "0 1px 2px #fff" }}>
                             {item.roleName ?? "Shift"}
                           </Typography>
                           <Typography sx={{ fontSize: 10, color: timeColor, lineHeight: 1.2 }}>

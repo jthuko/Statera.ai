@@ -19,6 +19,7 @@ import { useNotifications } from "../../context/NotificationContext";
 import { listStaff, StaffDto } from "../../api/staff";
 import { listUnits } from "../../api/units";
 import type { UnitDto } from "../../api/units";
+import { getClockedInCount, getActiveEntry } from "../../api/timeclock";
 
 import WeekGrid from "../../components/scheduler/WeekGrid";
 import AssignmentFormDialog, { FormValues } from "../../components/scheduler/AssignmentFormDialog";
@@ -208,6 +209,12 @@ export default function AssignmentsPage() {
     return weeks;
   }, [viewMode, rangeStart, rangeEnd]);
 
+  const [clockedInCount, setClockedInCount] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    if (!facilityId) return;
+    getClockedInCount(facilityId).then(setClockedInCount).catch(() => setClockedInCount(null));
+  }, [facilityId]);
+
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
 
@@ -357,6 +364,11 @@ export default function AssignmentsPage() {
                   bgcolor: "rgba(0,77,77,0.3)", color: "#4db6ac",
                   border: "1px solid rgba(0,137,123,0.25)", fontSize: 11,
                 }} />
+            )}
+            {clockedInCount !== null && (
+              <Chip label={`Clocked in: ${clockedInCount}`}
+                size="small"
+                sx={{ bgcolor: "rgba(0,137,123,0.15)", color: "#00897b", border: "1px solid #00897b", fontWeight: 600 }} />
             )}
           </Stack>
         </CardContent>

@@ -63,6 +63,7 @@ import {
   type FacilityIntegrationStatus,
   type IntegrationProvider,
 } from "../../api/integrations";
+import { getClockedInCount } from "../../api/timeclock";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type SortCol = "date" | "unit" | "role" | "required" | "assigned" | "variance";
@@ -133,6 +134,12 @@ export default function FacilityAdminPage() {
     if (idx >= 0 && idx !== tab) setTab(idx);
   }, [location.search, tab]);
 
+  const [clockedInCount, setClockedInCount] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    if (!facilityId) return;
+    getClockedInCount(facilityId).then(setClockedInCount).catch(() => setClockedInCount(null));
+  }, [facilityId]);
+
   if (!facilityId) return <Alert severity="error">Facility not found.</Alert>;
 
   return (
@@ -160,6 +167,14 @@ export default function FacilityAdminPage() {
                 </Typography>
               )}
             </Box>
+            {clockedInCount !== null && (
+              <Chip
+                label={`Clocked in: ${clockedInCount}`}
+                icon={<AccessTimeIcon fontSize="small" />}
+                size="small"
+                sx={{ bgcolor: "rgba(0,137,123,0.15)", color: "#00897b", border: "1px solid #00897b", fontWeight: 600 }}
+              />
+            )}
             <Chip
               label={TAB_LABELS[tab]}
               icon={TAB_ICONS[tab]}
@@ -724,7 +739,7 @@ function SchedulerTab({ facilityId, addNotification, setToast }: {
 
       {rows.length === 0 && !loading && !error && (
         <Box sx={{ textAlign: "center", py: 6, border: "2px dashed", borderColor: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
-          <AutoFixHighIcon sx={{ fontSize: 40, color: "text.disabled", opacity: 0.3, mb: 1 }} />
+          <AutoFixHighIcon sx={{ fontSize: 40, color: "text.disabled", opacity: 0.3, mb: 1, display: "block", mx: "auto" }} />
           <Typography color="text.secondary">Configure the shift above and click Suggest</Typography>
         </Box>
       )}

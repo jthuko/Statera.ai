@@ -109,3 +109,8 @@ export async function submitCorrection(id: string, payload: CorrectionPayload): 
 export async function reviewTimeClockEntry(id: string, status: "Approved" | "Denied", adminNotes?: string): Promise<void> {
   await api.patch(`/timeclock/${id}/review`, { status, adminNotes });
 }
+
+export async function getClockedInCount(facilityId: string): Promise<number> {
+  const { data } = await api.get<{ count: number }>("/timeclock/clocked-in-count", { params: { facilityId } });
+  return data.count;
+}
