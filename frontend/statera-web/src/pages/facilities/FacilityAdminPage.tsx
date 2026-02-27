@@ -1,7 +1,7 @@
 // src/pages/facilities/FacilityAdminPage.tsx
 // Per-facility admin panel: Constraints, Coverage, Time Off, Scheduler, Time Clock
 import * as React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress,
   Container, Dialog, DialogActions, DialogContent, DialogTitle,
@@ -23,6 +23,7 @@ import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import SearchIcon from "@mui/icons-material/Search";
 import EventBusyIcon from "@mui/icons-material/EventBusy";
+import LinkIcon from "@mui/icons-material/Link";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -55,6 +56,13 @@ import {
   listTimeClockEntries, reviewTimeClockEntry, adjustTimeClockEntry,
   type TimeClockEntryDto,
 } from "../../api/timeclock";
+import {
+  listFacilityIntegrations,
+  connectFacilityIntegration,
+  disconnectFacilityIntegration,
+  type FacilityIntegrationStatus,
+  type IntegrationProvider,
+} from "../../api/integrations";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type SortCol = "date" | "unit" | "role" | "required" | "assigned" | "variance";
@@ -87,13 +95,15 @@ const TAB_ICONS = [
   <BeachAccessIcon fontSize="small" />,
   <AutoFixHighIcon fontSize="small" />,
   <AccessTimeIcon fontSize="small" />,
+  <LinkIcon fontSize="small" />,
 ];
-const TAB_LABELS = ["Constraints", "Coverage", "Time Off", "Scheduler", "Time Clock"];
+const TAB_LABELS = ["Constraints", "Coverage", "Time Off", "Scheduler", "Time Clock", "Integrations"];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function FacilityAdminPage() {
   const { facilityId } = useParams<{ facilityId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { facilities, setSelectedId } = useFacility();
   const { addNotification } = useNotifications();
 
@@ -103,11 +113,25 @@ export default function FacilityAdminPage() {
     if (facilityId) setSelectedId(facilityId);
   }, [facilityId, setSelectedId]);
 
-  const [tab, setTab]   = React.useState(0);
+  const [tab, setTab]   = React.useState(() => {
+    const params = new URLSearchParams(location.search);
+    const target = params.get("tab")?.toLowerCase();
+    if (!target) return 0;
+    const idx = TAB_LABELS.findIndex(t => t.toLowerCase() === target);
+    return idx >= 0 ? idx : 0;
+  });
   const [toast, setToast] = React.useState<{ msg: string; sev: "success" | "error" } | null>(null);
   // Mount scheduler once so its results survive tab switches
   const [schedulerMounted, setSchedulerMounted] = React.useState(false);
   React.useEffect(() => { if (tab === 3) setSchedulerMounted(true); }, [tab]);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const target = params.get("tab")?.toLowerCase();
+    if (!target) return;
+    const idx = TAB_LABELS.findIndex(t => t.toLowerCase() === target);
+    if (idx >= 0 && idx !== tab) setTab(idx);
+  }, [location.search, tab]);
 
   if (!facilityId) return <Alert severity="error">Facility not found.</Alert>;
 
@@ -169,6 +193,7 @@ export default function FacilityAdminPage() {
         </Box>
       )}
       {tab === 4 && <TimeClockTab facilityId={facilityId} setToast={setToast} />}
+      {tab === 5 && <IntegrationsTab facilityId={facilityId} setToast={setToast} />}
 
       <Snackbar open={!!toast} autoHideDuration={3500} onClose={() => setToast(null)}>
         <Alert severity={toast?.sev ?? "success"} onClose={() => setToast(null)} sx={{ width: "100%" }}>
@@ -909,5 +934,120 @@ function TimeClockTab({ facilityId, setToast }: {
         </DialogActions>
       </Dialog>
     </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tab 6: Integrations
+// ═══════════════════════════════════════════════════════════════════════════════
+function IntegrationsTab({ facilityId, setToast }: {
+  facilityId: string;
+  setToast: (t: { msg: string; sev: "success" | "error" } | null) => void;
+}) {
+  const [rows, setRows] = React.useState<FacilityIntegrationStatus[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [busyProvider, setBusyProvider] = React.useState<IntegrationProvider | null>(null);
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await listFacilityIntegrations(facilityId);
+      setRows(res);
+    } catch (e: any) {
+      setToast({ msg: e?.response?.data?.detail ?? "Failed to load integrations.", sev: "error" });
+    } finally {
+      setLoading(false);
+    }
+  }, [facilityId]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  const handleConnect = async (provider: IntegrationProvider) => {
+    setBusyProvider(provider);
+    try {
+      const { authUrl } = await connectFacilityIntegration(facilityId, provider);
+      window.location.href = authUrl;
+    } catch (e: any) {
+      setToast({ msg: e?.response?.data?.error ?? "Failed to start connection.", sev: "error" });
+      setBusyProvider(null);
+    }
+  };
+
+  const handleDisconnect = async (provider: IntegrationProvider) => {
+    setBusyProvider(provider);
+    try {
+      await disconnectFacilityIntegration(facilityId, provider);
+      setToast({ msg: `${provider} disconnected.`, sev: "success" });
+      await load();
+    } catch (e: any) {
+      setToast({ msg: e?.response?.data?.error ?? "Failed to disconnect.", sev: "error" });
+    } finally {
+      setBusyProvider(null);
+    }
+  };
+
+  const gusto = rows.find(r => r.provider === "Gusto");
+  const qb = rows.find(r => r.provider === "QuickBooks");
+
+  return (
+    <Stack spacing={2}>
+      <Alert severity="info">
+        Connect payroll accounts per facility. Once connected, exports will use that facility’s account.
+      </Alert>
+
+      <Card variant="outlined" sx={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        <CardContent>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="space-between" alignItems={{ sm: "center" }}>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700}>Gusto</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {gusto?.connected ? `Connected${gusto.updatedUtc ? ` · ${dayjs(gusto.updatedUtc).fromNow()}` : ""}` : "Not connected"}
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1}>
+              {gusto?.connected ? (
+                <Button variant="contained" color="error" onClick={() => handleDisconnect("Gusto")} disabled={busyProvider === "Gusto"}
+                  sx={{ color: "#fff" }}>
+                  Disconnect
+                </Button>
+              ) : (
+                <Button variant="contained" onClick={() => handleConnect("Gusto")} disabled={busyProvider === "Gusto"}
+                  sx={{ bgcolor: "#1976d2", color: "#fff", "&:hover": { bgcolor: "#115293" } }}>
+                  Connect Gusto
+                </Button>
+              )}
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card variant="outlined" sx={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        <CardContent>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="space-between" alignItems={{ sm: "center" }}>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700}>QuickBooks</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {qb?.connected ? `Connected${qb.updatedUtc ? ` · ${dayjs(qb.updatedUtc).fromNow()}` : ""}` : "Not connected"}
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1}>
+              {qb?.connected ? (
+                <Button variant="contained" color="error" onClick={() => handleDisconnect("QuickBooks")} disabled={busyProvider === "QuickBooks"}
+                  sx={{ color: "#fff" }}>
+                  Disconnect
+                </Button>
+              ) : (
+                <Button variant="contained" onClick={() => handleConnect("QuickBooks")} disabled={busyProvider === "QuickBooks"}
+                  sx={{ bgcolor: "#f9a825", color: "#1b1b1b", "&:hover": { bgcolor: "#f57f17" } }}>
+                  Connect QuickBooks
+                </Button>
+              )}
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {loading && <CircularProgress size={20} sx={{ color: "#4db6ac" }} />}
+    </Stack>
   );
 }

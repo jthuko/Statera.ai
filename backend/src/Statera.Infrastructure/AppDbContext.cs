@@ -73,6 +73,9 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
     // Help documentation
     public DbSet<HelpArticle> HelpArticles => Set<HelpArticle>();
 
+    // Facility integrations (Gusto, QuickBooks)
+    public DbSet<FacilityIntegration> FacilityIntegrations => Set<FacilityIntegration>();
+
     // Open Shifts / Shift Marketplace
     public DbSet<OpenShift> OpenShifts => Set<OpenShift>();
     public DbSet<OpenShiftRequest> OpenShiftRequests => Set<OpenShiftRequest>();
@@ -126,6 +129,8 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
             entity.Property(s => s.EmergencyContactName).HasMaxLength(120);
             entity.Property(s => s.EmergencyContactPhone).HasMaxLength(30);
             entity.Property(s => s.PhotoUrl).HasMaxLength(512);
+            entity.Property(s => s.GustoEmployeeId).HasMaxLength(128);
+            entity.Property(s => s.QuickBooksEmployeeId).HasMaxLength(128);
         });
 
         // Role catalog (domain role)
@@ -293,6 +298,17 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
             e.Property(x => x.TagsJson).HasColumnType("nvarchar(max)").HasDefaultValue("[]");
             e.Property(x => x.SectionsJson).HasColumnType("nvarchar(max)").HasDefaultValue("[]");
             e.HasIndex(x => new { x.Category, x.SortOrder });
+        });
+
+        // FacilityIntegration
+        b.Entity<FacilityIntegration>(e =>
+        {
+            e.Property(x => x.Provider).HasMaxLength(40).IsRequired();
+            e.Property(x => x.AccessToken).HasColumnType("nvarchar(max)");
+            e.Property(x => x.RefreshToken).HasColumnType("nvarchar(max)");
+            e.Property(x => x.ExternalCompanyId).HasMaxLength(128);
+            e.Property(x => x.MetadataJson).HasColumnType("nvarchar(max)");
+            e.HasIndex(x => new { x.FacilityId, x.Provider }).IsUnique();
         });
 
         // OpenShift

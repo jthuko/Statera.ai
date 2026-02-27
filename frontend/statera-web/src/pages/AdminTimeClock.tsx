@@ -18,6 +18,7 @@ import {
   listTimeClockEntries, adjustTimeClockEntry, reviewTimeClockEntry,
   type TimeClockEntryDto, type AdjustTimeClockPayload,
 } from "../api/timeclock";
+import { exportTimesheetsToProvider } from "../api/integrations";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -54,6 +55,16 @@ function fmt(iso: string | null | undefined) {
 
 function getInitials(name: string) {
   return name.trim().split(/\s+/).map(n => n[0] ?? "").join("").toUpperCase().slice(0, 2);
+}
+
+function buildNotes(e: TimeClockEntryDto) {
+  const parts = [
+    e.notes ? `Staff: ${e.notes}` : null,
+    e.adminNotes ? `Admin: ${e.adminNotes}` : null,
+    e.correctionNotes ? `Correction: ${e.correctionNotes}` : null,
+    e.isManual ? "Manual entry" : null,
+  ].filter(Boolean) as string[];
+  return parts.join(" | ");
 }
 
 // ── Adjust Dialog ─────────────────────────────────────────────────────────────
@@ -140,6 +151,7 @@ export default function AdminTimeClock() {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [toast, setToast]     = useState<string | null>(null);
+  const [exporting, setExporting] = useState<"Gusto" | "QuickBooks" | null>(null);
 
   const [adjustEntry, setAdjustEntry] = useState<TimeClockEntryDto | null>(null);
 
@@ -222,6 +234,28 @@ export default function AdminTimeClock() {
     XLSX.writeFile(wb, `timeclock-${from}-${to}.xlsx`);
   }
 
+  async function exportToProvider(provider: "Gusto" | "QuickBooks") {
+    if (!facilityId) return;
+    setExporting(provider);
+    try {
+      const res = await exportTimesheetsToProvider(facilityId, provider, {
+        fromUtc: dayjs(from).startOf("day").toISOString(),
+        toUtc: dayjs(to).endOf("day").toISOString(),
+        staffId: staffId || null,
+        status: statusFilter || null,
+      });
+      const msg = `${provider}: exported ${res.exported}, skipped ${res.skipped}`;
+      setToast(msg);
+      if (res.errors?.length) {
+        setError(`${provider} export completed with ${res.errors.length} error(s).`);
+      }
+    } catch (e: any) {
+      setError(e?.response?.data?.error ?? `Failed to export to ${provider}.`);
+    } finally {
+      setExporting(null);
+    }
+  }
+
   const totalNet     = entries.filter(e => e.clockOutUtc).reduce((s, e) => s + netHours(e), 0);
   const pendingCount = entries.filter(e => e.status === "PendingCorrection").length;
   const approvedCount = entries.filter(e => e.status === "Approved").length;
@@ -260,16 +294,26 @@ export default function AdminTimeClock() {
                 </Stack>
               </Box>
             </Stack>
-            <Stack direction="row" spacing={1}>
-              <Button variant="outlined" startIcon={<DownloadIcon />} size="small" onClick={downloadCsv}
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              <Button variant="contained" startIcon={<DownloadIcon />} size="small" onClick={downloadCsv}
                 disabled={entries.filter(e => e.clockOutUtc).length === 0}
-                sx={{ borderColor: "rgba(0,137,123,0.4)", color: "#4db6ac", "&:hover": { borderColor: "#4db6ac" } }}>
+                sx={{ bgcolor: "#00897b", color: "#fff", "&:hover": { bgcolor: "#00796b" } }}>
                 Export CSV
               </Button>
-              <Button variant="outlined" startIcon={<ExcelIcon />} size="small" onClick={downloadExcel}
+              <Button variant="contained" startIcon={<ExcelIcon />} size="small" onClick={downloadExcel}
                 disabled={entries.filter(e => e.clockOutUtc).length === 0}
-                sx={{ borderColor: "rgba(33,150,83,0.4)", color: "#4caf50", "&:hover": { borderColor: "#4caf50" } }}>
+                sx={{ bgcolor: "#2e7d32", color: "#fff", "&:hover": { bgcolor: "#1b5e20" } }}>
                 Export Excel
+              </Button>
+              <Button variant="contained" startIcon={<DownloadIcon />} size="small" onClick={() => exportToProvider("Gusto")}
+                disabled={entries.filter(e => e.clockOutUtc).length === 0}
+                sx={{ bgcolor: "#1976d2", color: "#fff", "&:hover": { bgcolor: "#115293" } }}>
+                {exporting === "Gusto" ? "Exporting…" : "Export Gusto"}
+              </Button>
+              <Button variant="contained" startIcon={<DownloadIcon />} size="small" onClick={() => exportToProvider("QuickBooks")}
+                disabled={entries.filter(e => e.clockOutUtc).length === 0}
+                sx={{ bgcolor: "#f9a825", color: "#1b1b1b", "&:hover": { bgcolor: "#f57f17" } }}>
+                {exporting === "QuickBooks" ? "Exporting…" : "Export QuickBooks"}
               </Button>
             </Stack>
           </Stack>

@@ -23,7 +23,9 @@ public record CreateStaffRequest(
     DateOnly? DateOfBirth = null,
     string? EmergencyContactName = null,
     string? EmergencyContactPhone = null,
-    string? PhotoUrl = null
+    string? PhotoUrl = null,
+    string? GustoEmployeeId = null,
+    string? QuickBooksEmployeeId = null
 );
 
 public record UpdateStaffRequest(
@@ -44,7 +46,9 @@ public record UpdateStaffRequest(
     DateOnly? DateOfBirth = null,
     string? EmergencyContactName = null,
     string? EmergencyContactPhone = null,
-    string? PhotoUrl = null
+    string? PhotoUrl = null,
+    string? GustoEmployeeId = null,
+    string? QuickBooksEmployeeId = null
 );
 
 public record UpdateStaffProfileRequest(

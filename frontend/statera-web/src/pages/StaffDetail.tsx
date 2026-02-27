@@ -130,6 +130,8 @@ export default function StaffDetail() {
         role: vals.role,
         employmentType: vals.employmentType,
         active: vals.active,
+        gustoEmployeeId: vals.gustoEmployeeId || null,
+        quickBooksEmployeeId: vals.quickBooksEmployeeId || null,
       });
       await reload();
       setEditOpen(false);
@@ -370,6 +372,18 @@ export default function StaffDetail() {
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <Typography variant="body2" color="text.secondary">DOB:</Typography>
                     <Typography variant="body2">{data.dateOfBirth}</Typography>
+                  </Stack>
+                )}
+                {data.gustoEmployeeId && (
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Typography variant="body2" color="text.secondary">Gusto ID:</Typography>
+                    <Typography variant="body2">{data.gustoEmployeeId}</Typography>
+                  </Stack>
+                )}
+                {data.quickBooksEmployeeId && (
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Typography variant="body2" color="text.secondary">QuickBooks ID:</Typography>
+                    <Typography variant="body2">{data.quickBooksEmployeeId}</Typography>
                   </Stack>
                 )}
                 {(data.emergencyContactName || data.emergencyContactPhone) && (

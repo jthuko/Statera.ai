@@ -651,6 +651,18 @@ public static class DevDataSeeder
                         ("Approving corrections", "Entries with status 'Pending Correction' show the staff member's requested times and reason. Click Approve to apply those times, or Deny to reject them."),
                         ("Downloading for payroll", "Click Download CSV. The file includes: Staff, Date, Day, Clock In, Clock Out, Lunch Start, Lunch End, Lunch (hrs), Net Hours, Status, and Admin Notes — ready for payroll processing."))
                 },
+                new HelpArticle
+                {
+                    Id = Guid.NewGuid(), Category = "Time Clock", Title = "Exporting to Gusto & QuickBooks", SortOrder = 4,
+                    TagsJson = Tags("gusto", "quickbooks", "payroll", "export", "timesheet", "csv", "admin"),
+                    SectionsJson = Sections(
+                        (null, "Gusto and QuickBooks connections are configured per facility so each location can sync to its own payroll account."),
+                        ("Connecting an account", "Go to Facilities → select the facility → Integrations. Click Connect for Gusto or QuickBooks and complete the provider sign-in."),
+                        ("Exporting timesheets", "Open Time Clock in Admin, set your Facility, Staff, Date Range, and Status filters, then use Export Gusto or Export QuickBooks."),
+                        ("Gusto export format", "Columns: Employee, Date, Clock In, Clock Out, Hours, Status, Notes."),
+                        ("QuickBooks export format", "Columns: Employee, Date, Start Time, End Time, Total Hours, Status, Notes."),
+                        ("Notes column", "Notes combine Staff notes, Admin notes, and Correction notes (if any). Manual entries are labeled as 'Manual entry'."))
+                },
                 // ── Assignments ────────────────────────────────────────────────
                 new HelpArticle
                 {

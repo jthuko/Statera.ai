@@ -134,6 +134,7 @@ public static class StaffEndpoints
                 e.Phone, e.Address1, e.Address2, e.City, e.State, e.Zip,
                 e.DateOfBirth, e.EmergencyContactName, e.EmergencyContactPhone,
                 e.PhotoUrl,
+                e.GustoEmployeeId, e.QuickBooksEmployeeId,
                 HasAdminAccount  = hasAdminAccount,
                 HasPortalAccount = hasPortalAccount,
             });
@@ -155,6 +156,7 @@ public static class StaffEndpoints
                 e.Phone, e.Address1, e.Address2, e.City, e.State, e.Zip,
                 e.DateOfBirth, e.EmergencyContactName, e.EmergencyContactPhone,
                 e.PhotoUrl,
+                e.GustoEmployeeId, e.QuickBooksEmployeeId,
             });
         })
         .RequireAuthorization("Authenticated");
@@ -191,6 +193,7 @@ public static class StaffEndpoints
                 e.Phone, e.Address1, e.Address2, e.City, e.State, e.Zip,
                 e.DateOfBirth, e.EmergencyContactName, e.EmergencyContactPhone,
                 e.PhotoUrl,
+                e.GustoEmployeeId, e.QuickBooksEmployeeId,
             });
         })
         .RequireAuthorization("Authenticated");
@@ -253,6 +256,8 @@ public static class StaffEndpoints
                 EmergencyContactName = req.EmergencyContactName?.Trim(),
                 EmergencyContactPhone = req.EmergencyContactPhone?.Trim(),
                 PhotoUrl = req.PhotoUrl?.Trim(),
+                GustoEmployeeId = req.GustoEmployeeId?.Trim(),
+                QuickBooksEmployeeId = req.QuickBooksEmployeeId?.Trim(),
             };
 
             db.Staff.Add(e);
@@ -290,6 +295,7 @@ public static class StaffEndpoints
                 e.Phone, e.Address1, e.Address2, e.City, e.State, e.Zip,
                 e.DateOfBirth, e.EmergencyContactName, e.EmergencyContactPhone,
                 e.PhotoUrl,
+                e.GustoEmployeeId, e.QuickBooksEmployeeId,
                 LoginCreated = tempPassword is not null,
                 TempPassword = tempPassword
             });
@@ -349,6 +355,8 @@ public static class StaffEndpoints
             if (req.EmergencyContactName is not null) e.EmergencyContactName = req.EmergencyContactName?.Trim();
             if (req.EmergencyContactPhone is not null) e.EmergencyContactPhone = req.EmergencyContactPhone?.Trim();
             if (req.PhotoUrl is not null) e.PhotoUrl = req.PhotoUrl?.Trim();
+            if (req.GustoEmployeeId is not null) e.GustoEmployeeId = req.GustoEmployeeId?.Trim();
+            if (req.QuickBooksEmployeeId is not null) e.QuickBooksEmployeeId = req.QuickBooksEmployeeId?.Trim();
 
             if (req.Active.HasValue) e.Active = req.Active.Value;
 

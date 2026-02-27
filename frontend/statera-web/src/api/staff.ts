@@ -21,6 +21,8 @@ export interface StaffDto {
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   photoUrl?: string | null;
+  gustoEmployeeId?: string | null;
+  quickBooksEmployeeId?: string | null;
 }
 
 const http = api;
@@ -71,6 +73,8 @@ export type UpdateStaffPayload = {
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   photoUrl?: string | null;
+  gustoEmployeeId?: string | null;
+  quickBooksEmployeeId?: string | null;
 };
 
 export interface FullStaffDto extends StaffDto {
@@ -91,6 +95,8 @@ export interface FullStaffDto extends StaffDto {
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   photoUrl?: string | null;
+  gustoEmployeeId?: string | null;
+  quickBooksEmployeeId?: string | null;
 }
 
 export type UpdateStaffProfilePayload = {

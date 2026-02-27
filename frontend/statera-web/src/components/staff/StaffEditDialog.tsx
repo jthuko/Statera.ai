@@ -33,6 +33,8 @@ const Schema = z.object({
   role: z.string().min(1, "Role required"),
   employmentType: z.enum(["FullTime", "PartTime", "PerDiem", "Contract"]),
   active: z.boolean(),
+  gustoEmployeeId: z.string().optional(),
+  quickBooksEmployeeId: z.string().optional(),
 });
 
 export type StaffEditFormValues = z.infer<typeof Schema>;
@@ -57,6 +59,8 @@ export default function StaffEditDialog({ open, onClose, onSave, onAdminAccessCh
       role: staff.role ?? "CNA",
       employmentType: (staff.employmentType as any) ?? "FullTime",
       active: staff.active ?? true,
+      gustoEmployeeId: staff.gustoEmployeeId ?? "",
+      quickBooksEmployeeId: staff.quickBooksEmployeeId ?? "",
     },
   });
   const [units, setUnits] = React.useState<UnitDto[]>([]);
@@ -154,6 +158,8 @@ export default function StaffEditDialog({ open, onClose, onSave, onAdminAccessCh
                   <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
                 ))}
               </TextField>
+              <TextField label="Gusto Employee ID" fullWidth {...register("gustoEmployeeId")} />
+              <TextField label="QuickBooks Employee ID" fullWidth {...register("quickBooksEmployeeId")} />
               <FormControlLabel
                 control={<Switch defaultChecked={staff.active ?? true} {...register("active") as any} />}
                 label="Active"

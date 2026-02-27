@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Statera.Api.Authorization;
 using Statera.Api.Endpoints;
+using Statera.Api.Integrations;
 using Statera.Application;
 using Statera.Application.Services;
 using Statera.Endpoints;
@@ -48,6 +49,7 @@ builder.Services
 // JWT configuration
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.Configure<IntegrationOptions>(builder.Configuration.GetSection("Integrations"));
 
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? "dev-secret-please-change-to-32-bytes-minimum";
@@ -150,6 +152,7 @@ v1.MapTimeClockEndpoints();
 v1.MapChatEndpoints();
 v1.MapHelpEndpoints();
 v1.MapOpenShiftEndpoints();
+v1.MapIntegrationsEndpoints();
 
 
 // Convenience: root -> Swagger

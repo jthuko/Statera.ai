@@ -32,6 +32,10 @@ public class Staff
     public string? EmergencyContactPhone { get; set; }
     public string? PhotoUrl { get; set; }
 
+    // Payroll integration identifiers
+    public string? GustoEmployeeId { get; set; }
+    public string? QuickBooksEmployeeId { get; set; }
+
     public Guid FacilityId { get; set; }
     public Guid? UnitId { get; set; }
 
@@ -341,6 +345,25 @@ public class HelpArticle
 
     /// <summary>Ascending sort position within the category.</summary>
     public int SortOrder { get; set; }
+}
+
+// ── Facility Integrations ───────────────────────────────────────────────────
+
+/// <summary>
+/// Stores per-facility OAuth tokens for payroll integrations (e.g., Gusto, QuickBooks).
+/// </summary>
+public class FacilityIntegration
+{
+    public Guid Id { get; set; }
+    public Guid FacilityId { get; set; }
+    public string Provider { get; set; } = ""; // "Gusto" | "QuickBooks"
+    public string AccessToken { get; set; } = "";
+    public string? RefreshToken { get; set; }
+    public DateTime? ExpiresUtc { get; set; }
+    public string? ExternalCompanyId { get; set; } // e.g., QuickBooks realmId
+    public string? MetadataJson { get; set; }
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedUtc { get; set; } = DateTime.UtcNow;
 }
 
 // ── Open Shifts ───────────────────────────────────────────────────────────────
