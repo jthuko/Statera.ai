@@ -41,10 +41,6 @@ const DARK_CARD  = "#0e1a1c";
 const DARK_CARD2 = "#132022";
 
 const HERO_IMAGE    = "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80";
-const FEATURE_IMG_1 = "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?auto=format&fit=crop&w=900&q=80";
-const FEATURE_IMG_2 = "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=80";
-const FEATURE_IMG_3 = "https://images.unsplash.com/photo-1504439468489-c8920d796a29?auto=format&fit=crop&w=900&q=80";
-const TEAM_IMAGE    = "https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=900&q=80";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -543,22 +539,7 @@ const APP_SCREENS = [
   },
 ];
 
-function AppPreviewCarousel() {
-  const [active, setActive] = React.useState(0);
-  const isPaused = React.useRef(false);
-
-  React.useEffect(() => {
-    const id = setInterval(() => {
-      if (!isPaused.current) {
-        setActive(prev => (prev + 1) % APP_SCREENS.length);
-      }
-    }, 3200);
-    return () => clearInterval(id);
-  }, []);
-
-  const screen = APP_SCREENS[active];
-  const ScreenContent = screen.content;
-
+function FeatureGallery() {
   return (
     <Box sx={{ py: { xs: 6, md: 10 }, bgcolor: DARK_BG }}>
       <Container maxWidth="lg">
@@ -574,100 +555,127 @@ function AppPreviewCarousel() {
             From AI-generated schedules to staff self-service — all in one place.
           </Typography>
         </Box>
+      </Container>
 
-        {/* Tab pills */}
-        <Box sx={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 1, mb: 4 }}>
-          {APP_SCREENS.map((s, i) => (
+      {/* Horizontally scrollable gallery */}
+      <Box
+        sx={{
+          display: "flex",
+          gap: { xs: 2, md: 3 },
+          overflowX: "auto",
+          px: { xs: 2, md: 8 },
+          pb: 3,
+          scrollSnapType: "x mandatory",
+          scrollBehavior: "smooth",
+          "&::-webkit-scrollbar": { height: 6 },
+          "&::-webkit-scrollbar-track": { bgcolor: "rgba(255,255,255,0.04)", borderRadius: 3 },
+          "&::-webkit-scrollbar-thumb": { bgcolor: TEAL_DARK, borderRadius: 3 },
+        }}
+      >
+        {APP_SCREENS.map((screen, i) => {
+          const ScreenContent = screen.content;
+          return (
             <Box
               key={i}
-              onClick={() => { setActive(i); isPaused.current = true; setTimeout(() => { isPaused.current = false; }, 8000); }}
               sx={{
-                cursor: "pointer", px: 2, py: 0.75, borderRadius: 5,
-                fontSize: 13, fontWeight: 600,
-                transition: "all 0.2s",
-                bgcolor: active === i ? TEAL_DARK : "rgba(255,255,255,0.05)",
-                color: active === i ? "#fff" : "rgba(255,255,255,0.55)",
-                border: active === i ? `1px solid ${TEAL_DARK}` : "1px solid rgba(255,255,255,0.08)",
-                "&:hover": { bgcolor: active === i ? TEAL_DARK : "rgba(255,255,255,0.09)", color: "#fff" },
+                flexShrink: 0,
+                width: { xs: "82vw", md: 400 },
+                scrollSnapAlign: "start",
+                borderRadius: 2.5,
+                overflow: "hidden",
+                border: "1px solid rgba(77,182,172,0.2)",
+                boxShadow: "0 16px 60px rgba(0,0,0,0.5), 0 0 30px rgba(0,137,123,0.08)",
+                bgcolor: DARK_CARD,
+                transition: "border-color 0.2s, box-shadow 0.2s",
+                "&:hover": {
+                  borderColor: "rgba(77,182,172,0.4)",
+                  boxShadow: "0 20px 80px rgba(0,0,0,0.6), 0 0 40px rgba(0,137,123,0.15)",
+                },
               }}
             >
-              {s.icon} {s.label}
-            </Box>
-          ))}
-        </Box>
-
-        {/* Browser window mockup */}
-        <Box
-          sx={{
-            maxWidth: 760, mx: "auto",
-            borderRadius: 2.5, overflow: "hidden",
-            border: "1px solid rgba(77,182,172,0.2)",
-            boxShadow: "0 32px 100px rgba(0,0,0,0.7), 0 0 60px rgba(0,137,123,0.12)",
-            bgcolor: DARK_CARD,
-          }}
-          onMouseEnter={() => { isPaused.current = true; }}
-          onMouseLeave={() => { isPaused.current = false; }}
-        >
-          {/* Browser chrome */}
-          <Box sx={{ bgcolor: "#1a2f32", px: 1.5, py: 1, display: "flex", alignItems: "center", gap: 0.75, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-            <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#ff5f57" }} />
-            <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#ffbd2e" }} />
-            <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#28c840" }} />
-            <Box sx={{ flex: 1, mx: 2, bgcolor: "rgba(255,255,255,0.06)", borderRadius: 1, px: 1.5, py: 0.35, maxWidth: 340, mx: "auto" }}>
-              <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>{screen.url}</Typography>
-            </Box>
-          </Box>
-          {/* Sidebar + content layout */}
-          <Stack direction="row" sx={{ minHeight: 320 }}>
-            {/* Mini sidebar */}
-            <Box sx={{ width: 44, bgcolor: "#0a1618", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", alignItems: "center", pt: 1.5, gap: 1.5 }}>
-              {[CalendarIcon, GroupIcon, ClockIcon, OpenShiftIcon, AnalyticsIcon, PhoneIcon].map((Icon, i) => (
-                <Box key={i} sx={{ width: 30, height: 30, borderRadius: 1.5, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: i === active ? "rgba(0,137,123,0.25)" : "transparent", border: i === active ? `1px solid ${TEAL}44` : "1px solid transparent" }}>
-                  <Icon sx={{ fontSize: 15, color: i === active ? TEAL : "rgba(255,255,255,0.2)" }} />
+              {/* Browser chrome */}
+              <Box sx={{ bgcolor: "#1a2f32", px: 1.5, py: 1, display: "flex", alignItems: "center", gap: 0.75, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#ff5f57" }} />
+                <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#ffbd2e" }} />
+                <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#28c840" }} />
+                <Box sx={{ flex: 1, mx: 1, bgcolor: "rgba(255,255,255,0.06)", borderRadius: 1, px: 1.5, py: 0.35, textAlign: "center" }}>
+                  <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{screen.url}</Typography>
                 </Box>
-              ))}
-            </Box>
-            {/* Main content */}
-            <Box sx={{ flex: 1, p: 2, overflow: "hidden" }}>
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
-                <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>{screen.icon} {screen.label}</Typography>
-                <Box sx={{ flex: 1 }} />
-                <Box sx={{ px: 1.25, py: 0.4, bgcolor: "rgba(0,137,123,0.12)", borderRadius: 1, border: `1px solid ${TEAL}33` }}>
-                  <Typography sx={{ fontSize: 9.5, color: TEAL, fontWeight: 700 }}>Live</Typography>
+              </Box>
+              {/* Sidebar + content */}
+              <Stack direction="row" sx={{ minHeight: 300 }}>
+                <Box sx={{ width: 44, bgcolor: "#0a1618", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", alignItems: "center", pt: 1.5, gap: 1.5, flexShrink: 0 }}>
+                  {[CalendarIcon, GroupIcon, ClockIcon, OpenShiftIcon, AnalyticsIcon, PhoneIcon].map((Icon, j) => (
+                    <Box key={j} sx={{ width: 30, height: 30, borderRadius: 1.5, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: j === i ? "rgba(0,137,123,0.25)" : "transparent", border: j === i ? `1px solid ${TEAL}44` : "1px solid transparent" }}>
+                      <Icon sx={{ fontSize: 15, color: j === i ? TEAL : "rgba(255,255,255,0.2)" }} />
+                    </Box>
+                  ))}
+                </Box>
+                <Box sx={{ flex: 1, p: 2, overflow: "hidden" }}>
+                  <Stack direction="row" alignItems="center" sx={{ mb: 1.5 }}>
+                    <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{screen.icon} {screen.label}</Typography>
+                    <Box sx={{ flex: 1 }} />
+                    <Box sx={{ px: 1.25, py: 0.4, bgcolor: "rgba(0,137,123,0.12)", borderRadius: 1, border: `1px solid ${TEAL}33` }}>
+                      <Typography sx={{ fontSize: 9.5, color: TEAL, fontWeight: 700 }}>Live</Typography>
+                    </Box>
+                  </Stack>
+                  <ScreenContent />
                 </Box>
               </Stack>
-              <ScreenContent />
+            </Box>
+          );
+        })}
+      </Box>
+
+      <Box sx={{ textAlign: "center", mt: 1 }}>
+        <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontWeight: 500 }}>
+          ← Scroll to explore all features →
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+// ─── Feature Screen Mockup ────────────────────────────────────────────────────
+
+function FeatureScreenMockup({ screenIndex }: { screenIndex: number }) {
+  const screen = APP_SCREENS[screenIndex];
+  const ScreenContent = screen.content;
+  return (
+    <Box sx={{
+      borderRadius: 3, overflow: "hidden",
+      border: "1px solid rgba(77,182,172,0.2)",
+      boxShadow: "0 24px 80px rgba(0,0,0,0.5), 0 0 30px rgba(0,137,123,0.1)",
+    }}>
+      {/* Browser chrome */}
+      <Box sx={{ bgcolor: "#1a2f32", px: 1.5, py: 1, display: "flex", alignItems: "center", gap: 0.75, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#ff5f57" }} />
+        <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#ffbd2e" }} />
+        <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#28c840" }} />
+        <Box sx={{ flex: 1, mx: 1, bgcolor: "rgba(255,255,255,0.06)", borderRadius: 1, px: 1.5, py: 0.35, textAlign: "center" }}>
+          <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{screen.url}</Typography>
+        </Box>
+      </Box>
+      {/* Sidebar + content */}
+      <Stack direction="row" sx={{ minHeight: { xs: 260, md: 340 } }}>
+        <Box sx={{ width: 44, bgcolor: "#0a1618", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", alignItems: "center", pt: 1.5, gap: 1.5, flexShrink: 0 }}>
+          {[CalendarIcon, GroupIcon, ClockIcon, OpenShiftIcon, AnalyticsIcon, PhoneIcon].map((Icon, j) => (
+            <Box key={j} sx={{ width: 30, height: 30, borderRadius: 1.5, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: j === screenIndex ? "rgba(0,137,123,0.25)" : "transparent", border: j === screenIndex ? `1px solid ${TEAL}44` : "1px solid transparent" }}>
+              <Icon sx={{ fontSize: 15, color: j === screenIndex ? TEAL : "rgba(255,255,255,0.2)" }} />
+            </Box>
+          ))}
+        </Box>
+        <Box sx={{ flex: 1, p: 2, overflow: "hidden", bgcolor: DARK_CARD }}>
+          <Stack direction="row" alignItems="center" sx={{ mb: 1.5 }}>
+            <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{screen.icon} {screen.label}</Typography>
+            <Box sx={{ flex: 1 }} />
+            <Box sx={{ px: 1.25, py: 0.4, bgcolor: "rgba(0,137,123,0.12)", borderRadius: 1, border: `1px solid ${TEAL}33` }}>
+              <Typography sx={{ fontSize: 9.5, color: TEAL, fontWeight: 700 }}>Live</Typography>
             </Box>
           </Stack>
-          {/* Progress bar */}
-          <Box sx={{ height: 3, bgcolor: "rgba(255,255,255,0.04)" }}>
-            <Box
-              sx={{
-                height: "100%",
-                bgcolor: TEAL,
-                width: `${((active + 1) / APP_SCREENS.length) * 100}%`,
-                transition: "width 0.4s ease",
-              }}
-            />
-          </Box>
+          <ScreenContent />
         </Box>
-
-        {/* Dot indicators */}
-        <Stack direction="row" justifyContent="center" spacing={0.75} sx={{ mt: 3 }}>
-          {APP_SCREENS.map((_, i) => (
-            <Box
-              key={i}
-              onClick={() => { setActive(i); isPaused.current = true; setTimeout(() => { isPaused.current = false; }, 8000); }}
-              sx={{
-                width: active === i ? 20 : 6, height: 6, borderRadius: 3,
-                bgcolor: active === i ? TEAL : "rgba(255,255,255,0.2)",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-              }}
-            />
-          ))}
-        </Stack>
-      </Container>
+      </Stack>
     </Box>
   );
 }
@@ -781,7 +789,7 @@ export default function Landing() {
         "Handles multi-day date ranges at once",
         "Parallel suggestions — no waiting",
       ],
-      img: FEATURE_IMG_1,
+      screenIndex: 0,
     },
     {
       label: "Open Shifts",
@@ -794,7 +802,7 @@ export default function Landing() {
         "Admin one-click approve/deny",
         "Auto-creates assignment on approval",
       ],
-      img: FEATURE_IMG_2,
+      screenIndex: 3,
     },
     {
       label: "Time Clock",
@@ -807,7 +815,7 @@ export default function Landing() {
         "Admin approve or adjust entries",
         "Export to CSV, Excel, Gusto, QuickBooks",
       ],
-      img: FEATURE_IMG_3,
+      screenIndex: 2,
     },
     {
       label: "Compliance",
@@ -820,7 +828,7 @@ export default function Landing() {
         "Max consecutive days worked",
         "License / credential requirements",
       ],
-      img: TEAM_IMAGE,
+      screenIndex: 4,
     },
   ];
 
@@ -1079,9 +1087,9 @@ export default function Landing() {
       </Box>
 
       {/* ══════════════════════════════════════════════════════════════
-          APP PREVIEW CAROUSEL
+          FEATURE GALLERY
       ══════════════════════════════════════════════════════════════ */}
-      <AppPreviewCarousel />
+      <FeatureGallery />
 
       {/* ══════════════════════════════════════════════════════════════
           LOGO / TRUST BAR
@@ -1224,19 +1232,7 @@ export default function Landing() {
                 </Button>
               </Grid>
               <Grid item xs={12} md={7}>
-                <Box sx={{
-                  borderRadius: 3, overflow: "hidden",
-                  border: "1px solid rgba(77,182,172,0.2)",
-                  boxShadow: "0 24px 80px rgba(0,0,0,0.5), 0 0 30px rgba(0,137,123,0.1)",
-                }}>
-                  <Box
-                    component="img"
-                    src={f.img}
-                    alt={f.label}
-                    sx={{ width: "100%", display: "block", objectFit: "cover", maxHeight: { xs: 220, md: 380 } }}
-                    onError={(e: any) => { e.target.style.display = "none"; }}
-                  />
-                </Box>
+                <FeatureScreenMockup screenIndex={f.screenIndex} />
               </Grid>
             </Grid>
           ))}
@@ -1303,21 +1299,21 @@ export default function Landing() {
                 step: "01",
                 title: "Set Up Your Facility",
                 desc: "Create your facility profile, add units (e.g., ICU, Med-Surg), and configure scheduling rules like overtime limits and required credentials. Takes about 10 minutes.",
-                img: FEATURE_IMG_3,
+                screenIndex: 1,
                 bullets: ["Add staff with credentials & availability", "Configure units and shift types", "Set compliance rules (OT, rest, consecutive days)"],
               },
               {
                 step: "02",
                 title: "Generate Schedules with AI",
                 desc: "Pick a date range, press 'Run AI Scheduler,' and instantly see optimized shift suggestions ranked by fit. Accept all at once or review each one individually.",
-                img: FEATURE_IMG_1,
+                screenIndex: 0,
                 bullets: ["Select date range and days of week", "AI suggests best staff per shift", "Accept individually or bulk-accept the week"],
               },
               {
                 step: "03",
                 title: "Staff Self-Serve from Their Phones",
                 desc: "Staff get a web-based portal they can access from any device. They view their schedule, request time off, clock in/out, and claim open shifts — all without calling you.",
-                img: FEATURE_IMG_2,
+                screenIndex: 5,
                 bullets: ["View personal schedule & assignments", "Clock in/out with lunch tracking", "Request time off & claim open shifts"],
               },
             ].map((step, i) => (
@@ -1327,21 +1323,17 @@ export default function Landing() {
                   bgcolor: DARK_CARD, border: "1px solid rgba(255,255,255,0.07)",
                   height: "100%", display: "flex", flexDirection: "column",
                 }}>
-                  <Box sx={{ position: "relative", height: { xs: 160, md: 200 }, overflow: "hidden" }}>
-                    <Box
-                      component="img"
-                      src={step.img}
-                      alt={step.title}
-                      sx={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.5)" }}
-                    />
-                    <Box sx={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, transparent 30%, ${DARK_CARD})` }} />
+                  <Box sx={{ position: "relative", overflow: "hidden", transform: "scale(0.85)", transformOrigin: "top center", mb: -4 }}>
+                    <FeatureScreenMockup screenIndex={step.screenIndex} />
+                    <Box sx={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: `linear-gradient(to bottom, transparent, ${DARK_CARD})`, pointerEvents: "none" }} />
                     <Box sx={{
-                      position: "absolute", top: 16, left: 16,
-                      width: 44, height: 44, borderRadius: 2,
+                      position: "absolute", top: 12, left: 12,
+                      width: 40, height: 40, borderRadius: 2,
                       bgcolor: "rgba(0,137,123,0.2)", border: "1px solid rgba(0,137,123,0.4)",
                       display: "flex", alignItems: "center", justifyContent: "center",
+                      zIndex: 2,
                     }}>
-                      <Typography sx={{ fontSize: 15, fontWeight: 900, color: TEAL }}>{step.step}</Typography>
+                      <Typography sx={{ fontSize: 14, fontWeight: 900, color: TEAL }}>{step.step}</Typography>
                     </Box>
                   </Box>
                   <Box sx={{ p: 3, flex: 1 }}>
@@ -1385,31 +1377,22 @@ export default function Landing() {
             ))}
           </Grid>
 
-          {/* Image strip */}
+          {/* Banner strip */}
           <Box sx={{
             mt: 6, borderRadius: 3, overflow: "hidden",
             height: { xs: 160, md: 220 }, position: "relative",
-            border: "1px solid rgba(255,255,255,0.06)",
+            border: "1px solid rgba(0,137,123,0.2)",
+            background: "linear-gradient(135deg, rgba(0,60,70,1) 0%, rgba(0,30,40,1) 100%)",
+            display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column",
+            px: 2, textAlign: "center",
           }}>
-            <Box
-              component="img"
-              src={TEAM_IMAGE}
-              alt="Healthcare team"
-              sx={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.45)" }}
-            />
-            <Box sx={{
-              position: "absolute", inset: 0,
-              display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column",
-              px: 2, textAlign: "center",
-              background: "linear-gradient(135deg, rgba(0,137,123,0.2) 0%, rgba(0,0,0,0.3) 100%)",
-            }}>
-              <Typography fontWeight={900} sx={{ color: "#fff", mb: 1, textShadow: "0 2px 16px rgba(0,0,0,0.8)", fontSize: { xs: "1.15rem", md: "1.5rem" } }}>
-                Built for real healthcare teams
-              </Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.65)", fontSize: { xs: 13, md: 15 } }}>
-                Not adapted from generic scheduling software
-              </Typography>
-            </Box>
+            <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, rgba(0,137,123,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+            <Typography fontWeight={900} sx={{ color: "#fff", mb: 1, fontSize: { xs: "1.15rem", md: "1.5rem" }, position: "relative" }}>
+              Built for real healthcare teams
+            </Typography>
+            <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: { xs: 13, md: 15 }, position: "relative" }}>
+              Not adapted from generic scheduling software
+            </Typography>
           </Box>
         </Container>
       </Box>
