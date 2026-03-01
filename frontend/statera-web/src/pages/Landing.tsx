@@ -1144,7 +1144,7 @@ export default function Landing() {
               Simple, transparent pricing
             </Typography>
             <Typography sx={{ color: "rgba(255,255,255,0.5)", maxWidth: 480, mx: "auto" }}>
-              Start free for 14 days. No credit card required. Cancel anytime.
+              Start free for 7 days. No credit card required. Cancel anytime.
             </Typography>
           </Box>
           <Grid container spacing={{ xs: 2.5, md: 3 }} alignItems="stretch">
@@ -1156,7 +1156,7 @@ export default function Landing() {
           </Grid>
           <Box sx={{ mt: 4, textAlign: "center" }}>
             <Typography sx={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
-              All plans include 14-day free trial · No setup fees · Prices in USD
+              All plans include 7-day free trial · No setup fees · Prices in USD
             </Typography>
           </Box>
         </Container>
