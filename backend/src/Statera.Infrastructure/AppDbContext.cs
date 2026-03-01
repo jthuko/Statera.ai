@@ -189,6 +189,8 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
         {
             entity.Property(f => f.Name).IsRequired();
             entity.Property(f => f.State).IsRequired();
+            entity.Property(f => f.StripeCustomerId).HasMaxLength(64);
+            entity.Property(f => f.StripeSubscriptionId).HasMaxLength(64);
         });
 
         // Unit (single, consolidated mapping)

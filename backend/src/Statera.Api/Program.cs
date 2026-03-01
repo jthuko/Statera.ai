@@ -50,6 +50,7 @@ builder.Services
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.Configure<IntegrationOptions>(builder.Configuration.GetSection("Integrations"));
+builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection("Stripe"));
 
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? "dev-secret-please-change-to-32-bytes-minimum";
@@ -152,6 +153,7 @@ v1.MapChatEndpoints();
 v1.MapHelpEndpoints();
 v1.MapOpenShiftEndpoints();
 v1.MapIntegrationsEndpoints();
+v1.MapBillingEndpoints();
 
 
 // Convenience: root -> Swagger

@@ -1,7 +1,9 @@
-import { Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
+import { useState } from "react";
+import { Box, Button, Chip, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useAuth } from "../auth/useAuth";
+import api from "../api/axios";
 
 const PLAN_FEATURES = [
   "Unlimited staff scheduling",
@@ -17,6 +19,20 @@ const PLAN_FEATURES = [
 
 export default function TrialExpiredPage() {
   const { logout } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleUpgrade() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.post<{ url: string }>("/billing/checkout-session");
+      window.location.href = res.data.url;
+    } catch {
+      setError("Something went wrong. Please try again or contact hello@statera.ai.");
+      setLoading(false);
+    }
+  }
 
   return (
     <Box
@@ -97,11 +113,18 @@ export default function TrialExpiredPage() {
           </Stack>
         </Box>
 
+        {error && (
+          <Typography variant="body2" color="error" sx={{ mb: 1.5 }}>
+            {error}
+          </Typography>
+        )}
+
         <Button
           variant="contained"
           size="large"
           fullWidth
-          href="mailto:hello@statera.ai?subject=Upgrade%20to%20Paid%20Plan"
+          onClick={handleUpgrade}
+          disabled={loading}
           sx={{
             py: 1.5,
             fontWeight: 700,
@@ -110,7 +133,7 @@ export default function TrialExpiredPage() {
             "&:hover": { background: "linear-gradient(135deg, #2563eb, #7c3aed)" },
           }}
         >
-          Upgrade now — Contact us
+          {loading ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Upgrade now — Pay with card"}
         </Button>
 
         <Button

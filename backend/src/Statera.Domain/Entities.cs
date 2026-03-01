@@ -164,6 +164,10 @@ public class Facility
     public DateTime? TrialStartUtc { get; set; }
     public DateTime? TrialEndsUtc { get; set; }
 
+    // ── Stripe billing ────────────────────────────────────────────────────
+    public string? StripeCustomerId { get; set; }
+    public string? StripeSubscriptionId { get; set; }
+
     public ICollection<Unit> Units { get; set; } = new List<Unit>();
 }
 

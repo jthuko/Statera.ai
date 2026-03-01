@@ -7,6 +7,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import SignupPage from "./pages/Signup";
 import TrialExpiredPage from "./pages/TrialExpired";
+import BillingSuccessPage from "./pages/BillingSuccess";
 import Dashboard from "./pages/Dashboard";
 import Scheduler from "./pages/Scheduler";
 import Staff from "./pages/Staff";
@@ -46,6 +47,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/trial-expired" element={<TrialExpiredPage />} />
+      <Route path="/billing/success" element={<BillingSuccessPage />} />
 
       {/* ── Staff Portal (staffOnly) ── */}
       <Route
