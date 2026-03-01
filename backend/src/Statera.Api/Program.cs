@@ -157,13 +157,21 @@ v1.MapIntegrationsEndpoints();
 // Convenience: root -> Swagger
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
-// Apply pending migrations on startup (dev-friendly; remove if you want manual control)
+// Database initialization and seeding
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
-
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    // Only use MigrateAsync when migration history already exists (i.e. production).
+    // When history is empty (EnsureCreated was used, or dev wipe just happened)
+    // the seeder will re-create via EnsureCreated, which picks up the current model.
+    var appliedMigrations = await db.Database.GetAppliedMigrationsAsync();
+    if (appliedMigrations.Any())
+    {
+        await db.Database.MigrateAsync();
+    }
+
     await DevDataSeeder.ResetAndSeedAsync(
         scope.ServiceProvider,
         logger,
