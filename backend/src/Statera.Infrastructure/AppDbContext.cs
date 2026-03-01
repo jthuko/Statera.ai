@@ -93,7 +93,7 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
         // Facility – PlanStatus stored as string
         b.Entity<Facility>(entity =>
         {
-            entity.Property(f => f.PlanStatus).HasConversion<string>().HasMaxLength(20).HasDefaultValue("Trial");
+            entity.Property(f => f.PlanStatus).HasConversion<string>().HasMaxLength(20).HasDefaultValue(PlanStatus.Trial);
         });
 
         // UserFacilityRole – maps a user to a facility with a role
