@@ -319,6 +319,401 @@ function DashboardMock() {
   );
 }
 
+// ─── App Preview Carousel ──────────────────────────────────────────────────────
+
+const APP_SCREENS = [
+  {
+    label: "AI Scheduler",
+    icon: "🤖",
+    url: "statera.ai/app/assignments",
+    content: function SchedulerScreen() {
+      return (
+        <Box>
+          <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
+            {[{ l: "On Duty", v: "18", c: TEAL }, { l: "Open", v: "4", c: "#f57c00" }, { l: "Coverage", v: "94%", c: "#4caf50" }, { l: "Overtime Risk", v: "2", c: "#ef5350" }].map(s => (
+              <Box key={s.l} sx={{ flex: 1, bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1.5, p: 1, border: "1px solid rgba(255,255,255,0.06)" }}>
+                <Typography sx={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{s.l}</Typography>
+                <Typography sx={{ fontSize: 16, fontWeight: 800, color: s.c }}>{s.v}</Typography>
+              </Box>
+            ))}
+          </Stack>
+          <Box sx={{ bgcolor: "rgba(255,255,255,0.025)", borderRadius: 1.5, p: 1 }}>
+            <Stack direction="row" spacing={0.5} sx={{ mb: 0.75 }}>
+              <Box sx={{ width: 56 }} />
+              {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => (
+                <Box key={d} sx={{ flex: 1, textAlign: "center" }}>
+                  <Typography sx={{ fontSize: 8, color: "rgba(255,255,255,0.35)", fontWeight: 600 }}>{d}</Typography>
+                </Box>
+              ))}
+            </Stack>
+            {[
+              { name: "J. Smith RN",   shifts: [1,1,0,1,1,0,0], color: TEAL },
+              { name: "M. Jones LPN",  shifts: [0,1,1,0,1,1,0], color: "#81c784" },
+              { name: "R. Davis CNA",  shifts: [1,0,1,1,0,0,1], color: "#7986cb" },
+              { name: "T. Wilson RN",  shifts: [1,1,1,0,0,1,0], color: TEAL },
+              { name: "C. Brown LPN",  shifts: [0,0,1,1,1,0,1], color: "#81c784" },
+            ].map((staff, i) => (
+              <Stack key={i} direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
+                <Box sx={{ width: 56, flexShrink: 0 }}>
+                  <Typography sx={{ fontSize: 7.5, color: "rgba(255,255,255,0.55)" }} noWrap>{staff.name}</Typography>
+                </Box>
+                {staff.shifts.map((active, j) => (
+                  <Box key={j} sx={{ flex: 1, height: 20, borderRadius: 0.75, bgcolor: active ? `${staff.color}22` : "rgba(255,255,255,0.03)", border: active ? `1px solid ${staff.color}44` : "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {active ? <Typography sx={{ fontSize: 6.5, color: staff.color, fontWeight: 700 }}>7–15</Typography> : null}
+                  </Box>
+                ))}
+              </Stack>
+            ))}
+          </Box>
+          <Box sx={{ mt: 1, p: 1, bgcolor: "rgba(0,137,123,0.1)", borderRadius: 1.5, border: "1px solid rgba(0,137,123,0.25)", display: "flex", alignItems: "center", gap: 1 }}>
+            <AIIcon sx={{ fontSize: 14, color: TEAL }} />
+            <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.7)" }}>AI generated 34 shifts · 2 conflicts resolved automatically</Typography>
+          </Box>
+        </Box>
+      );
+    },
+  },
+  {
+    label: "Staff Management",
+    icon: "👥",
+    url: "statera.ai/app/staff",
+    content: function StaffScreen() {
+      const members = [
+        { name: "Jessica Smith", role: "RN", status: "Active", dept: "ICU", badge: TEAL },
+        { name: "Marcus Jones", role: "LPN", status: "Active", dept: "Med-Surg", badge: "#81c784" },
+        { name: "Rachel Davis", role: "CNA", status: "On Leave", dept: "ER", badge: "#f57c00" },
+        { name: "Tony Wilson", role: "RN", status: "Active", dept: "ICU", badge: TEAL },
+        { name: "Clara Brown", role: "LPN", status: "Active", dept: "Peds", badge: "#81c784" },
+        { name: "Derek Hall", role: "CNA", status: "Active", dept: "Med-Surg", badge: "#7986cb" },
+      ];
+      return (
+        <Box>
+          <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
+            <Box sx={{ flex: 1, bgcolor: "rgba(255,255,255,0.05)", borderRadius: 1, px: 1, py: 0.5, border: "1px solid rgba(255,255,255,0.08)" }}>
+              <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>🔍 Search staff...</Typography>
+            </Box>
+            <Box sx={{ px: 1.5, py: 0.5, bgcolor: "rgba(0,137,123,0.15)", borderRadius: 1, border: `1px solid ${TEAL}44` }}>
+              <Typography sx={{ fontSize: 10, color: TEAL, fontWeight: 700 }}>+ Add Staff</Typography>
+            </Box>
+          </Stack>
+          {members.map((m, i) => (
+            <Stack key={i} direction="row" alignItems="center" spacing={1} sx={{ py: 0.75, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <Box sx={{ width: 28, height: 28, borderRadius: "50%", bgcolor: `${m.badge}22`, border: `1px solid ${m.badge}55`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Typography sx={{ fontSize: 9, color: m.badge, fontWeight: 700 }}>{m.role}</Typography>
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#fff" }} noWrap>{m.name}</Typography>
+                <Typography sx={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{m.dept}</Typography>
+              </Box>
+              <Box sx={{ px: 1, py: 0.25, borderRadius: 1, bgcolor: m.status === "Active" ? "rgba(76,175,80,0.12)" : "rgba(245,124,0,0.12)", border: m.status === "Active" ? "1px solid rgba(76,175,80,0.3)" : "1px solid rgba(245,124,0,0.3)" }}>
+                <Typography sx={{ fontSize: 8.5, color: m.status === "Active" ? "#4caf50" : "#f57c00", fontWeight: 700 }}>{m.status}</Typography>
+              </Box>
+            </Stack>
+          ))}
+        </Box>
+      );
+    },
+  },
+  {
+    label: "Time Clock",
+    icon: "⏱️",
+    url: "statera.ai/app/timeclock",
+    content: function TimeClockScreen() {
+      const entries = [
+        { name: "J. Smith RN",  in: "07:02", status: "Clocked In",  color: "#4caf50" },
+        { name: "M. Jones LPN", in: "07:15", status: "On Lunch",    color: "#f9a825" },
+        { name: "R. Davis CNA", in: "06:58", status: "Clocked In",  color: "#4caf50" },
+        { name: "T. Wilson RN", in: "15:01", status: "Clocked In",  color: "#4caf50" },
+        { name: "C. Brown LPN", in: "06:50", status: "Clocked Out", color: "rgba(255,255,255,0.3)" },
+      ];
+      return (
+        <Box>
+          <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
+            {[{ l: "Clocked In", v: "14", c: "#4caf50" }, { l: "On Lunch", v: "3", c: "#f9a825" }, { l: "Out", v: "6", c: "rgba(255,255,255,0.4)" }, { l: "Total Hrs", v: "162", c: TEAL }].map(s => (
+              <Box key={s.l} sx={{ flex: 1, bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1.5, p: 1, border: "1px solid rgba(255,255,255,0.06)" }}>
+                <Typography sx={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{s.l}</Typography>
+                <Typography sx={{ fontSize: 15, fontWeight: 800, color: s.c }}>{s.v}</Typography>
+              </Box>
+            ))}
+          </Stack>
+          {entries.map((e, i) => (
+            <Stack key={i} direction="row" alignItems="center" spacing={1} sx={{ py: 0.75, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: e.color, boxShadow: `0 0 5px ${e.color}`, flexShrink: 0 }} />
+              <Typography sx={{ flex: 1, fontSize: 11, color: "#fff", fontWeight: 600 }} noWrap>{e.name}</Typography>
+              <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>In: {e.in}</Typography>
+              <Box sx={{ px: 1, py: 0.25, borderRadius: 1, bgcolor: `${e.color}18`, border: `1px solid ${e.color}44` }}>
+                <Typography sx={{ fontSize: 8.5, color: e.color, fontWeight: 700 }}>{e.status}</Typography>
+              </Box>
+            </Stack>
+          ))}
+          <Box sx={{ mt: 1, p: 1, bgcolor: "rgba(255,255,255,0.03)", borderRadius: 1.5, border: "1px solid rgba(255,255,255,0.06)" }}>
+            <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textAlign: "center" }}>Payroll export ready · 2 pending corrections</Typography>
+          </Box>
+        </Box>
+      );
+    },
+  },
+  {
+    label: "Open Shifts",
+    icon: "📋",
+    url: "statera.ai/app/open-shifts",
+    content: function OpenShiftsScreen() {
+      const shifts = [
+        { unit: "ICU",       role: "RN",  time: "Sat 7a–7p", requests: 2, urgent: true },
+        { unit: "Med-Surg",  role: "LPN", time: "Sun 7p–7a", requests: 1, urgent: false },
+        { unit: "ER",        role: "CNA", time: "Sat 3p–11p", requests: 3, urgent: false },
+        { unit: "ICU",       role: "RN",  time: "Sun 7a–7p", requests: 0, urgent: true },
+        { unit: "Peds",      role: "LPN", time: "Mon 7a–3p", requests: 1, urgent: false },
+      ];
+      return (
+        <Box>
+          <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
+            {[{ l: "Open", v: "8", c: "#f57c00" }, { l: "Pending", v: "6", c: "#f9a825" }, { l: "Filled", v: "12", c: "#4caf50" }].map(s => (
+              <Box key={s.l} sx={{ flex: 1, bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1.5, p: 1, border: "1px solid rgba(255,255,255,0.06)" }}>
+                <Typography sx={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{s.l}</Typography>
+                <Typography sx={{ fontSize: 16, fontWeight: 800, color: s.c }}>{s.v}</Typography>
+              </Box>
+            ))}
+            <Box sx={{ flex: 1, bgcolor: "rgba(0,137,123,0.1)", borderRadius: 1.5, p: 1, border: `1px solid ${TEAL}44`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Typography sx={{ fontSize: 9.5, color: TEAL, fontWeight: 700, textAlign: "center" }}>+ Post Shift</Typography>
+            </Box>
+          </Stack>
+          {shifts.map((s, i) => (
+            <Stack key={i} direction="row" alignItems="center" spacing={1} sx={{ py: 0.75, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              {s.urgent && <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#ef5350", boxShadow: "0 0 5px #ef5350", flexShrink: 0 }} />}
+              {!s.urgent && <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#f57c00", flexShrink: 0 }} />}
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: "#fff" }}>{s.unit} · {s.role}</Typography>
+                <Typography sx={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{s.time}</Typography>
+              </Box>
+              <Box sx={{ px: 1, py: 0.25, borderRadius: 1, bgcolor: s.requests > 0 ? "rgba(76,175,80,0.12)" : "rgba(255,255,255,0.04)", border: s.requests > 0 ? "1px solid rgba(76,175,80,0.3)" : "1px solid rgba(255,255,255,0.08)" }}>
+                <Typography sx={{ fontSize: 8.5, color: s.requests > 0 ? "#4caf50" : "rgba(255,255,255,0.3)", fontWeight: 700 }}>{s.requests} applied</Typography>
+              </Box>
+            </Stack>
+          ))}
+        </Box>
+      );
+    },
+  },
+  {
+    label: "Coverage Analytics",
+    icon: "📊",
+    url: "statera.ai/app/coverage",
+    content: function CoverageScreen() {
+      const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      const rn  = [95, 100, 88, 100, 90, 72, 68];
+      const lpn = [100, 90, 100, 85, 100, 80, 75];
+      const cna = [88, 92, 78, 95, 85, 60, 65];
+      return (
+        <Box>
+          <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
+            {[{ l: "Avg Coverage", v: "87%", c: "#4caf50" }, { l: "Understaffed", v: "3 shifts", c: "#ef5350" }, { l: "Overstaffed", v: "1 shift", c: "#f9a825" }].map(s => (
+              <Box key={s.l} sx={{ flex: 1, bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1.5, p: 1, border: "1px solid rgba(255,255,255,0.06)" }}>
+                <Typography sx={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{s.l}</Typography>
+                <Typography sx={{ fontSize: s.l === "Avg Coverage" ? 15 : 11, fontWeight: 800, color: s.c, lineHeight: 1.2 }}>{s.v}</Typography>
+              </Box>
+            ))}
+          </Stack>
+          <Box sx={{ bgcolor: "rgba(255,255,255,0.025)", borderRadius: 1.5, p: 1.5 }}>
+            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
+              {[{ l: "RN", c: TEAL }, { l: "LPN", c: "#81c784" }, { l: "CNA", c: "#7986cb" }].map(r => (
+                <Stack key={r.l} direction="row" spacing={0.5} alignItems="center" sx={{ mr: 1 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: r.c }} />
+                  <Typography sx={{ fontSize: 8.5, color: "rgba(255,255,255,0.5)" }}>{r.l}</Typography>
+                </Stack>
+              ))}
+            </Stack>
+            {days.map((d, i) => (
+              <Stack key={d} direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
+                <Typography sx={{ width: 24, fontSize: 8, color: "rgba(255,255,255,0.4)", flexShrink: 0 }}>{d}</Typography>
+                <Box sx={{ flex: 1, display: "flex", gap: 0.5 }}>
+                  {[[rn[i], TEAL], [lpn[i], "#81c784"], [cna[i], "#7986cb"]].map(([pct, c], j) => (
+                    <Box key={j} sx={{ flex: 1 }}>
+                      <Box sx={{ height: 12, borderRadius: 0.5, bgcolor: `${c}22`, border: `1px solid ${c}33`, overflow: "hidden" }}>
+                        <Box sx={{ height: "100%", width: `${pct}%`, bgcolor: Number(pct) < 75 ? "#ef535044" : `${c}55`, borderRadius: 0.5 }} />
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+                <Typography sx={{ width: 26, fontSize: 8, color: rn[i] < 75 ? "#ef5350" : "rgba(255,255,255,0.5)", textAlign: "right", flexShrink: 0 }}>{rn[i]}%</Typography>
+              </Stack>
+            ))}
+          </Box>
+        </Box>
+      );
+    },
+  },
+  {
+    label: "Staff Portal",
+    icon: "📱",
+    url: "statera.ai/portal",
+    content: function PortalScreen() {
+      return (
+        <Box>
+          <Box sx={{ mb: 1.5, p: 1.25, bgcolor: "rgba(0,137,123,0.08)", borderRadius: 1.5, border: `1px solid ${TEAL}22` }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Box sx={{ width: 32, height: 32, borderRadius: "50%", bgcolor: `${TEAL}22`, border: `1px solid ${TEAL}44`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Typography sx={{ fontSize: 13 }}>👩</Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>Welcome back, Jessica</Typography>
+                <Typography sx={{ fontSize: 9, color: TEAL }}>RN · ICU · 3 upcoming shifts</Typography>
+              </Box>
+            </Stack>
+          </Box>
+          {[
+            { icon: "📅", label: "My Schedule", desc: "Next shift: Sat 7a–7p ICU", action: "View" },
+            { icon: "🏖️", label: "Time Off Request", desc: "1 request pending approval", action: "Track" },
+            { icon: "⏱️", label: "Time Clock", desc: "Clocked in 4h 22m ago", action: "Punch" },
+            { icon: "📋", label: "Open Shifts", desc: "2 shifts available in ICU", action: "Apply" },
+            { icon: "💬", label: "Messages", desc: "3 unread from scheduler", action: "Open" },
+          ].map((item, i) => (
+            <Stack key={i} direction="row" alignItems="center" spacing={1} sx={{ py: 0.75, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <Typography sx={{ fontSize: 14 }}>{item.icon}</Typography>
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{item.label}</Typography>
+                <Typography sx={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{item.desc}</Typography>
+              </Box>
+              <Box sx={{ px: 1, py: 0.25, borderRadius: 1, bgcolor: "rgba(0,137,123,0.12)", border: `1px solid ${TEAL}33` }}>
+                <Typography sx={{ fontSize: 8.5, color: TEAL, fontWeight: 700 }}>{item.action}</Typography>
+              </Box>
+            </Stack>
+          ))}
+        </Box>
+      );
+    },
+  },
+];
+
+function AppPreviewCarousel() {
+  const [active, setActive] = React.useState(0);
+  const isPaused = React.useRef(false);
+
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      if (!isPaused.current) {
+        setActive(prev => (prev + 1) % APP_SCREENS.length);
+      }
+    }, 3200);
+    return () => clearInterval(id);
+  }, []);
+
+  const screen = APP_SCREENS[active];
+  const ScreenContent = screen.content;
+
+  return (
+    <Box sx={{ py: { xs: 6, md: 10 }, bgcolor: DARK_BG }}>
+      <Container maxWidth="lg">
+        <Box sx={{ textAlign: "center", mb: 5 }}>
+          <Chip
+            label="See It In Action"
+            sx={{ mb: 2, bgcolor: "rgba(0,137,123,0.12)", color: TEAL, border: "1px solid rgba(0,137,123,0.3)", fontWeight: 600, fontSize: 11 }}
+          />
+          <Typography variant="h3" fontWeight={800} sx={{ mb: 1.5, fontSize: { xs: "1.6rem", md: "2.1rem" } }}>
+            Every tool your team needs
+          </Typography>
+          <Typography sx={{ color: "rgba(255,255,255,0.5)", maxWidth: 480, mx: "auto", fontSize: 15 }}>
+            From AI-generated schedules to staff self-service — all in one place.
+          </Typography>
+        </Box>
+
+        {/* Tab pills */}
+        <Box sx={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 1, mb: 4 }}>
+          {APP_SCREENS.map((s, i) => (
+            <Box
+              key={i}
+              onClick={() => { setActive(i); isPaused.current = true; setTimeout(() => { isPaused.current = false; }, 8000); }}
+              sx={{
+                cursor: "pointer", px: 2, py: 0.75, borderRadius: 5,
+                fontSize: 13, fontWeight: 600,
+                transition: "all 0.2s",
+                bgcolor: active === i ? TEAL_DARK : "rgba(255,255,255,0.05)",
+                color: active === i ? "#fff" : "rgba(255,255,255,0.55)",
+                border: active === i ? `1px solid ${TEAL_DARK}` : "1px solid rgba(255,255,255,0.08)",
+                "&:hover": { bgcolor: active === i ? TEAL_DARK : "rgba(255,255,255,0.09)", color: "#fff" },
+              }}
+            >
+              {s.icon} {s.label}
+            </Box>
+          ))}
+        </Box>
+
+        {/* Browser window mockup */}
+        <Box
+          sx={{
+            maxWidth: 760, mx: "auto",
+            borderRadius: 2.5, overflow: "hidden",
+            border: "1px solid rgba(77,182,172,0.2)",
+            boxShadow: "0 32px 100px rgba(0,0,0,0.7), 0 0 60px rgba(0,137,123,0.12)",
+            bgcolor: DARK_CARD,
+          }}
+          onMouseEnter={() => { isPaused.current = true; }}
+          onMouseLeave={() => { isPaused.current = false; }}
+        >
+          {/* Browser chrome */}
+          <Box sx={{ bgcolor: "#1a2f32", px: 1.5, py: 1, display: "flex", alignItems: "center", gap: 0.75, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#ff5f57" }} />
+            <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#ffbd2e" }} />
+            <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#28c840" }} />
+            <Box sx={{ flex: 1, mx: 2, bgcolor: "rgba(255,255,255,0.06)", borderRadius: 1, px: 1.5, py: 0.35, maxWidth: 340, mx: "auto" }}>
+              <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>{screen.url}</Typography>
+            </Box>
+          </Box>
+          {/* Sidebar + content layout */}
+          <Stack direction="row" sx={{ minHeight: 320 }}>
+            {/* Mini sidebar */}
+            <Box sx={{ width: 44, bgcolor: "#0a1618", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", alignItems: "center", pt: 1.5, gap: 1.5 }}>
+              {[CalendarIcon, GroupIcon, ClockIcon, OpenShiftIcon, AnalyticsIcon, PhoneIcon].map((Icon, i) => (
+                <Box key={i} sx={{ width: 30, height: 30, borderRadius: 1.5, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: i === active ? "rgba(0,137,123,0.25)" : "transparent", border: i === active ? `1px solid ${TEAL}44` : "1px solid transparent" }}>
+                  <Icon sx={{ fontSize: 15, color: i === active ? TEAL : "rgba(255,255,255,0.2)" }} />
+                </Box>
+              ))}
+            </Box>
+            {/* Main content */}
+            <Box sx={{ flex: 1, p: 2, overflow: "hidden" }}>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>{screen.icon} {screen.label}</Typography>
+                <Box sx={{ flex: 1 }} />
+                <Box sx={{ px: 1.25, py: 0.4, bgcolor: "rgba(0,137,123,0.12)", borderRadius: 1, border: `1px solid ${TEAL}33` }}>
+                  <Typography sx={{ fontSize: 9.5, color: TEAL, fontWeight: 700 }}>Live</Typography>
+                </Box>
+              </Stack>
+              <ScreenContent />
+            </Box>
+          </Stack>
+          {/* Progress bar */}
+          <Box sx={{ height: 3, bgcolor: "rgba(255,255,255,0.04)" }}>
+            <Box
+              sx={{
+                height: "100%",
+                bgcolor: TEAL,
+                width: `${((active + 1) / APP_SCREENS.length) * 100}%`,
+                transition: "width 0.4s ease",
+              }}
+            />
+          </Box>
+        </Box>
+
+        {/* Dot indicators */}
+        <Stack direction="row" justifyContent="center" spacing={0.75} sx={{ mt: 3 }}>
+          {APP_SCREENS.map((_, i) => (
+            <Box
+              key={i}
+              onClick={() => { setActive(i); isPaused.current = true; setTimeout(() => { isPaused.current = false; }, 8000); }}
+              sx={{
+                width: active === i ? 20 : 6, height: 6, borderRadius: 3,
+                bgcolor: active === i ? TEAL : "rgba(255,255,255,0.2)",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+              }}
+            />
+          ))}
+        </Stack>
+      </Container>
+    </Box>
+  );
+}
+
 // ─── Testimonial Card ──────────────────────────────────────────────────────────
 
 function TestimonialCard({ quote, name, title, avatar }: { quote: string; name: string; title: string; avatar: string }) {
@@ -738,6 +1133,11 @@ export default function Landing() {
           </Grid>
         </Container>
       </Box>
+
+      {/* ══════════════════════════════════════════════════════════════
+          APP PREVIEW CAROUSEL
+      ══════════════════════════════════════════════════════════════ */}
+      <AppPreviewCarousel />
 
       {/* ══════════════════════════════════════════════════════════════
           LOGO / TRUST BAR
