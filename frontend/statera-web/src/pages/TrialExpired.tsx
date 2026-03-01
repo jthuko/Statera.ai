@@ -78,13 +78,13 @@ export default function TrialExpiredPage() {
         >
           <Chip label="Growth Plan" color="primary" size="small" sx={{ mb: 1.5 }} />
           <Typography variant="h4" fontWeight={800}>
-            $99
+            $199
             <Typography component="span" variant="body1" color="text.secondary" fontWeight={400}>
               /month
             </Typography>
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Up to 3 facilities · up to 100 staff · Cancel any time
+            Up to 3 facilities · up to 150 staff · Cancel any time
           </Typography>
 
           <Stack spacing={1} alignItems="flex-start" sx={{ textAlign: "left" }}>

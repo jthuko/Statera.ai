@@ -503,11 +503,11 @@ export default function Landing() {
   const PRICING_PLANS = [
     {
       plan: "Starter",
-      price: "$49",
-      desc: "1 facility · up to 25 staff members.",
+      price: "$79",
+      desc: "1 facility · up to 30 staff members.",
       features: [
         "1 facility included",
-        "Up to 25 staff members",
+        "Up to 30 staff members",
         "AI Scheduler",
         "Assignments & Open Shifts",
         "Time Off management",
@@ -518,11 +518,11 @@ export default function Landing() {
     },
     {
       plan: "Growth",
-      price: "$99",
-      desc: "Up to 3 facilities · up to 100 staff members.",
+      price: "$199",
+      desc: "Up to 3 facilities · up to 150 staff members.",
       features: [
         "Up to 3 facilities",
-        "Up to 100 staff members",
+        "Up to 150 staff members",
         "Full AI Scheduler with bulk accept",
         "Open Shifts Marketplace",
         "Compliance Rules engine",
@@ -533,12 +533,25 @@ export default function Landing() {
       highlight: true,
     },
     {
+      plan: "Scale",
+      price: "$399",
+      desc: "Up to 10 facilities · up to 500 staff members.",
+      features: [
+        "Up to 10 facilities",
+        "Up to 500 staff members",
+        "Everything in Growth",
+        "Multi-facility analytics dashboard",
+        "Custom compliance rule sets",
+        "Dedicated onboarding specialist",
+        "Phone & priority support",
+      ],
+    },
+    {
       plan: "Enterprise",
       price: "Custom",
       desc: "Unlimited facilities & staff — built for health networks.",
       features: [
         "Unlimited facilities & staff",
-        "Custom compliance rule sets",
         "SSO / Active Directory integration",
         "Dedicated account manager",
         "SLA-backed uptime guarantee",
