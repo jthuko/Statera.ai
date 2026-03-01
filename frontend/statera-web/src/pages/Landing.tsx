@@ -16,7 +16,6 @@ import {
   Analytics as AnalyticsIcon,
   CheckCircle as CheckIcon,
   ArrowForward as ArrowIcon,
-  PlayCircleFilled as PlayIcon,
   ExpandMore as ExpandMoreIcon,
   Star as StarIcon,
   TrendingDown as TrendingDownIcon,
@@ -198,47 +197,6 @@ function NavBar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen: boolean
           </Box>
         )}
       </Container>
-    </Box>
-  );
-}
-
-// ─── Video Modal ──────────────────────────────────────────────────────────────
-
-function VideoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  if (!open) return null;
-  return (
-    <Box onClick={onClose} sx={{
-      position: "fixed", inset: 0, zIndex: 1500,
-      bgcolor: "rgba(0,0,0,0.88)", display: "flex", alignItems: "center", justifyContent: "center",
-      backdropFilter: "blur(8px)",
-    }}>
-      <Box onClick={e => e.stopPropagation()} sx={{ width: { xs: "95vw", md: "80vw" }, maxWidth: 900, position: "relative" }}>
-        <IconButton onClick={onClose} sx={{
-          position: "absolute", top: -44, right: 0, color: "rgba(255,255,255,0.7)",
-          "&:hover": { color: "#fff" },
-        }}>
-          <CloseIcon />
-        </IconButton>
-        {/* Browser chrome */}
-        <Box sx={{ borderRadius: "12px 12px 0 0", bgcolor: "#1e2d2f", px: 2, py: 1, display: "flex", alignItems: "center", gap: 0.75 }}>
-          <Box sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: "#ff5f57" }} />
-          <Box sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: "#ffbd2e" }} />
-          <Box sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: "#28c840" }} />
-          <Box sx={{ flex: 1, mx: 2, bgcolor: "rgba(255,255,255,0.07)", borderRadius: 1, px: 1.5, py: 0.25, textAlign: "center" }}>
-            <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>statera.ai/app/scheduler</Typography>
-          </Box>
-        </Box>
-        {/* Embed */}
-        <Box sx={{ position: "relative", paddingTop: "56.25%", bgcolor: "#070d0e", borderRadius: "0 0 12px 12px", overflow: "hidden" }}>
-          <iframe
-            src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=0"
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
-            allow="autoplay; encrypted-media"
-            allowFullScreen
-            title="Statera AI Demo"
-          />
-        </Box>
-      </Box>
     </Box>
   );
 }
@@ -807,7 +765,6 @@ export default function Landing() {
   const isLoggedIn = !!(user || hasToken);
   const dashboardPath = (user?.systemRole ?? "") === "Staff" ? "/portal" : "/app";
   const isMobile = useMediaQuery("(max-width: 900px)");
-  const [videoOpen, setVideoOpen] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [faqOpen, setFaqOpen] = React.useState<string | false>(false);
   const [featureTab, setFeatureTab] = React.useState(0);
@@ -1001,7 +958,6 @@ export default function Landing() {
   return (
     <Box sx={{ bgcolor: DARK_BG, minHeight: "100vh", color: "#fff", overflowX: "hidden" }}>
       <NavBar mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
-      <VideoModal open={videoOpen} onClose={() => setVideoOpen(false)} />
 
       {/* ══════════════════════════════════════════════════════════════
           HERO
@@ -1071,18 +1027,6 @@ export default function Landing() {
                   }}
                 >
                   Start Free Trial
-                </Button>
-                <Button
-                  size="large" startIcon={<PlayIcon />}
-                  onClick={() => setVideoOpen(true)}
-                  sx={{
-                    color: "rgba(255,255,255,0.85)", borderColor: "rgba(255,255,255,0.2)",
-                    border: "1px solid", px: 3.5, py: 1.75, fontSize: 15, fontWeight: 600,
-                    borderRadius: 2, textTransform: "none",
-                    "&:hover": { borderColor: TEAL, color: TEAL, bgcolor: "rgba(0,137,123,0.06)" },
-                  }}
-                >
-                  Watch Demo
                 </Button>
               </Stack>
 
@@ -1296,64 +1240,6 @@ export default function Landing() {
               </Grid>
             </Grid>
           ))}
-        </Container>
-      </Box>
-
-      {/* ══════════════════════════════════════════════════════════════
-          VIDEO SECTION
-      ══════════════════════════════════════════════════════════════ */}
-      <Box sx={{
-        py: { xs: 8, md: 12 },
-        background: "linear-gradient(160deg, rgba(0,30,40,1) 0%, rgba(0,50,60,0.6) 50%, rgba(0,30,40,1) 100%)",
-        position: "relative", overflow: "hidden",
-      }}>
-        <Box sx={{ position: "absolute", inset: 0, backgroundImage: `url(${FEATURE_IMG_2})`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.05 }} />
-        <Container maxWidth="md" sx={{ position: "relative", textAlign: "center" }}>
-          <Chip label="Product Demo" sx={{ mb: 3, bgcolor: "rgba(0,137,123,0.12)", color: TEAL, border: "1px solid rgba(0,137,123,0.3)", fontWeight: 600, fontSize: 11 }} />
-          <Typography variant="h3" fontWeight={800} sx={{ mb: 2, fontSize: { xs: "1.75rem", md: "2.25rem" } }}>
-            See Statera AI in action
-          </Typography>
-          <Typography sx={{ color: "rgba(255,255,255,0.55)", mb: 5, fontSize: 16 }}>
-            Watch how a scheduling manager builds an entire week's schedule in under 5 minutes using the AI Scheduler.
-          </Typography>
-
-          {/* Video thumbnail */}
-          <Box
-            onClick={() => setVideoOpen(true)}
-            sx={{
-              position: "relative", borderRadius: 3, overflow: "hidden", cursor: "pointer",
-              border: "1px solid rgba(77,182,172,0.25)",
-              boxShadow: "0 24px 80px rgba(0,0,0,0.6), 0 0 40px rgba(0,137,123,0.2)",
-              "&:hover .play-overlay": { bgcolor: "rgba(0,0,0,0.5)" },
-              "&:hover .play-btn": { transform: "scale(1.1)", color: TEAL },
-            }}
-          >
-            {/* Browser chrome */}
-            <Box sx={{ bgcolor: "#1a2f32", px: 1.5, py: 1, display: "flex", alignItems: "center", gap: 0.75 }}>
-              <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#ff5f57" }} />
-              <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#ffbd2e" }} />
-              <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#28c840" }} />
-              <Box sx={{ flex: 1, mx: 2, bgcolor: "rgba(255,255,255,0.06)", borderRadius: 1, px: 1, py: 0.25, textAlign: "center" }}>
-                <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>statera.ai — AI Scheduler Demo</Typography>
-              </Box>
-            </Box>
-            {/* Thumbnail */}
-            <Box
-              component="img"
-              src={FEATURE_IMG_1}
-              alt="Statera AI Demo"
-              sx={{ width: "100%", display: "block", objectFit: "cover", maxHeight: 420, filter: "brightness(0.6)" }}
-            />
-            {/* Play overlay */}
-            <Box className="play-overlay" sx={{
-              position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center",
-              bgcolor: "rgba(0,0,0,0.35)", transition: "0.2s",
-            }}>
-              <PlayIcon className="play-btn" sx={{ fontSize: 72, color: "#fff", transition: "0.2s", mb: 1.5, filter: "drop-shadow(0 0 16px rgba(0,137,123,0.8))" }} />
-              <Typography fontWeight={700} sx={{ color: "#fff", fontSize: 15 }}>Watch 3-minute demo</Typography>
-            </Box>
-          </Box>
         </Container>
       </Box>
 
@@ -1639,17 +1525,6 @@ export default function Landing() {
               }}
             >
               Start Free Trial
-            </Button>
-            <Button
-              onClick={() => setVideoOpen(true)} size="large" startIcon={<PlayIcon />}
-              sx={{
-                color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.2)",
-                px: 4, py: 2, fontSize: 16, fontWeight: 600,
-                borderRadius: 2, textTransform: "none",
-                "&:hover": { borderColor: TEAL, color: TEAL, bgcolor: "rgba(0,137,123,0.06)" },
-              }}
-            >
-              Watch Demo First
             </Button>
           </Stack>
           <Typography sx={{ mt: 3, color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
