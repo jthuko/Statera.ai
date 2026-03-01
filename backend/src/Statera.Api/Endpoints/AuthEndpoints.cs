@@ -239,7 +239,7 @@ public static class AuthEndpoints
                 UserName       = req.Email.Trim(),
                 Email          = req.Email.Trim(),
                 EmailConfirmed = true,
-                SystemRole     = "Owner"
+                SystemRole     = "FacilityAdmin"
             };
             var createResult = await um.CreateAsync(user, req.Password);
             if (!createResult.Succeeded)

@@ -76,7 +76,7 @@ export default function TrialExpiredPage() {
             background: "rgba(59,130,246,0.05)",
           }}
         >
-          <Chip label="Most Popular" color="primary" size="small" sx={{ mb: 1.5 }} />
+          <Chip label="Growth Plan" color="primary" size="small" sx={{ mb: 1.5 }} />
           <Typography variant="h4" fontWeight={800}>
             $99
             <Typography component="span" variant="body1" color="text.secondary" fontWeight={400}>
@@ -84,7 +84,7 @@ export default function TrialExpiredPage() {
             </Typography>
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Per facility · Cancel any time
+            Up to 3 facilities · up to 100 staff · Cancel any time
           </Typography>
 
           <Stack spacing={1} alignItems="flex-start" sx={{ textAlign: "left" }}>

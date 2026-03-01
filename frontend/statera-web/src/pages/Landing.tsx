@@ -380,7 +380,7 @@ function PricingCard({ plan, price, desc, features, highlight }: {
         <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: 13, mb: 2.5 }}>{desc}</Typography>
         <Stack direction="row" alignItems="flex-end" spacing={0.5} sx={{ mb: 2.5 }}>
           <Typography variant="h3" fontWeight={900} sx={{ color: "#fff", lineHeight: 1 }}>{price}</Typography>
-          {price !== "Custom" && <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: 13, mb: 0.75 }}>/mo per facility</Typography>}
+          {price !== "Custom" && <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: 13, mb: 0.75 }}>/month</Typography>}
         </Stack>
         <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", mb: 2.5 }} />
         <Stack spacing={1.25}>
@@ -503,11 +503,12 @@ export default function Landing() {
   const PRICING_PLANS = [
     {
       plan: "Starter",
-      price: "$149",
-      desc: "Perfect for single-facility clinics and small practices.",
+      price: "$49",
+      desc: "1 facility · up to 25 staff members.",
       features: [
-        "Up to 50 staff members",
-        "AI Scheduler (single facility)",
+        "1 facility included",
+        "Up to 25 staff members",
+        "AI Scheduler",
         "Assignments & Open Shifts",
         "Time Off management",
         "Time Clock + CSV export",
@@ -516,12 +517,12 @@ export default function Landing() {
       ],
     },
     {
-      plan: "Professional",
-      price: "$299",
-      desc: "For growing facilities that need full automation.",
+      plan: "Growth",
+      price: "$99",
+      desc: "Up to 3 facilities · up to 100 staff members.",
       features: [
-        "Up to 200 staff members",
-        "Unlimited facilities",
+        "Up to 3 facilities",
+        "Up to 100 staff members",
         "Full AI Scheduler with bulk accept",
         "Open Shifts Marketplace",
         "Compliance Rules engine",
@@ -534,9 +535,9 @@ export default function Landing() {
     {
       plan: "Enterprise",
       price: "Custom",
-      desc: "Multi-site healthcare networks with advanced needs.",
+      desc: "Unlimited facilities & staff — built for health networks.",
       features: [
-        "Unlimited staff & facilities",
+        "Unlimited facilities & staff",
         "Custom compliance rule sets",
         "SSO / Active Directory integration",
         "Dedicated account manager",
@@ -679,7 +680,7 @@ export default function Landing() {
 
               {/* Trust indicators */}
               <Stack direction="row" spacing={3} flexWrap="wrap" gap={1.5}>
-                {["No credit card required", "14-day free trial", "Cancel anytime"].map(t => (
+                {["No credit card required", "7-day free trial", "Cancel anytime"].map(t => (
                   <Stack key={t} direction="row" spacing={0.75} alignItems="center">
                     <CheckIcon sx={{ fontSize: 15, color: TEAL }} />
                     <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>{t}</Typography>
