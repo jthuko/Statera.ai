@@ -57,6 +57,10 @@ function scrollTo(id: string) {
 
 function NavBar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen: boolean; setMobileMenuOpen: (v: boolean) => void }) {
   const [scrolled, setScrolled] = React.useState(false);
+  const { user } = useAuth();
+  const hasToken = !!localStorage.getItem("statera:accessToken");
+  const isLoggedIn = !!(user || hasToken);
+  const dashboardPath = (user?.systemRole ?? "") === "Staff" ? "/portal" : "/app";
   React.useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", fn);
