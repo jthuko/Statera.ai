@@ -140,7 +140,7 @@ function NavBar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen: boolean
                 }}>
                   Sign In
                 </Button>
-                <Button component={RouterLink} to="/login" variant="contained" sx={{
+                <Button component={RouterLink} to="/signup" variant="contained" sx={{
                   bgcolor: TEAL_DARK, color: "#fff", fontWeight: 700, fontSize: 13,
                   textTransform: "none", px: 2.5, py: 0.9, borderRadius: 1.5,
                   display: { xs: "none", sm: "flex" },
@@ -186,7 +186,7 @@ function NavBar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen: boolean
                   }}>
                     Sign In
                   </Button>
-                  <Button component={RouterLink} to="/login" fullWidth variant="contained" onClick={() => setMobileMenuOpen(false)} sx={{
+                  <Button component={RouterLink} to="/signup" fullWidth variant="contained" onClick={() => setMobileMenuOpen(false)} sx={{
                     bgcolor: TEAL_DARK, color: "#fff", fontWeight: 700, textTransform: "none", borderRadius: 1.5, py: 1.25,
                     "&:hover": { bgcolor: "#00796b" },
                   }}>
@@ -391,7 +391,7 @@ function PricingCard({ plan, price, desc, features, highlight }: {
             </Stack>
           ))}
         </Stack>
-        <Button component={RouterLink} to="/login" fullWidth variant={highlight ? "contained" : "outlined"} sx={{
+        <Button component={RouterLink} to="/signup" fullWidth variant={highlight ? "contained" : "outlined"} sx={{
           mt: 3, py: 1.25, fontWeight: 700, textTransform: "none", borderRadius: 2,
           ...(highlight
             ? { bgcolor: TEAL_DARK, color: "#fff", "&:hover": { bgcolor: "#00796b" } }
@@ -652,7 +652,7 @@ export default function Landing() {
               {/* CTA buttons */}
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 4 }}>
                 <Button
-                  component={RouterLink} to="/login" variant="contained" size="large"
+                  component={RouterLink} to="/signup" variant="contained" size="large"
                   endIcon={<ArrowIcon />}
                   sx={{
                     bgcolor: TEAL_DARK, color: "#fff", px: 4, py: 1.75, fontSize: 15, fontWeight: 700,
@@ -857,7 +857,7 @@ export default function Landing() {
                     </Stack>
                   ))}
                 </Stack>
-                <Button component={RouterLink} to="/login" variant="contained" sx={{
+                <Button component={RouterLink} to="/signup" variant="contained" sx={{
                   mt: 4, bgcolor: TEAL_DARK, color: "#fff", px: 3.5, py: 1.25, fontWeight: 700,
                   textTransform: "none", borderRadius: 2,
                   "&:hover": { bgcolor: "#00796b" },
@@ -1215,7 +1215,7 @@ export default function Landing() {
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="center">
             <Button
-              component={RouterLink} to="/login" variant="contained" size="large"
+              component={RouterLink} to="/signup" variant="contained" size="large"
               endIcon={<ArrowIcon />}
               sx={{
                 bgcolor: TEAL_DARK, color: "#fff", px: 5, py: 2, fontSize: 16, fontWeight: 700,
@@ -1224,7 +1224,7 @@ export default function Landing() {
                 "&:hover": { bgcolor: "#00796b", boxShadow: "0 0 48px rgba(0,137,123,0.8)" },
               }}
             >
-              Start Free 14-Day Trial
+              Start Free Trial
             </Button>
             <Button
               onClick={() => setVideoOpen(true)} size="large" startIcon={<PlayIcon />}

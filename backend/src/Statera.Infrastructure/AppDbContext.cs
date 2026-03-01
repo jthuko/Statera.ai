@@ -90,6 +90,12 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
             entity.Property(u => u.SystemRole).HasMaxLength(20).HasDefaultValue("FacilityAdmin");
         });
 
+        // Facility – PlanStatus stored as string
+        b.Entity<Facility>(entity =>
+        {
+            entity.Property(f => f.PlanStatus).HasConversion<string>().HasMaxLength(20).HasDefaultValue("Trial");
+        });
+
         // UserFacilityRole – maps a user to a facility with a role
         b.Entity<UserFacilityRole>(entity =>
         {

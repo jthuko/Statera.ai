@@ -1,7 +1,7 @@
 // src/components/AppShell.tsx
 import { useState } from "react";
 import {
-  AppBar, Avatar, Box, CssBaseline, Divider, Drawer, IconButton,
+  Alert, AppBar, Avatar, Box, Button, CssBaseline, Divider, Drawer, IconButton,
   InputBase, List, ListItemButton, ListItemIcon, ListItemText,
   Toolbar, Tooltip, Typography, useMediaQuery,
 } from "@mui/material";
@@ -80,7 +80,7 @@ function DrawerNavItem({ to, label, icon, onNavigate }: NavItem & { onNavigate?:
 export default function AppShell() {
   const [q, setQ] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { logout, user } = useAuth();
+  const { logout, user, trialDaysLeft } = useAuth();
   const { mode, toggleMode } = useColorMode();
   const isDark = mode === "dark";
   const isOwner = user?.systemRole === "Owner";
@@ -323,6 +323,28 @@ export default function AppShell() {
         sx={{ flexGrow: 1, p: { xs: 2, md: 3 }, maxWidth: 1400, mx: "auto", width: "100%" }}
       >
         <Toolbar />
+        {/* Trial countdown banner */}
+        {user?.planStatus === "Trial" && trialDaysLeft() !== null && (
+          <Alert
+            severity={trialDaysLeft()! <= 2 ? "warning" : "info"}
+            action={
+              <Button
+                size="small"
+                color="inherit"
+                href="mailto:hello@statera.ai?subject=Upgrade%20to%20Paid%20Plan"
+                sx={{ fontWeight: 700, whiteSpace: "nowrap" }}
+              >
+                Upgrade now
+              </Button>
+            }
+            sx={{ mb: 2, borderRadius: 2 }}
+          >
+            {trialDaysLeft()! === 0
+              ? "Your free trial expires today."
+              : `Free trial: ${trialDaysLeft()} day${trialDaysLeft()! === 1 ? "" : "s"} remaining.`}{" "}
+            Upgrade to keep full access.
+          </Alert>
+        )}
         <Outlet />
       </Box>
     </Box>

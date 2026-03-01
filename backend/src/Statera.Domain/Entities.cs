@@ -147,6 +147,8 @@ public class TimeOffRequest
     public string? Reason { get; set; }
 }
 
+public enum PlanStatus { Trial, Active, Expired, Cancelled }
+
 public class Facility
 {
     public Guid Id { get; set; }
@@ -156,6 +158,11 @@ public class Facility
     public string City { get; set; } = default!;
     public string State { get; set; } = default!; // e.g., "TX"
     public string Zip { get; set; } = default!;
+
+    // ── Subscription / trial ──────────────────────────────────────────────
+    public PlanStatus PlanStatus { get; set; } = PlanStatus.Trial;
+    public DateTime? TrialStartUtc { get; set; }
+    public DateTime? TrialEndsUtc { get; set; }
 
     public ICollection<Unit> Units { get; set; } = new List<Unit>();
 }
@@ -409,3 +416,4 @@ public class OpenShiftRequest
     public string? Notes { get; set; }
 }
 
+// placeholder - will edit below

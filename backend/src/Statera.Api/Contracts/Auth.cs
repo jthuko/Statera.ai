@@ -8,6 +8,18 @@ public record RegisterUserRequest(string Email, string Password, string FirstNam
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 public record ImpersonateRequest(Guid StaffId);
 
+// Self-service facility signup (free 7-day trial)
+public record SignupRequest(
+    string FacilityName,
+    string FacilityAddress,
+    string FacilityCity,
+    string FacilityState,
+    string FacilityZip,
+    string FirstName,
+    string LastName,
+    string Email,
+    string Password
+);
 
 public record AuthResponse(string AccessToken, string RefreshToken, string TokenType = "Bearer", int ExpiresIn = 3600);
 

@@ -11,11 +11,16 @@ interface RequireAuthProps {
 }
 
 export default function RequireAuth({ children, requiredRole, staffOnly }: RequireAuthProps) {
-  const { user } = useAuth();
+  const { user, isTrialExpired } = useAuth();
   const isAuthed = !!user || !!localStorage.getItem("statera:accessToken");
   const location = useLocation();
 
   if (!isAuthed) return <Navigate to="/login" replace state={{ from: location }} />;
+
+  // Block access (except staff portal) when trial has expired
+  if (user && isTrialExpired() && !staffOnly && location.pathname !== "/trial-expired") {
+    return <Navigate to="/trial-expired" replace />;
+  }
 
   if (user) {
     // Staff users cannot access admin routes

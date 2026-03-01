@@ -5,6 +5,8 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
+import SignupPage from "./pages/Signup";
+import TrialExpiredPage from "./pages/TrialExpired";
 import Dashboard from "./pages/Dashboard";
 import Scheduler from "./pages/Scheduler";
 import Staff from "./pages/Staff";
@@ -42,6 +44,8 @@ export default function App() {
       {/* ── Public ── */}
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/trial-expired" element={<TrialExpiredPage />} />
 
       {/* ── Staff Portal (staffOnly) ── */}
       <Route

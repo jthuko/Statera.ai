@@ -331,6 +331,18 @@ namespace Statera.Api.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("PlanStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasDefaultValue("Trial")
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("TrialStartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("TrialEndsUtc")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.ToTable("Facilities");

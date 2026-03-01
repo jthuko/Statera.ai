@@ -65,7 +65,7 @@ public static class AuthEndpoints
         });
 
         // Returns the current user's identity decoded from the Bearer token
-        g.MapGet("/me", (HttpContext ctx) =>
+        g.MapGet("/me", async (HttpContext ctx, [FromServices] AppDbContext db, CancellationToken ct) =>
         {
             var userId    = ctx.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
             var email     = ctx.User.FindFirstValue(JwtRegisteredClaimNames.Email);
@@ -77,13 +77,31 @@ public static class AuthEndpoints
 
             if (userId is null) return Results.Unauthorized();
 
+            // Attach trial info from the user's primary facility (first one)
+            string? planStatus = null;
+            DateTime? trialEndsUtc = null;
+            if (fidClaims.Count > 0 && Guid.TryParse(fidClaims[0], out var primaryFacilityId))
+            {
+                var facility = await db.Facilities.AsNoTracking()
+                    .Where(f => f.Id == primaryFacilityId)
+                    .Select(f => new { f.PlanStatus, f.TrialEndsUtc })
+                    .FirstOrDefaultAsync(ct);
+                if (facility != null)
+                {
+                    planStatus    = facility.PlanStatus.ToString();
+                    trialEndsUtc  = facility.TrialEndsUtc;
+                }
+            }
+
             return Results.Ok(new
             {
-                Id          = userId,
-                Email       = email ?? "",
-                SystemRole  = sysRole,
-                FacilityIds = fidClaims,
-                StaffId     = staffIdStr
+                Id           = userId,
+                Email        = email ?? "",
+                SystemRole   = sysRole,
+                FacilityIds  = fidClaims,
+                StaffId      = staffIdStr,
+                PlanStatus   = planStatus,
+                TrialEndsUtc = trialEndsUtc
             });
         })
         .RequireAuthorization();
@@ -178,6 +196,71 @@ public static class AuthEndpoints
                 return Results.BadRequest(new { error = "All fields are required" });
             }
             return Results.Ok(new { registered = true, email = req.Email });
+        });
+
+        // POST /api/v1/auth/signup — self-service facility signup (7-day free trial)
+        g.MapPost("/signup", async (
+            [FromBody] SignupRequest req,
+            [FromServices] UserManager<AppUser> um,
+            [FromServices] AppDbContext db,
+            [FromServices] IJwtService jwt,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.Email) ||
+                string.IsNullOrWhiteSpace(req.Password) ||
+                string.IsNullOrWhiteSpace(req.FirstName) ||
+                string.IsNullOrWhiteSpace(req.LastName) ||
+                string.IsNullOrWhiteSpace(req.FacilityName) ||
+                string.IsNullOrWhiteSpace(req.FacilityState))
+            {
+                return Results.BadRequest(new { error = "All required fields must be provided" });
+            }
+
+            if (await um.FindByEmailAsync(req.Email) != null)
+                return Results.Conflict(new { error = "An account with this email already exists" });
+
+            var now = DateTime.UtcNow;
+            var facility = new Statera.Domain.Facility
+            {
+                Id            = Guid.NewGuid(),
+                Name          = req.FacilityName.Trim(),
+                Address       = (req.FacilityAddress ?? "").Trim(),
+                City          = (req.FacilityCity ?? "").Trim(),
+                State         = req.FacilityState.Trim().ToUpper(),
+                Zip           = (req.FacilityZip ?? "").Trim(),
+                PlanStatus    = Statera.Domain.PlanStatus.Trial,
+                TrialStartUtc = now,
+                TrialEndsUtc  = now.AddDays(7)
+            };
+            db.Facilities.Add(facility);
+
+            var user = new AppUser
+            {
+                UserName       = req.Email.Trim(),
+                Email          = req.Email.Trim(),
+                EmailConfirmed = true,
+                SystemRole     = "Owner"
+            };
+            var createResult = await um.CreateAsync(user, req.Password);
+            if (!createResult.Succeeded)
+            {
+                var errs = string.Join(", ", createResult.Errors.Select(e => e.Description));
+                return Results.BadRequest(new { error = errs });
+            }
+
+            db.UserFacilityRoles.Add(new UserFacilityRole
+            {
+                Id           = Guid.NewGuid(),
+                UserId       = user.Id,
+                FacilityId   = facility.Id,
+                FacilityRole = "Owner",
+                AssignedUtc  = now
+            });
+
+            await db.SaveChangesAsync(ct);
+
+            var tokens = await jwt.CreateAsync(user, new List<Guid> { facility.Id }, ct, null);
+            return Results.Ok(new AuthResponse(tokens.AccessToken, tokens.RefreshToken));
         });
 
         // GET /api/v1/auth/users  — list all AppUsers for chat DM picker

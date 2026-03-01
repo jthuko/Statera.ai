@@ -2,6 +2,7 @@ import React, { createContext, useEffect, useState } from "react";
 import api from "../api/axios";
 
 export type SystemRole = "Owner" | "FacilityAdmin" | "Staff";
+export type PlanStatus = "Trial" | "Active" | "Expired" | "Cancelled";
 
 export interface User {
   id: string;
@@ -9,17 +10,34 @@ export interface User {
   systemRole: SystemRole;
   facilityIds: string[];
   staffId?: string | null; // set for Staff-role users
+  planStatus?: PlanStatus | null;
+  trialEndsUtc?: string | null;
+}
+
+export interface SignupData {
+  facilityName: string;
+  facilityAddress?: string;
+  facilityCity?: string;
+  facilityState: string;
+  facilityZip?: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
 }
 
 interface AuthContextValue {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
+  signup: (data: SignupData) => Promise<void>;
   logout: () => void;
   impersonate: (staffId: string) => Promise<void>;
   stopImpersonation: () => Promise<void>;
   isImpersonating: boolean;
   isAuthorized: (roles?: SystemRole[]) => boolean;
   hasFacilityAccess: (facilityId: string) => boolean;
+  isTrialExpired: () => boolean;
+  trialDaysLeft: () => number | null;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -58,15 +76,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         systemRole: string;
         facilityIds: string[];
         staffId?: string | null;
+        planStatus?: string | null;
+        trialEndsUtc?: string | null;
       }>("/auth/me");
 
-      const { id, email: userEmail, systemRole, facilityIds, staffId } = meRes.data;
+      const { id, email: userEmail, systemRole, facilityIds, staffId, planStatus, trialEndsUtc } = meRes.data;
       const parsed: User = {
         id,
         email: userEmail,
         systemRole: (systemRole as SystemRole) ?? "FacilityAdmin",
         facilityIds: facilityIds ?? [],
         staffId: staffId ?? null,
+        planStatus: (planStatus as PlanStatus) ?? null,
+        trialEndsUtc: trialEndsUtc ?? null,
       };
 
       setUserPersist(parsed);
@@ -82,6 +104,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserPersist(fallback);
       return fallback;
     }
+  }
+
+  async function signup(data: SignupData) {
+    const res = await api.post("/auth/signup", {
+      facilityName:    data.facilityName,
+      facilityAddress: data.facilityAddress ?? "",
+      facilityCity:    data.facilityCity ?? "",
+      facilityState:   data.facilityState,
+      facilityZip:     data.facilityZip ?? "",
+      firstName:       data.firstName,
+      lastName:        data.lastName,
+      email:           data.email,
+      password:        data.password,
+    });
+    const { accessToken, refreshToken } = res.data ?? {};
+    if (typeof accessToken !== "string" || !accessToken) {
+      throw new Error("No access token received");
+    }
+    localStorage.setItem("statera:accessToken", accessToken);
+    if (typeof refreshToken === "string" && refreshToken) {
+      localStorage.setItem("statera:refreshToken", refreshToken);
+    }
+    await loadMeAndSet(data.email);
   }
 
   async function login(email: string, password: string) {
@@ -194,8 +239,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return user.facilityIds.includes(facilityId);
   }
 
+  function isTrialExpired(): boolean {
+    if (!user) return false;
+    if (user.planStatus === "Active") return false;
+    if (user.planStatus === "Expired" || user.planStatus === "Cancelled") return true;
+    if (user.planStatus === "Trial" && user.trialEndsUtc) {
+      return new Date(user.trialEndsUtc) < new Date();
+    }
+    return false;
+  }
+
+  function trialDaysLeft(): number | null {
+    if (!user?.trialEndsUtc || user.planStatus !== "Trial") return null;
+    const diff = new Date(user.trialEndsUtc).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, impersonate, stopImpersonation, isImpersonating, isAuthorized, hasFacilityAccess }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, impersonate, stopImpersonation, isImpersonating, isAuthorized, hasFacilityAccess, isTrialExpired, trialDaysLeft }}>
       {children}
     </AuthContext.Provider>
   );
