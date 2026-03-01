@@ -19,6 +19,9 @@ jobs:
         working-directory: frontend/statera-web
 
     steps:
+      - name: Sync clock
+        run: sudo timedatectl set-ntp true || true
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
