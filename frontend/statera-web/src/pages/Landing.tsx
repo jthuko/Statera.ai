@@ -87,7 +87,7 @@ function NavBar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen: boolean
       boxShadow: scrolled ? "0 4px 24px rgba(0,0,0,0.4)" : "none",
     }}>
       <Container maxWidth="xl">
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 1.5, px: { xs: 0, md: 1 } }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ py: { xs: 1, md: 1.5 }, px: { xs: 0, md: 1 } }}>
 
           {/* Logo */}
           <Stack direction="row" alignItems="center" spacing={1.5} sx={{ cursor: "pointer" }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
@@ -120,11 +120,12 @@ function NavBar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen: boolean
           </Stack>
 
           {/* CTA buttons */}
-          <Stack direction="row" spacing={1.5} alignItems="center">
+          <Stack direction="row" spacing={1} alignItems="center">
             {isLoggedIn ? (
               <Button component={RouterLink} to={dashboardPath} variant="contained" sx={{
                 bgcolor: TEAL_DARK, color: "#fff", fontWeight: 700, fontSize: 13,
                 textTransform: "none", px: 2.5, py: 0.9, borderRadius: 1.5,
+                display: { xs: "none", sm: "flex" },
                 boxShadow: "0 0 16px rgba(0,137,123,0.4)",
                 "&:hover": { bgcolor: "#00796b", boxShadow: "0 0 24px rgba(0,137,123,0.6)" },
               }}>
@@ -142,6 +143,7 @@ function NavBar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen: boolean
                 <Button component={RouterLink} to="/login" variant="contained" sx={{
                   bgcolor: TEAL_DARK, color: "#fff", fontWeight: 700, fontSize: 13,
                   textTransform: "none", px: 2.5, py: 0.9, borderRadius: 1.5,
+                  display: { xs: "none", sm: "flex" },
                   boxShadow: "0 0 16px rgba(0,137,123,0.4)",
                   "&:hover": { bgcolor: "#00796b", boxShadow: "0 0 24px rgba(0,137,123,0.6)" },
                 }}>
@@ -158,7 +160,7 @@ function NavBar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen: boolean
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <Box sx={{ pb: 2, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <Box sx={{ pb: 2.5, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             {navLinks.map(n => (
               <Button key={n.id} fullWidth onClick={() => { scrollTo(n.id); setMobileMenuOpen(false); }} sx={{
                 color: "rgba(255,255,255,0.8)", fontSize: 15, fontWeight: 500,
@@ -167,6 +169,32 @@ function NavBar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen: boolean
                 {n.label}
               </Button>
             ))}
+            <Box sx={{ px: 2, pt: 1.5, borderTop: "1px solid rgba(255,255,255,0.05)", mt: 1 }}>
+              {isLoggedIn ? (
+                <Button component={RouterLink} to={dashboardPath} fullWidth variant="contained" onClick={() => setMobileMenuOpen(false)} sx={{
+                  bgcolor: TEAL_DARK, color: "#fff", fontWeight: 700, textTransform: "none", borderRadius: 1.5, py: 1.25,
+                  "&:hover": { bgcolor: "#00796b" },
+                }}>
+                  Go to Dashboard
+                </Button>
+              ) : (
+                <Stack direction="row" spacing={1.5}>
+                  <Button component={RouterLink} to="/login" fullWidth variant="outlined" onClick={() => setMobileMenuOpen(false)} sx={{
+                    borderColor: "rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.85)", fontWeight: 600,
+                    textTransform: "none", borderRadius: 1.5, py: 1.25,
+                    "&:hover": { borderColor: TEAL, color: TEAL },
+                  }}>
+                    Sign In
+                  </Button>
+                  <Button component={RouterLink} to="/login" fullWidth variant="contained" onClick={() => setMobileMenuOpen(false)} sx={{
+                    bgcolor: TEAL_DARK, color: "#fff", fontWeight: 700, textTransform: "none", borderRadius: 1.5, py: 1.25,
+                    "&:hover": { bgcolor: "#00796b" },
+                  }}>
+                    Get Started
+                  </Button>
+                </Stack>
+              )}
+            </Box>
           </Box>
         )}
       </Container>
@@ -237,14 +265,14 @@ function DashboardMock() {
       {/* Content */}
       <Box sx={{ p: 1.5 }}>
         {/* Stats row */}
-        <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+        <Stack direction="row" flexWrap="wrap" sx={{ mb: 1, gap: 1 }}>
           {[
             { label: "On Duty", value: "18", color: TEAL },
             { label: "Open Shifts", value: "4", color: "#f57c00" },
             { label: "Time Off", value: "2", color: "#7c4dff" },
             { label: "Coverage", value: "94%", color: "#2e7d32" },
           ].map(s => (
-            <Box key={s.label} sx={{ flex: 1, bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1.5, p: 1, border: "1px solid rgba(255,255,255,0.06)" }}>
+            <Box key={s.label} sx={{ flex: "1 1 40%", minWidth: 0, bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1.5, p: 1, border: "1px solid rgba(255,255,255,0.06)" }}>
               <Typography sx={{ fontSize: 9, color: "rgba(255,255,255,0.45)", mb: 0.25 }}>{s.label}</Typography>
               <Typography sx={{ fontSize: 15, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</Typography>
             </Box>
@@ -562,7 +590,7 @@ export default function Landing() {
   ];
 
   return (
-    <Box sx={{ bgcolor: DARK_BG, minHeight: "100vh", color: "#fff" }}>
+    <Box sx={{ bgcolor: DARK_BG, minHeight: "100vh", color: "#fff", overflowX: "hidden" }}>
       <NavBar mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
       <VideoModal open={videoOpen} onClose={() => setVideoOpen(false)} />
 
@@ -586,12 +614,16 @@ export default function Landing() {
         <Box sx={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 120, background: `linear-gradient(to bottom, transparent, ${DARK_BG})`, zIndex: 1 }} />
 
         <Container maxWidth="xl" sx={{ position: "relative", zIndex: 2 }}>
-          <Grid container spacing={6} alignItems="center">
+          <Grid container spacing={{ xs: 3, md: 6 }} alignItems="center">
             <Grid item xs={12} md={6}>
               <Chip
                 label="AI-Powered Healthcare Workforce Management"
                 icon={<AIIcon sx={{ fontSize: "13px !important", color: `${TEAL} !important` }} />}
-                sx={{ mb: 3, bgcolor: "rgba(0,137,123,0.12)", color: TEAL, border: "1px solid rgba(0,137,123,0.35)", fontWeight: 600, fontSize: 11 }}
+                sx={{
+                  mb: 3, bgcolor: "rgba(0,137,123,0.12)", color: TEAL,
+                  border: "1px solid rgba(0,137,123,0.35)", fontWeight: 600, fontSize: 11,
+                  height: "auto", "& .MuiChip-label": { whiteSpace: "normal", lineHeight: 1.5, py: 0.75 },
+                }}
               />
               <Typography
                 variant="h1"
@@ -664,6 +696,7 @@ export default function Landing() {
                 <DashboardMock />
                 {/* Floating badges */}
                 <Box sx={{
+                  display: { xs: "none", md: "block" },
                   position: "absolute", bottom: -18, left: -18,
                   bgcolor: DARK_CARD2, border: "1px solid rgba(77,182,172,0.25)", borderRadius: 2,
                   px: 2, py: 1.25,
@@ -675,6 +708,7 @@ export default function Landing() {
                   </Stack>
                 </Box>
                 <Box sx={{
+                  display: { xs: "none", md: "block" },
                   position: "absolute", top: -18, right: -18,
                   bgcolor: DARK_CARD2, border: "1px solid rgba(0,137,123,0.25)", borderRadius: 2,
                   px: 2, py: 1.25,
@@ -699,7 +733,7 @@ export default function Landing() {
           <Typography sx={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.3)", fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", mb: 3 }}>
             Trusted by healthcare facilities nationwide
           </Typography>
-          <Stack direction="row" spacing={0} flexWrap="wrap" justifyContent="center" alignItems="center" gap={4}>
+          <Stack direction="row" spacing={0} flexWrap="wrap" justifyContent="center" alignItems="center" gap={{ xs: 2.5, md: 4 }}>
             {[
               "Regional Medical Center",
               "Sunrise Long-Term Care",
@@ -729,7 +763,7 @@ export default function Landing() {
               Most facilities still rely on spreadsheets, phone calls, and tribal knowledge — creating costly errors, staff burnout, and compliance risk.
             </Typography>
           </Box>
-          <Grid container spacing={3}>
+          <Grid container spacing={{ xs: 2, md: 3 }}>
             {[
               { icon: "⏱️", title: "Hours Wasted Weekly", desc: "Schedulers spend 6–10 hours per week manually building and adjusting schedules, tracking availability, and handling last-minute changes.", color: "#ef5350" },
               { icon: "⚠️", title: "Compliance Violations", desc: "Overtime breaches, missed rest periods, and unqualified staff assignments go unnoticed until they become legal or patient safety issues.", color: "#f57c00" },
@@ -809,7 +843,7 @@ export default function Landing() {
           </Tabs>
 
           {FEATURES_TAB.map((f, i) => featureTab === i && (
-            <Grid key={i} container spacing={6} alignItems="center">
+            <Grid key={i} container spacing={{ xs: 3, md: 6 }} alignItems="center">
               <Grid item xs={12} md={5}>
                 <Typography variant="h4" fontWeight={800} sx={{ mb: 2.5, lineHeight: 1.2 }}>{f.title}</Typography>
                 <Typography sx={{ color: "rgba(255,255,255,0.6)", lineHeight: 1.75, mb: 3, fontSize: 15 }}>{f.desc}</Typography>
@@ -841,7 +875,7 @@ export default function Landing() {
                     component="img"
                     src={f.img}
                     alt={f.label}
-                    sx={{ width: "100%", display: "block", objectFit: "cover", maxHeight: 380 }}
+                    sx={{ width: "100%", display: "block", objectFit: "cover", maxHeight: { xs: 220, md: 380 } }}
                     onError={(e: any) => { e.target.style.display = "none"; }}
                   />
                 </Box>
@@ -922,20 +956,20 @@ export default function Landing() {
               Purpose-built for healthcare — not adapted from generic project management software.
             </Typography>
           </Box>
-          <Grid container spacing={2.5}>
+          <Grid container spacing={{ xs: 1.5, md: 2.5 }}>
             {ALL_FEATURES.map(f => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={f.title}>
+              <Grid item xs={6} sm={6} md={4} lg={3} key={f.title}>
                 <Box sx={{
-                  p: 2.5, borderRadius: 2.5, height: "100%",
+                  p: { xs: 1.75, md: 2.5 }, borderRadius: 2.5, height: "100%",
                   bgcolor: DARK_CARD, border: "1px solid rgba(255,255,255,0.06)",
                   transition: "border-color 0.2s, transform 0.2s",
                   "&:hover": { borderColor: "rgba(77,182,172,0.3)", transform: "translateY(-2px)" },
                 }}>
-                  <Box sx={{ width: 44, height: 44, borderRadius: 2, mb: 1.75, bgcolor: "rgba(0,137,123,0.1)", border: "1px solid rgba(0,137,123,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Box sx={{ width: { xs: 36, md: 44 }, height: { xs: 36, md: 44 }, borderRadius: 2, mb: 1.5, bgcolor: "rgba(0,137,123,0.1)", border: "1px solid rgba(0,137,123,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {f.icon}
                   </Box>
-                  <Typography fontWeight={700} sx={{ mb: 0.75, fontSize: 14, color: "#fff" }}>{f.title}</Typography>
-                  <Typography sx={{ fontSize: 12.5, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>{f.desc}</Typography>
+                  <Typography fontWeight={700} sx={{ mb: 0.5, fontSize: { xs: 12.5, md: 14 }, color: "#fff", lineHeight: 1.3 }}>{f.title}</Typography>
+                  <Typography sx={{ fontSize: { xs: 11.5, md: 12.5 }, color: "rgba(255,255,255,0.5)", lineHeight: 1.55, display: { xs: "none", sm: "block" } }}>{f.desc}</Typography>
                 </Box>
               </Grid>
             ))}
@@ -963,7 +997,7 @@ export default function Landing() {
             </Typography>
           </Box>
 
-          <Grid container spacing={4}>
+          <Grid container spacing={{ xs: 2.5, md: 4 }}>
             {[
               {
                 step: "01",
@@ -993,7 +1027,7 @@ export default function Landing() {
                   bgcolor: DARK_CARD, border: "1px solid rgba(255,255,255,0.07)",
                   height: "100%", display: "flex", flexDirection: "column",
                 }}>
-                  <Box sx={{ position: "relative", height: 200, overflow: "hidden" }}>
+                  <Box sx={{ position: "relative", height: { xs: 160, md: 200 }, overflow: "hidden" }}>
                     <Box
                       component="img"
                       src={step.img}
@@ -1043,9 +1077,9 @@ export default function Landing() {
               From small clinics to multi-site health networks — real results from real schedulers.
             </Typography>
           </Box>
-          <Grid container spacing={3}>
+          <Grid container spacing={{ xs: 2, md: 3 }}>
             {TESTIMONIALS.map((t, i) => (
-              <Grid item xs={12} md={4} key={i}>
+              <Grid item xs={12} sm={6} md={4} key={i}>
                 <TestimonialCard {...t} />
               </Grid>
             ))}
@@ -1054,7 +1088,7 @@ export default function Landing() {
           {/* Image strip */}
           <Box sx={{
             mt: 6, borderRadius: 3, overflow: "hidden",
-            height: 220, position: "relative",
+            height: { xs: 160, md: 220 }, position: "relative",
             border: "1px solid rgba(255,255,255,0.06)",
           }}>
             <Box
@@ -1066,12 +1100,13 @@ export default function Landing() {
             <Box sx={{
               position: "absolute", inset: 0,
               display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column",
+              px: 2, textAlign: "center",
               background: "linear-gradient(135deg, rgba(0,137,123,0.2) 0%, rgba(0,0,0,0.3) 100%)",
             }}>
-              <Typography variant="h4" fontWeight={900} sx={{ color: "#fff", mb: 1, textShadow: "0 2px 16px rgba(0,0,0,0.8)" }}>
+              <Typography fontWeight={900} sx={{ color: "#fff", mb: 1, textShadow: "0 2px 16px rgba(0,0,0,0.8)", fontSize: { xs: "1.15rem", md: "1.5rem" } }}>
                 Built for real healthcare teams
               </Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.65)", fontSize: 15 }}>
+              <Typography sx={{ color: "rgba(255,255,255,0.65)", fontSize: { xs: 13, md: 15 } }}>
                 Not adapted from generic scheduling software
               </Typography>
             </Box>
@@ -1098,9 +1133,9 @@ export default function Landing() {
               Start free for 14 days. No credit card required. Cancel anytime.
             </Typography>
           </Box>
-          <Grid container spacing={3} alignItems="stretch">
+          <Grid container spacing={{ xs: 2.5, md: 3 }} alignItems="stretch">
             {PRICING_PLANS.map((plan, i) => (
-              <Grid item xs={12} md={4} key={i} sx={{ display: "flex" }}>
+              <Grid item xs={12} sm={6} md={4} key={i} sx={{ display: "flex" }}>
                 <PricingCard {...plan} />
               </Grid>
             ))}
@@ -1212,9 +1247,9 @@ export default function Landing() {
       {/* ══════════════════════════════════════════════════════════════
           FOOTER
       ══════════════════════════════════════════════════════════════ */}
-      <Box sx={{ bgcolor: "#040a0b", borderTop: "1px solid rgba(255,255,255,0.04)", py: 8 }}>
+      <Box sx={{ bgcolor: "#040a0b", borderTop: "1px solid rgba(255,255,255,0.04)", py: { xs: 6, md: 8 } }}>
         <Container maxWidth="lg">
-          <Grid container spacing={6}>
+          <Grid container spacing={{ xs: 3, md: 6 }}>
             {/* Brand */}
             <Grid item xs={12} md={4}>
               <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
@@ -1230,7 +1265,7 @@ export default function Landing() {
             </Grid>
 
             {/* Product */}
-            <Grid item xs={6} sm={4} md={2}>
+            <Grid item xs={6} sm={4} md={2} sx={{ minWidth: 0 }}>
               <Typography sx={{ fontWeight: 700, color: "rgba(255,255,255,0.6)", mb: 2, fontSize: 12, letterSpacing: 1, textTransform: "uppercase" }}>Product</Typography>
               <Stack spacing={1.25}>
                 {["AI Scheduler", "Assignments", "Open Shifts", "Time Off", "Time Clock", "Coverage Analytics"].map(l => (
@@ -1240,7 +1275,7 @@ export default function Landing() {
             </Grid>
 
             {/* Use Cases */}
-            <Grid item xs={6} sm={4} md={3}>
+            <Grid item xs={6} sm={4} md={3} sx={{ minWidth: 0 }}>
               <Typography sx={{ fontWeight: 700, color: "rgba(255,255,255,0.6)", mb: 2, fontSize: 12, letterSpacing: 1, textTransform: "uppercase" }}>Use Cases</Typography>
               <Stack spacing={1.25}>
                 {["Hospital Staffing", "Long-Term Care", "Urgent Care Centers", "Home Health Agencies", "Specialty Clinics", "Multi-Site Networks"].map(l => (
