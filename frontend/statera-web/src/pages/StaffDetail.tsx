@@ -153,7 +153,7 @@ export default function StaffDetail() {
     setDeleteLoading(true);
     try {
       await deleteStaff(id);
-      nav("/staff");
+      nav("/app/staff");
     } catch (e: any) {
       setErr(e?.message || "Failed to delete staff.");
       setDeleteConfirmOpen(false);

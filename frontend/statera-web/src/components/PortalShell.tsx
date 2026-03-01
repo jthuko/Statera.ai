@@ -62,7 +62,7 @@ export default function PortalShell() {
               <IconButton
                 onClick={async () => {
                   await stopImpersonation();
-                  navigate("/");
+                  navigate("/app");
                 }}
                 size="small"
                 color="inherit"

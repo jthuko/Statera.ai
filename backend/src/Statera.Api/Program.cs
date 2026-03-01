@@ -122,7 +122,6 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Statera AI API v1");
 });
 
-app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -162,14 +161,14 @@ app.MapGet("/", () => Results.Redirect("/swagger"));
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-   // await db.Database.MigrateAsync();
+    await db.Database.MigrateAsync();
 
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     await DevDataSeeder.ResetAndSeedAsync(
         scope.ServiceProvider,
         logger,
         app.Environment.IsDevelopment(),
-        resetDatabase: true
+        resetDatabase: app.Environment.IsDevelopment()
     );
 }
 

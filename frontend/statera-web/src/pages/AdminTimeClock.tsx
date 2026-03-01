@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress, Container,
   Dialog, DialogActions, DialogContent, DialogTitle,
-  MenuItem, Skeleton, Snackbar, Stack, TextField, Typography,
+  MenuItem, Skeleton, Snackbar, Stack, TextField, Tooltip, Typography,
 } from "@mui/material";
 import { Download as DownloadIcon, TableChart as ExcelIcon } from "@mui/icons-material";
 import * as XLSX from "xlsx";
@@ -18,7 +18,7 @@ import {
   listTimeClockEntries, adjustTimeClockEntry, reviewTimeClockEntry,
   type TimeClockEntryDto, type AdjustTimeClockPayload,
 } from "../api/timeclock";
-import { exportTimesheetsToProvider } from "../api/integrations";
+import { exportTimesheetsToProvider, listFacilityIntegrations, type FacilityIntegrationStatus } from "../api/integrations";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -152,12 +152,14 @@ export default function AdminTimeClock() {
   const [error, setError]     = useState<string | null>(null);
   const [toast, setToast]     = useState<string | null>(null);
   const [exporting, setExporting] = useState<"Gusto" | "QuickBooks" | null>(null);
+  const [integrations, setIntegrations] = useState<FacilityIntegrationStatus[]>([]);
 
   const [adjustEntry, setAdjustEntry] = useState<TimeClockEntryDto | null>(null);
 
   useEffect(() => {
-    if (!facilityId) { setStaff([]); return; }
+    if (!facilityId) { setStaff([]); setIntegrations([]); return; }
     listStaff(facilityId).then(setStaff).catch(() => setStaff([]));
+    listFacilityIntegrations(facilityId).then(setIntegrations).catch(() => setIntegrations([]));
   }, [facilityId]);
 
   const loadEntries = useCallback(async () => {
@@ -305,16 +307,37 @@ export default function AdminTimeClock() {
                 sx={{ bgcolor: "#2e7d32", color: "#fff", "&:hover": { bgcolor: "#1b5e20" } }}>
                 Export Excel
               </Button>
-              <Button variant="contained" startIcon={<DownloadIcon />} size="small" onClick={() => exportToProvider("Gusto")}
-                disabled={entries.filter(e => e.clockOutUtc).length === 0}
-                sx={{ bgcolor: "#1976d2", color: "#fff", "&:hover": { bgcolor: "#115293" } }}>
-                {exporting === "Gusto" ? "Exporting…" : "Export Gusto"}
-              </Button>
-              <Button variant="contained" startIcon={<DownloadIcon />} size="small" onClick={() => exportToProvider("QuickBooks")}
-                disabled={entries.filter(e => e.clockOutUtc).length === 0}
-                sx={{ bgcolor: "#f9a825", color: "#1b1b1b", "&:hover": { bgcolor: "#f57f17" } }}>
-                {exporting === "QuickBooks" ? "Exporting…" : "Export QuickBooks"}
-              </Button>
+              {(() => {
+                const gustoConnected = integrations.find(i => i.provider === "Gusto")?.connected ?? false;
+                const qbConnected    = integrations.find(i => i.provider === "QuickBooks")?.connected ?? false;
+                const hasEntries     = entries.filter(e => e.clockOutUtc).length > 0;
+                return (
+                  <>
+                    <Tooltip title={!gustoConnected ? "Connect Gusto in Facility Settings → Integrations first" : ""} arrow>
+                      <span>
+                        <Button variant="contained" startIcon={<DownloadIcon />} size="small"
+                          onClick={() => exportToProvider("Gusto")}
+                          disabled={!gustoConnected || !hasEntries || exporting === "Gusto"}
+                          sx={{ bgcolor: "#1976d2", color: "#fff", "&:hover": { bgcolor: "#115293" }, "&.Mui-disabled": { opacity: 0.5 } }}>
+                          {exporting === "Gusto" ? <CircularProgress size={14} color="inherit" sx={{ mr: 0.75 }} /> : null}
+                          {exporting === "Gusto" ? "Exporting…" : gustoConnected ? "Export Gusto" : "Gusto (not connected)"}
+                        </Button>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title={!qbConnected ? "Connect QuickBooks in Facility Settings → Integrations first" : ""} arrow>
+                      <span>
+                        <Button variant="contained" startIcon={<DownloadIcon />} size="small"
+                          onClick={() => exportToProvider("QuickBooks")}
+                          disabled={!qbConnected || !hasEntries || exporting === "QuickBooks"}
+                          sx={{ bgcolor: "#f9a825", color: "#1b1b1b", "&:hover": { bgcolor: "#f57f17" }, "&.Mui-disabled": { opacity: 0.5 } }}>
+                          {exporting === "QuickBooks" ? <CircularProgress size={14} color="inherit" sx={{ mr: 0.75 }} /> : null}
+                          {exporting === "QuickBooks" ? "Exporting…" : qbConnected ? "Export QuickBooks" : "QuickBooks (not connected)"}
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  </>
+                );
+              })()}
             </Stack>
           </Stack>
         </CardContent>

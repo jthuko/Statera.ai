@@ -45,7 +45,7 @@ function getInitials(email: string) {
 
 function DrawerNavItem({ to, label, icon, onNavigate }: NavItem & { onNavigate?: () => void }) {
   const resolved = useResolvedPath(to);
-  const match = useMatch({ path: resolved.pathname, end: to === "/" });
+  const match = useMatch({ path: resolved.pathname, end: to === "/app" });
   const { mode } = useColorMode();
   const isDark = mode === "dark";
   return (
@@ -87,19 +87,19 @@ export default function AppShell() {
   const isMobile = useMediaQuery("(max-width: 900px)");
 
   const items: NavItem[] = [
-    { to: "/",            label: "Dashboard",          icon: <DashboardIcon /> },
-    { to: "/scheduler",   label: "Scheduler",          icon: <CalendarMonth /> },
-    { to: "/staff",       label: "Staff Directory",    icon: <Group /> },
-    { to: "/facilities",  label: "Facilities",         icon: <LocalHospital /> },
-    { to: "/units",       label: "Units",              icon: <Apartment /> },
-    { to: "/assignments",  label: "Assignments",        icon: <Assignment /> },
-    { to: "/open-shifts", label: "Open Shifts",        icon: <WorkHistoryIcon /> },
-    { to: "/timeoff",     label: "Time Off",           icon: <AccessAlarm /> },
-    { to: "/constraints", label: "Constraints & Rules",icon: <Rule /> },
-    { to: "/coverage",    label: "Coverage",           icon: <Work /> },
-    { to: "/demand-templates", label: "Demand Templates", icon: <EventNote /> },
-    { to: "/timeclock",   label: "Time Clock",         icon: <AccessAlarm /> },
-    { to: "/chat",        label: "Chat",               icon: <Chat /> },
+    { to: "/app",                    label: "Dashboard",          icon: <DashboardIcon /> },
+    { to: "/app/scheduler",          label: "Scheduler",          icon: <CalendarMonth /> },
+    { to: "/app/staff",              label: "Staff Directory",    icon: <Group /> },
+    { to: "/app/facilities",         label: "Facilities",         icon: <LocalHospital /> },
+    { to: "/app/units",              label: "Units",              icon: <Apartment /> },
+    { to: "/app/assignments",        label: "Assignments",        icon: <Assignment /> },
+    { to: "/app/open-shifts",        label: "Open Shifts",        icon: <WorkHistoryIcon /> },
+    { to: "/app/timeoff",            label: "Time Off",           icon: <AccessAlarm /> },
+    { to: "/app/constraints",        label: "Constraints & Rules",icon: <Rule /> },
+    { to: "/app/coverage",           label: "Coverage",           icon: <Work /> },
+    { to: "/app/demand-templates",   label: "Demand Templates",   icon: <EventNote /> },
+    { to: "/app/timeclock",          label: "Time Clock",         icon: <AccessAlarm /> },
+    { to: "/app/chat",               label: "Chat",               icon: <Chat /> },
   ];
 
   const onKey = (e: React.KeyboardEvent) => {

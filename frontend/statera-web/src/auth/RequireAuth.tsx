@@ -25,12 +25,12 @@ export default function RequireAuth({ children, requiredRole, staffOnly }: Requi
 
     // Portal routes are staff-only
     if (staffOnly && user.systemRole !== "Staff") {
-      return <Navigate to="/" replace />;
+      return <Navigate to="/app" replace />;
     }
 
     // Role gate for admin routes
     if (requiredRole && user.systemRole !== requiredRole) {
-      return <Navigate to="/" replace />;
+      return <Navigate to="/app" replace />;
     }
   }
 

@@ -145,7 +145,7 @@ export default function FacilitiesTable() {
                     <Link
                       component="button"
                       variant="body2"
-                      onClick={() => navigate(`/facilities/${f.id}`)}
+                      onClick={() => navigate(`/app/facilities/${f.id}`)}
                       underline="hover"
                       sx={{ color: "primary.light", fontWeight: 500 }}
                     >

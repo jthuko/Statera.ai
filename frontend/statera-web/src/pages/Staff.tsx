@@ -408,7 +408,7 @@ export default function Staff() {
             return (
               <Card
                 key={s.id}
-                onClick={() => nav(`/staff/${s.id}`)}
+                onClick={() => nav(`/app/staff/${s.id}`)}
                 sx={{
                   cursor: "pointer",
                   transition: "box-shadow 0.2s, transform 0.15s",

@@ -153,7 +153,7 @@ export default function FacilityAdminPage() {
       }}>
         <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
           <Stack direction="row" alignItems="center" spacing={2}>
-            <IconButton onClick={() => navigate("/facilities")} size="small"
+            <IconButton onClick={() => navigate("/app/facilities")} size="small"
               sx={{ border: "1px solid rgba(255,255,255,0.12)", "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}>
               <ArrowBackIcon fontSize="small" />
             </IconButton>

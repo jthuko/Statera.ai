@@ -126,7 +126,7 @@ export default function DemandTemplatesListPage() {
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
-                onClick={() => navigate("/demand-templates/new")}
+                onClick={() => navigate("/app/demand-templates/new")}
                 disabled={!facilityId}
                 sx={{ bgcolor: "#00897b", "&:hover": { bgcolor: "#00796b" } }}
               >
@@ -272,7 +272,7 @@ export default function DemandTemplatesListPage() {
                             <Tooltip title="Edit">
                               <IconButton
                                 size="small"
-                                onClick={() => navigate(`/demand-templates/${r.id}`)}
+                                onClick={() => navigate(`/app/demand-templates/${r.id}`)}
                                 sx={{
                                   color: "rgba(255,255,255,0.4)",
                                   "&:hover": { color: "#4db6ac", bgcolor: "rgba(0,137,123,0.1)" },

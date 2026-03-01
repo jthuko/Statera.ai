@@ -50,7 +50,7 @@ export default function DemandTemplateEditorPage() {
     if (isNew) {
       const created = await createDemandTemplate(payload as CreateDemandTemplateRequest);
       setToast("Template created.");
-      navigate(`/demand-templates/${created.id}`);
+      navigate(`/app/demand-templates/${created.id}`);
     } else {
       const updated = await updateDemandTemplate(id as Guid, payload as UpdateDemandTemplateRequest);
       setModel(updated);
