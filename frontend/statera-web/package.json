@@ -29,6 +29,7 @@
     "react-dom": "18.3.1",
     "react-hook-form": "^7.63.0",
     "react-router-dom": "6.26.2",
+    "recharts": "^2.15.4",
     "statera-web": "file:",
     "xlsx": "^0.18.5",
     "zod": "^4.1.11"

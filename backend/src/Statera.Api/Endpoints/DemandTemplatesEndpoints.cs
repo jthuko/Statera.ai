@@ -1,9 +1,11 @@
 ﻿// backend/src/Statera.Api/Endpoints/DemandTemplatesEndpoints.cs
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Statera.Api.Authorization;
 using Statera.Api.Contracts;
 using Statera.Api.Mapping;
+using Statera.Domain;
 using Statera.Domain.Staffing;
 using Statera.Infrastructure;
 
@@ -250,32 +252,68 @@ public static class DemandTemplatesEndpoints
             return Results.Ok(dto);
         });
 
-        // Apply to range (stub logic)
+        // Apply template to date range — creates real OpenShift records
         gGlobal.MapPost("/{id:guid}:apply", async (
             [FromRoute] Guid id,
             [FromBody] ApplyToRangeRequest body,
             [FromServices] AppDbContext db,
+            HttpContext http,
             CancellationToken ct) =>
         {
-            var e = await db.DemandTemplates
+            var template = await db.DemandTemplates
                 .AsNoTracking()
                 .Include(x => x.Days)
                 .FirstOrDefaultAsync(x => x.Id == id, ct);
 
-            if (e is null) return Results.NotFound();
+            if (template is null) return Results.NotFound();
 
             if (!DateOnly.TryParse(body.StartDate, out var start) ||
                 !DateOnly.TryParse(body.EndDate, out var end) ||
                 end < start)
                 return Results.BadRequest("Invalid date range.");
 
-            // TODO: Implement real “apply” logic to schedule grid or coverage plan.
-            // For now, return a deterministic fake count: days * weeks in range.
-            var totalDays = end.ToDateTime(TimeOnly.MinValue) - start.ToDateTime(TimeOnly.MinValue);
-            var weeks = Math.Max(1, (int)Math.Ceiling(totalDays.TotalDays / 7.0));
-            var applied = e.Days.Sum(d => d.Required) * weeks;
+            var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                      ?? http.User.FindFirstValue("sub")
+                      ?? "system";
 
-            return Results.Ok(new { applied });
+            var role = template.Role ?? "Staff";
+            var openShifts = new List<OpenShift>();
+
+            for (var d = start; d <= end; d = d.AddDays(1))
+            {
+                var dow = (int)d.DayOfWeek; // 0=Sun..6=Sat matches DemandTemplateDay.Day
+                var dayConfig = template.Days.FirstOrDefault(day => day.Day == dow);
+                if (dayConfig is null || dayConfig.Required <= 0) continue;
+
+                // Default shift window: 07:00–19:00 UTC (12-hour day shift)
+                var shiftStart = d.ToDateTime(new TimeOnly(7, 0), DateTimeKind.Utc);
+                var shiftEnd = d.ToDateTime(new TimeOnly(19, 0), DateTimeKind.Utc);
+
+                for (var slot = 0; slot < dayConfig.Required; slot++)
+                {
+                    openShifts.Add(new OpenShift
+                    {
+                        Id = Guid.NewGuid(),
+                        FacilityId = template.FacilityId,
+                        UnitId = template.UnitId,
+                        Role = role,
+                        StartUtc = shiftStart,
+                        EndUtc = shiftEnd,
+                        Notes = $"Applied from template: {template.Name}",
+                        Status = "Open",
+                        CreatedByUserId = userId,
+                        CreatedUtc = DateTime.UtcNow
+                    });
+                }
+            }
+
+            if (openShifts.Count > 0)
+            {
+                db.OpenShifts.AddRange(openShifts);
+                await db.SaveChangesAsync(ct);
+            }
+
+            return Results.Ok(new { applied = openShifts.Count });
         });
     }
 }

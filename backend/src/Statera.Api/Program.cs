@@ -51,6 +51,12 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.Configure<IntegrationOptions>(builder.Configuration.GetSection("Integrations"));
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection("Stripe"));
+builder.Services.Configure<AnthropicSettings>(builder.Configuration.GetSection("Anthropic"));
+builder.Services.AddHttpClient("anthropic", c =>
+{
+    c.BaseAddress = new Uri("https://api.anthropic.com");
+    c.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+});
 
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? "dev-secret-please-change-to-32-bytes-minimum";
