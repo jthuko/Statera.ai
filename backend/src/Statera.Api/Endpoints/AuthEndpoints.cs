@@ -77,19 +77,21 @@ public static class AuthEndpoints
 
             if (userId is null) return Results.Unauthorized();
 
-            // Attach trial info from the user's primary facility (first one)
+            // Attach trial/plan info from the user's primary facility (first one)
             string? planStatus = null;
+            string? planTier   = null;
             DateTime? trialEndsUtc = null;
             if (fidClaims.Count > 0 && Guid.TryParse(fidClaims[0], out var primaryFacilityId))
             {
                 var facility = await db.Facilities.AsNoTracking()
                     .Where(f => f.Id == primaryFacilityId)
-                    .Select(f => new { f.PlanStatus, f.TrialEndsUtc })
+                    .Select(f => new { f.PlanStatus, f.PlanTier, f.TrialEndsUtc })
                     .FirstOrDefaultAsync(ct);
                 if (facility != null)
                 {
-                    planStatus    = facility.PlanStatus.ToString();
-                    trialEndsUtc  = facility.TrialEndsUtc;
+                    planStatus   = facility.PlanStatus.ToString();
+                    planTier     = facility.PlanTier.ToString();
+                    trialEndsUtc = facility.TrialEndsUtc;
                 }
             }
 
@@ -101,6 +103,7 @@ public static class AuthEndpoints
                 FacilityIds  = fidClaims,
                 StaffId      = staffIdStr,
                 PlanStatus   = planStatus,
+                PlanTier     = planTier,
                 TrialEndsUtc = trialEndsUtc
             });
         })

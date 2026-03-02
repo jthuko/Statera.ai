@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Statera.Domain;
+using Statera.Api.Authorization;
 using Statera.Infrastructure;
 
 namespace Statera.Api.Endpoints;
@@ -14,7 +15,14 @@ public static class ChatEndpoints
 {
     public static RouteGroupBuilder MapChatEndpoints(this RouteGroupBuilder v1)
     {
-        var g = v1.MapGroup("/chat").WithTags("Chat").RequireAuthorization();
+        var g = v1.MapGroup("/chat").WithTags("Chat").RequireAuthorization()
+            .AddEndpointFilter(async (ctx, next) =>
+            {
+                // Chat (AI Assistant) requires Growth plan or higher
+                if (!TierEnforcement.CanAccessGrowthFeature(ctx.HttpContext))
+                    return TierEnforcement.UpgradeRequired();
+                return await next(ctx);
+            });
 
         // GET /api/v1/chat/rooms  — rooms where current user is a member
         g.MapGet("/rooms", async (HttpContext ctx, [FromServices] AppDbContext db) =>

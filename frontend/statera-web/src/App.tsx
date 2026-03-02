@@ -14,6 +14,7 @@ import Staff from "./pages/Staff";
 import StaffDetail from "./pages/StaffDetail";
 import RequireAuth from "./auth/RequireAuth";
 import AppShell from "./components/AppShell";
+import { UpgradeGate } from "./components/UpgradeGate";
 import PortalShell from "./components/PortalShell";
 import FacilitiesPage from "./pages/Facilities";
 import ConstraintsRulesPage from "./pages/constraints";
@@ -94,12 +95,12 @@ export default function App() {
         <Route path="units" element={<UnitsPage />} />
         <Route path="assignments" element={<AssignmentsPage />} />
         <Route path="timeoff" element={<TimeOffPage />} />
-        <Route path="coverage" element={<CoveragePage />} />
-        <Route path="chat" element={<ChatPage />} />
+        <Route path="coverage" element={<UpgradeGate><CoveragePage /></UpgradeGate>} />
+        <Route path="chat" element={<UpgradeGate><ChatPage /></UpgradeGate>} />
         <Route path="timeclock" element={<AdminTimeClock />} />
         <Route path="open-shifts" element={<OpenShiftsPage />} />
-        <Route path="demand-templates" element={<DemandTemplatesListPage />} />
-        <Route path="demand-templates/:id" element={<DemandTemplateEditorPage />} />
+        <Route path="demand-templates" element={<UpgradeGate><DemandTemplatesListPage /></UpgradeGate>} />
+        <Route path="demand-templates/:id" element={<UpgradeGate><DemandTemplateEditorPage /></UpgradeGate>} />
         <Route path="dashboard" element={<Navigate to="/app" replace />} />
         <Route path="*" element={<Navigate to="/app/assignments" replace />} />
       </Route>

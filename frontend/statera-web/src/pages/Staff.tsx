@@ -13,6 +13,7 @@ import Page from "./_Page";
 import { listStaff, createStaff, importStaff, StaffImportResult, CreateStaffPayload, StaffDto } from "../api/staff";
 import { useNavigate } from "react-router-dom";
 import { useFacility } from "../context/facility";
+import { usePlanFeatures } from "../auth/usePlanFeatures";
 import StaffFormDialog, { StaffFormValues } from "../components/staff/StaffFormDialog";
 import dayjs from "dayjs";
 
@@ -199,6 +200,7 @@ export default function Staff() {
   const [importOpen, setImportOpen] = useState(false);
   const nav = useNavigate();
   const { facilities, selected: facility, setSelectedId } = useFacility();
+  const { isGrowthPlus } = usePlanFeatures();
 
   useEffect(() => {
     let alive = true;
@@ -319,14 +321,18 @@ export default function Staff() {
           )}
         </Box>
         <Stack direction="row" spacing={1}>
-          <Button
-            variant="outlined"
-            startIcon={<UploadFileIcon />}
-            onClick={() => setImportOpen(true)}
-            disabled={!facility}
-          >
-            Import
-          </Button>
+          <Tooltip title={!isGrowthPlus ? "Bulk import requires the Growth plan" : ""} arrow>
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={<UploadFileIcon />}
+                onClick={() => setImportOpen(true)}
+                disabled={!facility || !isGrowthPlus}
+              >
+                Import
+              </Button>
+            </span>
+          </Tooltip>
           <Button
             variant="contained"
             startIcon={<PersonAddIcon />}

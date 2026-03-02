@@ -351,6 +351,12 @@ namespace Statera.Api.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<string>("PlanTier")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasDefaultValue("Growth")
+                        .HasColumnType("nvarchar(20)");
+
                     b.HasKey("Id");
 
                     b.ToTable("Facilities");

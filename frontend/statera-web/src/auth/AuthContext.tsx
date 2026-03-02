@@ -11,6 +11,7 @@ export interface User {
   facilityIds: string[];
   staffId?: string | null; // set for Staff-role users
   planStatus?: PlanStatus | null;
+  planTier?: string | null;
   trialEndsUtc?: string | null;
 }
 
@@ -77,10 +78,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         facilityIds: string[];
         staffId?: string | null;
         planStatus?: string | null;
+        planTier?: string | null;
         trialEndsUtc?: string | null;
       }>("/auth/me");
 
-      const { id, email: userEmail, systemRole, facilityIds, staffId, planStatus, trialEndsUtc } = meRes.data;
+      const { id, email: userEmail, systemRole, facilityIds, staffId, planStatus, planTier, trialEndsUtc } = meRes.data;
       const parsed: User = {
         id,
         email: userEmail,
@@ -88,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         facilityIds: facilityIds ?? [],
         staffId: staffId ?? null,
         planStatus: (planStatus as PlanStatus) ?? null,
+        planTier: planTier ?? null,
         trialEndsUtc: trialEndsUtc ?? null,
       };
 

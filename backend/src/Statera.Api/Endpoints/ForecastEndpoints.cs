@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Statera.Infrastructure;
+using Statera.Api.Authorization;
 using Statera.Api.Contracts;
 
 using DomainAssignment = Statera.Domain.Assignment;
@@ -17,7 +18,14 @@ public static class ForecastEndpoints
 {
     public static RouteGroupBuilder MapForecastEndpoints(this RouteGroupBuilder v1)
     {
-        var g = v1.MapGroup("/forecast").WithTags("Forecast");
+        var g = v1.MapGroup("/forecast").WithTags("Forecast")
+            .AddEndpointFilter(async (ctx, next) =>
+            {
+                // Coverage analytics requires Growth plan or higher
+                if (!TierEnforcement.CanAccessGrowthFeature(ctx.HttpContext))
+                    return TierEnforcement.UpgradeRequired();
+                return await next(ctx);
+            });
 
         // POST /api/v1/forecast/demand
         g.MapPost("/demand", async ([FromBody] DemandForecastRequest req, [FromServices] AppDbContext db) =>

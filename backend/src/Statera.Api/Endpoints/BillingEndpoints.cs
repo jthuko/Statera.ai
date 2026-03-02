@@ -116,7 +116,7 @@ public static class BillingEndpoints
 
             switch (stripeEvent.Type)
             {
-                case Events.CheckoutSessionCompleted:
+                case EventTypes.CheckoutSessionCompleted:
                 {
                     var session = stripeEvent.Data.Object as Session;
                     if (session?.Metadata?.TryGetValue("facility_id", out var fid) == true
@@ -134,8 +134,8 @@ public static class BillingEndpoints
                     break;
                 }
 
-                case Events.CustomerSubscriptionDeleted:
-                case Events.CustomerSubscriptionUpdated:
+                case EventTypes.CustomerSubscriptionDeleted:
+                case EventTypes.CustomerSubscriptionUpdated:
                 {
                     var subscription = stripeEvent.Data.Object as Subscription;
                     if (subscription?.Metadata?.TryGetValue("facility_id", out var fid) == true
@@ -144,7 +144,7 @@ public static class BillingEndpoints
                         var facility = await db.Facilities.FirstOrDefaultAsync(f => f.Id == facilityId, ct);
                         if (facility is not null)
                         {
-                            if (stripeEvent.Type == Events.CustomerSubscriptionDeleted
+                            if (stripeEvent.Type == EventTypes.CustomerSubscriptionDeleted
                                 || subscription.Status == "canceled")
                             {
                                 facility.PlanStatus = Statera.Domain.PlanStatus.Cancelled;
@@ -159,7 +159,7 @@ public static class BillingEndpoints
                     break;
                 }
 
-                case Events.InvoicePaymentFailed:
+                case EventTypes.InvoicePaymentFailed:
                 {
                     var invoice = stripeEvent.Data.Object as Invoice;
                     if (invoice?.SubscriptionId is not null)

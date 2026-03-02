@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Statera.Domain;
+using Statera.Api.Authorization;
 using Statera.Api.Integrations;
 using Statera.Infrastructure;
 
@@ -16,7 +17,14 @@ public static class IntegrationsEndpoints
 {
     public static RouteGroupBuilder MapIntegrationsEndpoints(this RouteGroupBuilder v1)
     {
-        var g = v1.MapGroup("").WithTags("Integrations");
+        var g = v1.MapGroup("").WithTags("Integrations")
+            .AddEndpointFilter(async (ctx, next) =>
+            {
+                // Integrations (Gusto/QuickBooks) require Growth plan or higher
+                if (!TierEnforcement.CanAccessGrowthFeature(ctx.HttpContext))
+                    return TierEnforcement.UpgradeRequired();
+                return await next(ctx);
+            });
 
         // GET /api/v1/facilities/{facilityId}/integrations
         g.MapGet("/facilities/{facilityId:guid}/integrations", async (

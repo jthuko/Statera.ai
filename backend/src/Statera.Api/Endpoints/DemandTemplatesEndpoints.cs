@@ -1,6 +1,7 @@
 ﻿// backend/src/Statera.Api/Endpoints/DemandTemplatesEndpoints.cs
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Statera.Api.Authorization;
 using Statera.Api.Contracts;
 using Statera.Api.Mapping;
 using Statera.Domain.Staffing;
@@ -12,9 +13,18 @@ public static class DemandTemplatesEndpoints
 {
     public static void MapDemandTemplatesEndpoints(this RouteGroupBuilder v1)
     {
+        var tierFilter = new Func<EndpointFilterInvocationContext, EndpointFilterDelegate, ValueTask<object?>>(
+            async (ctx, next) =>
+            {
+                if (!TierEnforcement.CanAccessGrowthFeature(ctx.HttpContext))
+                    return TierEnforcement.UpgradeRequired();
+                return await next(ctx);
+            });
+
         // ========= Facility-scoped list =========
         var gFacility = v1.MapGroup("/facilities/{facilityId:guid}/demand-templates")
-                          .WithTags("Demand Templates");
+                          .WithTags("Demand Templates")
+                          .AddEndpointFilter(tierFilter);
 
         gFacility.MapGet("/", async (
             [FromRoute] Guid facilityId,
@@ -60,7 +70,8 @@ public static class DemandTemplatesEndpoints
 
         // ========= Global item routes (match FE) =========
         var gGlobal = v1.MapGroup("/demand-templates")
-                        .WithTags("Demand Templates");
+                        .WithTags("Demand Templates")
+                        .AddEndpointFilter(tierFilter);
 
         // GET by id
         gGlobal.MapGet("/{id:guid}", async (

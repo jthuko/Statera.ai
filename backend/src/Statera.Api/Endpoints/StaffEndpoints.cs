@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Statera.Infrastructure;          // AppDbContext, AppUser
+using Statera.Api.Authorization;
 using Statera.Api.Contracts;          // CreateStaffRequest, UpdateStaffRequest
 using Statera.Domain;                 // Staff, EmploymentType
 using DomStaff = Statera.Domain.Staff;
@@ -586,8 +587,13 @@ public static class StaffEndpoints
         g.MapPost("/import", async (
             [FromQuery] Guid facilityId,
             HttpRequest request,
+            HttpContext ctx,
             [FromServices] AppDbContext db) =>
         {
+            // Bulk import requires Growth plan or higher
+            if (!TierEnforcement.CanAccessGrowthFeature(ctx))
+                return TierEnforcement.UpgradeRequired();
+
             if (facilityId == Guid.Empty)
                 return Results.BadRequest(new { error = "facilityId query parameter is required." });
 

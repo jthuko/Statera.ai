@@ -148,6 +148,7 @@ public class TimeOffRequest
 }
 
 public enum PlanStatus { Trial, Active, Expired, Cancelled }
+public enum PlanTier { Starter, Growth, Scale, Enterprise }
 
 public class Facility
 {
@@ -161,6 +162,7 @@ public class Facility
 
     // ── Subscription / trial ──────────────────────────────────────────────
     public PlanStatus PlanStatus { get; set; } = PlanStatus.Trial;
+    public PlanTier PlanTier { get; set; } = PlanTier.Growth; // default Growth so trial users get full access
     public DateTime? TrialStartUtc { get; set; }
     public DateTime? TrialEndsUtc { get; set; }
 

@@ -23,32 +23,36 @@ import {
   DarkMode as DarkModeIcon,
   Menu as MenuIcon,
   WorkHistory as WorkHistoryIcon,
+  LockOutlined as LockOutlinedIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
 } from "@mui/icons-material";
 import { Outlet, Link as RouterLink, useMatch, useResolvedPath } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { useColorMode } from "../context/ColorModeContext";
+import { usePlanFeatures } from "../auth/usePlanFeatures";
 import AppNotificationBell from "./AppNotificationBell";
 import AppHelpAssistant from "./AppHelpAssistant";
 
-const drawerWidth = 260;
+const DRAWER_EXPANDED  = 260;
+const DRAWER_COLLAPSED = 64;
 
-type NavItem = { to: string; label: string; icon: JSX.Element; show?: boolean };
+type NavItem = { to: string; label: string; icon: JSX.Element; show?: boolean; tier?: "growth" };
 
 function getInitials(email: string) {
   const parts = email.split("@")[0].split(/[._-]/);
-  return parts
-    .slice(0, 2)
-    .map(p => p[0] ?? "")
-    .join("")
-    .toUpperCase();
+  return parts.slice(0, 2).map(p => p[0] ?? "").join("").toUpperCase();
 }
 
-function DrawerNavItem({ to, label, icon, onNavigate }: NavItem & { onNavigate?: () => void }) {
+function DrawerNavItem({
+  to, label, icon, locked, collapsed: isCollapsed, onNavigate,
+}: NavItem & { locked?: boolean; collapsed?: boolean; onNavigate?: () => void }) {
   const resolved = useResolvedPath(to);
-  const match = useMatch({ path: resolved.pathname, end: to === "/app" });
+  const match    = useMatch({ path: resolved.pathname, end: to === "/app" });
   const { mode } = useColorMode();
-  const isDark = mode === "dark";
-  return (
+  const isDark   = mode === "dark";
+
+  const button = (
     <ListItemButton
       component={RouterLink}
       to={to}
@@ -58,6 +62,8 @@ function DrawerNavItem({ to, label, icon, onNavigate }: NavItem & { onNavigate?:
         mx: 1,
         borderRadius: 1.5,
         mb: 0.25,
+        opacity: locked ? 0.5 : 1,
+        justifyContent: isCollapsed ? "center" : "flex-start",
         "&.Mui-selected": {
           bgcolor: "rgba(0,137,123,0.18)",
           borderLeft: "3px solid #4db6ac",
@@ -68,38 +74,71 @@ function DrawerNavItem({ to, label, icon, onNavigate }: NavItem & { onNavigate?:
         "&:hover": { bgcolor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" },
       }}
     >
-      <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>{icon}</ListItemIcon>
-      <ListItemText
-        primary={label}
-        primaryTypographyProps={{ fontSize: 13.5, fontWeight: match ? 600 : 400 }}
-      />
+      <ListItemIcon sx={{ color: "inherit", minWidth: isCollapsed ? 0 : 40, justifyContent: "center" }}>
+        {icon}
+      </ListItemIcon>
+      {!isCollapsed && (
+        <>
+          <ListItemText
+            primary={label}
+            primaryTypographyProps={{ fontSize: 13.5, fontWeight: match ? 600 : 400 }}
+          />
+          {locked && <LockOutlinedIcon sx={{ fontSize: 14, color: "text.disabled" }} />}
+        </>
+      )}
     </ListItemButton>
   );
+
+  if (isCollapsed) {
+    return (
+      <Tooltip
+        title={locked ? `${label} — Growth plan required` : label}
+        placement="right"
+        arrow
+      >
+        {button}
+      </Tooltip>
+    );
+  }
+  return button;
 }
 
 export default function AppShell() {
-  const [q, setQ] = useState("");
+  const [q, setQ]           = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed]   = useState(() =>
+    localStorage.getItem("statera:navCollapsed") === "true"
+  );
+
   const { logout, user, trialDaysLeft } = useAuth();
   const { mode, toggleMode } = useColorMode();
-  const isDark = mode === "dark";
-  const isOwner = user?.systemRole === "Owner";
+  const { isGrowthPlus }     = usePlanFeatures();
+  const isDark   = mode === "dark";
+  const isOwner  = user?.systemRole === "Owner";
   const isMobile = useMediaQuery("(max-width: 900px)");
 
+  const desktopWidth = collapsed ? DRAWER_COLLAPSED : DRAWER_EXPANDED;
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem("statera:navCollapsed", String(next));
+  }
+
   const items: NavItem[] = [
-    { to: "/app",                    label: "Dashboard",          icon: <DashboardIcon /> },
-    { to: "/app/scheduler",          label: "Scheduler",          icon: <CalendarMonth /> },
-    { to: "/app/staff",              label: "Staff Directory",    icon: <Group /> },
-    { to: "/app/facilities",         label: "Facilities",         icon: <LocalHospital /> },
-    { to: "/app/units",              label: "Units",              icon: <Apartment /> },
-    { to: "/app/assignments",        label: "Assignments",        icon: <Assignment /> },
-    { to: "/app/open-shifts",        label: "Open Shifts",        icon: <WorkHistoryIcon /> },
-    { to: "/app/timeoff",            label: "Time Off",           icon: <AccessAlarm /> },
-    { to: "/app/constraints",        label: "Constraints & Rules",icon: <Rule /> },
-    { to: "/app/coverage",           label: "Coverage",           icon: <Work /> },
-    { to: "/app/demand-templates",   label: "Demand Templates",   icon: <EventNote /> },
-    { to: "/app/timeclock",          label: "Time Clock",         icon: <AccessAlarm /> },
-    { to: "/app/chat",               label: "Chat",               icon: <Chat /> },
+    { to: "/app",                    label: "Dashboard",           icon: <DashboardIcon /> },
+    { to: "/app/scheduler",          label: "Scheduler",           icon: <CalendarMonth /> },
+    { to: "/app/staff",              label: "Staff Directory",     icon: <Group /> },
+    { to: "/app/facilities",         label: "Facilities",          icon: <LocalHospital /> },
+    { to: "/app/units",              label: "Units",               icon: <Apartment /> },
+    { to: "/app/assignments",        label: "Assignments",         icon: <Assignment /> },
+    { to: "/app/open-shifts",        label: "Open Shifts",         icon: <WorkHistoryIcon /> },
+    { to: "/app/timeoff",            label: "Time Off",            icon: <AccessAlarm /> },
+    { to: "/app/constraints",        label: "Constraints & Rules", icon: <Rule /> },
+    { to: "/app/coverage",           label: "Coverage",            icon: <Work />,      tier: "growth" },
+    { to: "/app/demand-templates",   label: "Demand Templates",    icon: <EventNote />, tier: "growth" },
+    { to: "/app/timeclock",          label: "Time Clock",          icon: <AccessAlarm /> },
+    { to: "/app/chat",               label: "Chat",                icon: <Chat />,      tier: "growth" },
   ];
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -110,9 +149,138 @@ export default function AppShell() {
     }
   };
 
-  const userEmail = user?.email ?? "";
-  const initials = userEmail ? getInitials(userEmail) : "?";
+  const userEmail   = user?.email ?? "";
+  const initials    = userEmail ? getInitials(userEmail) : "?";
   const displayName = userEmail.split("@")[0];
+
+  const drawerContent = (
+    <>
+      <Toolbar />
+      <Divider sx={{ borderColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.08)", mx: 2 }} />
+
+      {/* Nav label — hide when collapsed */}
+      {(!collapsed || isMobile) && (
+        <Typography
+          variant="caption"
+          sx={{
+            px: 2.5, pt: 2, pb: 0.5,
+            color: isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.4)",
+            fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontSize: 10,
+            display: "block",
+          }}
+        >
+          Navigation
+        </Typography>
+      )}
+
+      <List sx={{ px: 0, pt: collapsed && !isMobile ? 1 : 0.5 }}>
+        {items
+          .filter((i) => i.show !== false)
+          .map((i) => (
+            <DrawerNavItem
+              key={i.to}
+              {...i}
+              locked={i.tier === "growth" && !isGrowthPlus}
+              collapsed={!isMobile && collapsed}
+              onNavigate={isMobile ? () => setMobileOpen(false) : undefined}
+            />
+          ))}
+      </List>
+
+      {/* Spacer */}
+      <Box sx={{ flexGrow: 1 }} />
+
+      {/* Collapse toggle — desktop only */}
+      {!isMobile && (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: collapsed ? "center" : "flex-end",
+            px: 1,
+            py: 0.5,
+          }}
+        >
+          <Tooltip title={collapsed ? "Expand sidebar" : "Collapse sidebar"} placement="right">
+            <IconButton
+              onClick={toggleCollapsed}
+              size="small"
+              sx={{
+                color: isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.35)",
+                "&:hover": {
+                  color: isDark ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.75)",
+                  bgcolor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+                },
+              }}
+            >
+              {collapsed
+                ? <ChevronRightIcon sx={{ fontSize: 18 }} />
+                : <ChevronLeftIcon  sx={{ fontSize: 18 }} />}
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
+
+      <Divider sx={{ borderColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.08)", mx: 2 }} />
+
+      {/* User info */}
+      {(isMobile || !collapsed) ? (
+        <Box sx={{ p: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Avatar sx={{
+            width: 32, height: 32, fontSize: 12, fontWeight: 700,
+            bgcolor: "rgba(0,137,123,0.2)", color: "#4db6ac",
+            border: "1px solid rgba(0,137,123,0.3)",
+          }}>
+            {initials}
+          </Avatar>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3, color: isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.85)" }} noWrap>
+              {displayName}
+            </Typography>
+            <Typography sx={{ fontSize: 10.5, color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.45)", lineHeight: 1.2 }} noWrap>
+              {isOwner ? "Owner" : "Admin"}
+            </Typography>
+          </Box>
+          <Tooltip title="Sign out">
+            <IconButton
+              onClick={logout}
+              size="small"
+              sx={{
+                color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.45)",
+                "&:hover": { color: "#ef9a9a" },
+              }}
+            >
+              <Logout sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ) : (
+        /* Collapsed desktop: avatar + logout stacked */
+        <Box sx={{ p: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5, pb: 1.5 }}>
+          <Tooltip title={displayName} placement="right">
+            <Avatar sx={{
+              width: 32, height: 32, fontSize: 12, fontWeight: 700,
+              bgcolor: "rgba(0,137,123,0.2)", color: "#4db6ac",
+              border: "1px solid rgba(0,137,123,0.3)", cursor: "default",
+            }}>
+              {initials}
+            </Avatar>
+          </Tooltip>
+          <Tooltip title="Sign out" placement="right">
+            <IconButton
+              onClick={logout}
+              size="small"
+              sx={{
+                color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.45)",
+                "&:hover": { color: "#ef9a9a" },
+              }}
+            >
+              <Logout sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
+    </>
+  );
 
   return (
     <Box sx={{ display: "flex" }}>
@@ -249,78 +417,36 @@ export default function AppShell() {
         onClose={() => setMobileOpen(false)}
         ModalProps={{ keepMounted: true }}
         sx={{
-          width: { md: drawerWidth },
+          width: { md: desktopWidth },
           flexShrink: 0,
+          transition: "width 220ms ease",
           "& .MuiDrawer-paper": {
-            width: drawerWidth,
+            width: isMobile ? DRAWER_EXPANDED : desktopWidth,
             boxSizing: "border-box",
+            overflowX: "hidden",
+            transition: "width 220ms ease",
             background: isDark ? "#0a1214" : "#ffffff",
             color: isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.85)",
             borderRight: isDark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.08)",
+            display: "flex",
+            flexDirection: "column",
           },
         }}
       >
-        <Toolbar />
-        <Divider sx={{ borderColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.08)", mx: 2 }} />
-
-        {/* Nav label */}
-        <Typography
-          variant="caption"
-          sx={{
-            px: 2.5, pt: 2, pb: 0.5,
-            color: isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.4)",
-            fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontSize: 10,
-          }}
-        >
-          Navigation
-        </Typography>
-
-        <List sx={{ px: 0, pt: 0.5 }}>
-          {items
-            .filter((i) => i.show !== false)
-            .map((i) => (
-              <DrawerNavItem key={i.to} {...i} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
-            ))}
-        </List>
-
-        {/* User info at bottom */}
-        <Box sx={{ flexGrow: 1 }} />
-        <Divider sx={{ borderColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.08)", mx: 2 }} />
-        <Box sx={{ p: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Avatar sx={{
-            width: 32, height: 32, fontSize: 12, fontWeight: 700,
-            bgcolor: "rgba(0,137,123,0.2)", color: "#4db6ac",
-            border: "1px solid rgba(0,137,123,0.3)",
-          }}>
-            {initials}
-          </Avatar>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3, color: isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.85)" }} noWrap>
-              {displayName}
-            </Typography>
-            <Typography sx={{ fontSize: 10.5, color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.45)", lineHeight: 1.2 }} noWrap>
-              {isOwner ? "Owner" : "Admin"}
-            </Typography>
-          </Box>
-          <Tooltip title="Sign out">
-            <IconButton
-              onClick={logout}
-              size="small"
-              sx={{
-                color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.45)",
-                "&:hover": { color: "#ef9a9a" },
-              }}
-            >
-              <Logout sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>
+        {drawerContent}
       </Drawer>
 
       {/* Main content */}
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: { xs: 2, md: 3 }, maxWidth: 1400, mx: "auto", width: "100%" }}
+        sx={{
+          flexGrow: 1,
+          p: { xs: 2, md: 3 },
+          maxWidth: 1400,
+          mx: "auto",
+          width: "100%",
+          transition: "margin 220ms ease",
+        }}
       >
         <Toolbar />
         {/* Trial countdown banner */}
