@@ -1031,6 +1031,7 @@ export default function Landing() {
                     bgcolor: TEAL_DARK, color: "#fff", px: 4, py: 1.75, fontSize: 15, fontWeight: 700,
                     borderRadius: 2, textTransform: "none",
                     boxShadow: "0 0 24px rgba(0,137,123,0.5)",
+                    width: { xs: "100%", sm: "auto" },
                     "&:hover": { bgcolor: "#00796b", boxShadow: "0 0 36px rgba(0,137,123,0.7)" },
                   }}
                 >
@@ -1049,8 +1050,8 @@ export default function Landing() {
               </Stack>
             </Grid>
 
-            {/* Hero visual */}
-            <Grid item xs={12} md={6}>
+            {/* Hero visual — hidden on small phones to keep hero focused */}
+            <Grid item xs={12} md={6} sx={{ display: { xs: "none", sm: "block" } }}>
               <Box sx={{ position: "relative" }}>
                 {/* Glow */}
                 <Box sx={{ position: "absolute", inset: -40, background: "radial-gradient(ellipse, rgba(0,137,123,0.2) 0%, transparent 70%)", pointerEvents: "none" }} />
@@ -1418,7 +1419,7 @@ export default function Landing() {
           </Box>
           <Grid container spacing={{ xs: 2.5, md: 3 }} alignItems="stretch">
             {PRICING_PLANS.map((plan, i) => (
-              <Grid item xs={12} sm={6} md={4} key={i} sx={{ display: "flex" }}>
+              <Grid item xs={12} sm={6} md={3} key={i} sx={{ display: "flex" }}>
                 <PricingCard {...plan} />
               </Grid>
             ))}
