@@ -539,103 +539,6 @@ const APP_SCREENS = [
   },
 ];
 
-function FeatureGallery() {
-  return (
-    <Box sx={{ py: { xs: 6, md: 10 }, bgcolor: DARK_BG }}>
-      <Container maxWidth="lg">
-        <Box sx={{ textAlign: "center", mb: 5 }}>
-          <Chip
-            label="See It In Action"
-            sx={{ mb: 2, bgcolor: "rgba(0,137,123,0.12)", color: TEAL, border: "1px solid rgba(0,137,123,0.3)", fontWeight: 600, fontSize: 11 }}
-          />
-          <Typography variant="h3" fontWeight={800} sx={{ mb: 1.5, fontSize: { xs: "1.6rem", md: "2.1rem" } }}>
-            Every tool your team needs
-          </Typography>
-          <Typography sx={{ color: "rgba(255,255,255,0.5)", maxWidth: 480, mx: "auto", fontSize: 15 }}>
-            From AI-generated schedules to staff self-service — all in one place.
-          </Typography>
-        </Box>
-      </Container>
-
-      {/* Horizontally scrollable gallery */}
-      <Box
-        sx={{
-          display: "flex",
-          gap: { xs: 2, md: 3 },
-          overflowX: "auto",
-          px: { xs: 2, md: 8 },
-          pb: 3,
-          scrollSnapType: "x mandatory",
-          scrollBehavior: "smooth",
-          "&::-webkit-scrollbar": { height: 6 },
-          "&::-webkit-scrollbar-track": { bgcolor: "rgba(255,255,255,0.04)", borderRadius: 3 },
-          "&::-webkit-scrollbar-thumb": { bgcolor: TEAL_DARK, borderRadius: 3 },
-        }}
-      >
-        {APP_SCREENS.map((screen, i) => {
-          const ScreenContent = screen.content;
-          return (
-            <Box
-              key={i}
-              sx={{
-                flexShrink: 0,
-                width: { xs: "82vw", md: 400 },
-                scrollSnapAlign: "start",
-                borderRadius: 2.5,
-                overflow: "hidden",
-                border: "1px solid rgba(77,182,172,0.2)",
-                boxShadow: "0 16px 60px rgba(0,0,0,0.5), 0 0 30px rgba(0,137,123,0.08)",
-                bgcolor: DARK_CARD,
-                transition: "border-color 0.2s, box-shadow 0.2s",
-                "&:hover": {
-                  borderColor: "rgba(77,182,172,0.4)",
-                  boxShadow: "0 20px 80px rgba(0,0,0,0.6), 0 0 40px rgba(0,137,123,0.15)",
-                },
-              }}
-            >
-              {/* Browser chrome */}
-              <Box sx={{ bgcolor: "#1a2f32", px: 1.5, py: 1, display: "flex", alignItems: "center", gap: 0.75, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#ff5f57" }} />
-                <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#ffbd2e" }} />
-                <Box sx={{ width: 11, height: 11, borderRadius: "50%", bgcolor: "#28c840" }} />
-                <Box sx={{ flex: 1, mx: 1, bgcolor: "rgba(255,255,255,0.06)", borderRadius: 1, px: 1.5, py: 0.35, textAlign: "center" }}>
-                  <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{screen.url}</Typography>
-                </Box>
-              </Box>
-              {/* Sidebar + content */}
-              <Stack direction="row" sx={{ minHeight: 300 }}>
-                <Box sx={{ width: 44, bgcolor: "#0a1618", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", alignItems: "center", pt: 1.5, gap: 1.5, flexShrink: 0 }}>
-                  {[CalendarIcon, GroupIcon, ClockIcon, OpenShiftIcon, AnalyticsIcon, PhoneIcon].map((Icon, j) => (
-                    <Box key={j} sx={{ width: 30, height: 30, borderRadius: 1.5, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: j === i ? "rgba(0,137,123,0.25)" : "transparent", border: j === i ? `1px solid ${TEAL}44` : "1px solid transparent" }}>
-                      <Icon sx={{ fontSize: 15, color: j === i ? TEAL : "rgba(255,255,255,0.2)" }} />
-                    </Box>
-                  ))}
-                </Box>
-                <Box sx={{ flex: 1, p: 2, overflow: "hidden" }}>
-                  <Stack direction="row" alignItems="center" sx={{ mb: 1.5 }}>
-                    <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{screen.icon} {screen.label}</Typography>
-                    <Box sx={{ flex: 1 }} />
-                    <Box sx={{ px: 1.25, py: 0.4, bgcolor: "rgba(0,137,123,0.12)", borderRadius: 1, border: `1px solid ${TEAL}33` }}>
-                      <Typography sx={{ fontSize: 9.5, color: TEAL, fontWeight: 700 }}>Live</Typography>
-                    </Box>
-                  </Stack>
-                  <ScreenContent />
-                </Box>
-              </Stack>
-            </Box>
-          );
-        })}
-      </Box>
-
-      <Box sx={{ textAlign: "center", mt: 1 }}>
-        <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontWeight: 500 }}>
-          ← Scroll to explore all features →
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
-
 // ─── Feature Screen Mockup ────────────────────────────────────────────────────
 
 function FeatureScreenMockup({ screenIndex }: { screenIndex: number }) {
@@ -1088,11 +991,6 @@ export default function Landing() {
       </Box>
 
       {/* ══════════════════════════════════════════════════════════════
-          FEATURE GALLERY
-      ══════════════════════════════════════════════════════════════ */}
-      <FeatureGallery />
-
-      {/* ══════════════════════════════════════════════════════════════
           LOGO / TRUST BAR
       ══════════════════════════════════════════════════════════════ */}
       <Box sx={{ py: 4, borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", bgcolor: "rgba(255,255,255,0.015)" }}>
@@ -1241,40 +1139,6 @@ export default function Landing() {
       </Box>
 
       {/* ══════════════════════════════════════════════════════════════
-          FULL FEATURES GRID
-      ══════════════════════════════════════════════════════════════ */}
-      <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: DARK_BG }}>
-        <Container maxWidth="lg">
-          <Box sx={{ textAlign: "center", mb: 7 }}>
-            <Typography variant="h3" fontWeight={800} sx={{ mb: 2, fontSize: { xs: "1.75rem", md: "2.25rem" } }}>
-              Every tool your facility needs
-            </Typography>
-            <Typography sx={{ color: "rgba(255,255,255,0.5)", maxWidth: 520, mx: "auto" }}>
-              Purpose-built for healthcare — not adapted from generic project management software.
-            </Typography>
-          </Box>
-          <Grid container spacing={{ xs: 1.5, md: 2.5 }}>
-            {ALL_FEATURES.map(f => (
-              <Grid item xs={6} sm={6} md={4} lg={3} key={f.title}>
-                <Box sx={{
-                  p: { xs: 1.75, md: 2.5 }, borderRadius: 2.5, height: "100%",
-                  bgcolor: DARK_CARD, border: "1px solid rgba(255,255,255,0.06)",
-                  transition: "border-color 0.2s, transform 0.2s",
-                  "&:hover": { borderColor: "rgba(77,182,172,0.3)", transform: "translateY(-2px)" },
-                }}>
-                  <Box sx={{ width: { xs: 36, md: 44 }, height: { xs: 36, md: 44 }, borderRadius: 2, mb: 1.5, bgcolor: "rgba(0,137,123,0.1)", border: "1px solid rgba(0,137,123,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    {f.icon}
-                  </Box>
-                  <Typography fontWeight={700} sx={{ mb: 0.5, fontSize: { xs: 12.5, md: 14 }, color: "#fff", lineHeight: 1.3 }}>{f.title}</Typography>
-                  <Typography sx={{ fontSize: { xs: 11.5, md: 12.5 }, color: "rgba(255,255,255,0.5)", lineHeight: 1.55, display: { xs: "none", sm: "block" } }}>{f.desc}</Typography>
-                </Box>
-              </Grid>
-            ))}
-          </Grid>
-        </Container>
-      </Box>
-
-      {/* ══════════════════════════════════════════════════════════════
           HOW IT WORKS
       ══════════════════════════════════════════════════════════════ */}
       <Box id="how-it-works" sx={{
@@ -1353,48 +1217,6 @@ export default function Landing() {
               </Grid>
             ))}
           </Grid>
-        </Container>
-      </Box>
-
-      {/* ══════════════════════════════════════════════════════════════
-          TESTIMONIALS
-      ══════════════════════════════════════════════════════════════ */}
-      <Box id="testimonials" sx={{ py: { xs: 8, md: 12 }, bgcolor: DARK_BG, scrollMarginTop: 80 }}>
-        <Container maxWidth="lg">
-          <Box sx={{ textAlign: "center", mb: 7 }}>
-            <Chip label="Testimonials" sx={{ mb: 2, bgcolor: "rgba(249,168,37,0.1)", color: "#f9a825", border: "1px solid rgba(249,168,37,0.3)", fontWeight: 600, fontSize: 11 }} />
-            <Typography variant="h3" fontWeight={800} sx={{ mb: 2, fontSize: { xs: "1.75rem", md: "2.25rem" } }}>
-              Loved by healthcare teams
-            </Typography>
-            <Typography sx={{ color: "rgba(255,255,255,0.5)", maxWidth: 500, mx: "auto" }}>
-              From small clinics to multi-site health networks — real results from real schedulers.
-            </Typography>
-          </Box>
-          <Grid container spacing={{ xs: 2, md: 3 }}>
-            {TESTIMONIALS.map((t, i) => (
-              <Grid item xs={12} sm={6} md={4} key={i}>
-                <TestimonialCard {...t} />
-              </Grid>
-            ))}
-          </Grid>
-
-          {/* Banner strip */}
-          <Box sx={{
-            mt: 6, borderRadius: 3, overflow: "hidden",
-            height: { xs: 160, md: 220 }, position: "relative",
-            border: "1px solid rgba(0,137,123,0.2)",
-            background: "linear-gradient(135deg, rgba(0,60,70,1) 0%, rgba(0,30,40,1) 100%)",
-            display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column",
-            px: 2, textAlign: "center",
-          }}>
-            <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, rgba(0,137,123,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
-            <Typography fontWeight={900} sx={{ color: "#fff", mb: 1, fontSize: { xs: "1.15rem", md: "1.5rem" }, position: "relative" }}>
-              Built for real healthcare teams
-            </Typography>
-            <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: { xs: 13, md: 15 }, position: "relative" }}>
-              Not adapted from generic scheduling software
-            </Typography>
-          </Box>
         </Container>
       </Box>
 
