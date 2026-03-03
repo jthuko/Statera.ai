@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useAuth } from "../auth/useAuth";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
+import StateraLogo from "../assets/statera-logo.png";
 
 export default function LoginPage(){
   const [email,setEmail] = useState("");
@@ -25,6 +26,19 @@ export default function LoginPage(){
   return (
     <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
       <Paper sx={{ p:3, width: 420 }}>
+        <Box
+          component="img"
+          src={StateraLogo}
+          alt="Statera"
+          sx={{
+            width: 56,
+            height: 56,
+            objectFit: "contain",
+            display: "block",
+            mb: 1.5,
+            filter: "drop-shadow(0 0 10px rgba(0,137,123,0.25))",
+          }}
+        />
         <Typography variant="h5" fontWeight={700}>Welcome back</Typography>
         <Typography variant="body2" sx={{ opacity:.7, mb:2 }}>
           Sign in to manage schedules &nbsp;·&nbsp;{" "}

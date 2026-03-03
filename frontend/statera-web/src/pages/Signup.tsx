@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import { useAuth } from "../auth/useAuth";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
+import StateraLogo from "../assets/statera-logo.png";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
@@ -90,6 +91,20 @@ export default function SignupPage() {
       >
         {/* Header */}
         <Box sx={{ mb: 3, textAlign: "center" }}>
+          <Box
+            component="img"
+            src={StateraLogo}
+            alt="Statera"
+            sx={{
+              width: 60,
+              height: 60,
+              objectFit: "contain",
+              display: "block",
+              mx: "auto",
+              mb: 1,
+              filter: "drop-shadow(0 0 12px rgba(59,130,246,0.25))",
+            }}
+          />
           <Typography
             variant="h4"
             fontWeight={800}

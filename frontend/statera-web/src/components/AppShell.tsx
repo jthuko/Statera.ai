@@ -33,6 +33,7 @@ import { useColorMode } from "../context/ColorModeContext";
 import { usePlanFeatures } from "../auth/usePlanFeatures";
 import AppNotificationBell from "./AppNotificationBell";
 import AppHelpAssistant from "./AppHelpAssistant";
+import StateraLogo from "../assets/statera-logo.png";
 
 const DRAWER_EXPANDED  = 260;
 const DRAWER_COLLAPSED = 64;
@@ -314,13 +315,18 @@ export default function AppShell() {
 
           {/* Logo */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mr: 1 }}>
-            <Box sx={{
-              width: 30, height: 30, borderRadius: 1.5,
-              bgcolor: "rgba(0,137,123,0.25)", border: "1px solid rgba(0,137,123,0.4)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#4db6ac", lineHeight: 1 }}>S</Typography>
-            </Box>
+            <Box
+              component="img"
+              src={StateraLogo}
+              alt="Statera"
+              sx={{
+                width: 30,
+                height: 30,
+                borderRadius: 1.5,
+                objectFit: "contain",
+                filter: "drop-shadow(0 0 10px rgba(0,137,123,0.35))",
+              }}
+            />
             <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: -0.5 }}>
               Statera AI
             </Typography>

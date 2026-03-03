@@ -17,6 +17,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { useColorMode } from "../context/ColorModeContext";
 import AppHelpAssistant from "./AppHelpAssistant";
+import StateraLogo from "../assets/statera-logo.png";
 
 const DRAWER_EXPANDED  = 220;
 const DRAWER_COLLAPSED = 64;
@@ -230,13 +231,26 @@ export default function PortalShell() {
         }}
       >
         <Toolbar>
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 700, flexGrow: 1, cursor: "pointer" }}
+          <Box
+            sx={{ display: "flex", alignItems: "center", gap: 1.25, flexGrow: 1, cursor: "pointer" }}
             onClick={() => navigate("/portal")}
           >
-            Statera — Staff Portal
-          </Typography>
+            <Box
+              component="img"
+              src={StateraLogo}
+              alt="Statera"
+              sx={{
+                width: 30,
+                height: 30,
+                borderRadius: 1.5,
+                objectFit: "contain",
+                filter: "drop-shadow(0 0 10px rgba(0,137,123,0.35))",
+              }}
+            />
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Statera — Staff Portal
+            </Typography>
+          </Box>
           <Typography variant="body2" sx={{ opacity: 0.75, mr: 1, display: { xs: "none", sm: "block" } }}>
             {user?.email}
           </Typography>

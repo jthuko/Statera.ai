@@ -4,6 +4,7 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useAuth } from "../auth/useAuth";
 import api from "../api/axios";
+import StateraLogo from "../assets/statera-logo.png";
 
 const PLAN_FEATURES = [
   "Unlimited staff scheduling",
@@ -57,6 +58,20 @@ export default function TrialExpiredPage() {
           textAlign: "center",
         }}
       >
+        <Box
+          component="img"
+          src={StateraLogo}
+          alt="Statera"
+          sx={{
+            width: 60,
+            height: 60,
+            objectFit: "contain",
+            display: "block",
+            mx: "auto",
+            mb: 2,
+            filter: "drop-shadow(0 0 12px rgba(59,130,246,0.25))",
+          }}
+        />
         {/* Lock icon */}
         <Box
           sx={{

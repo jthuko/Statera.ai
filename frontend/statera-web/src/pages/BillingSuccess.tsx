@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Button, Paper, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import StateraLogo from "../assets/statera-logo.png";
 
 export default function BillingSuccessPage() {
   const navigate = useNavigate();
@@ -35,6 +36,20 @@ export default function BillingSuccessPage() {
           textAlign: "center",
         }}
       >
+        <Box
+          component="img"
+          src={StateraLogo}
+          alt="Statera"
+          sx={{
+            width: 60,
+            height: 60,
+            objectFit: "contain",
+            display: "block",
+            mx: "auto",
+            mb: 2,
+            filter: "drop-shadow(0 0 12px rgba(34,197,94,0.25))",
+          }}
+        />
         <Box
           sx={{
             width: 72,

@@ -30,6 +30,7 @@ import {
 } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
+import StateraLogo from "../assets/statera-logo.png";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -65,7 +66,6 @@ function NavBar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen: boolean
   const navLinks = [
     { label: "Features",     id: "features"      },
     { label: "How It Works", id: "how-it-works"  },
-    { label: "Testimonials", id: "testimonials"  },
     { label: "Pricing",      id: "pricing"       },
     { label: "FAQ",          id: "faq"           },
   ];
@@ -86,15 +86,19 @@ function NavBar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen: boolean
 
           {/* Logo */}
           <Stack direction="row" alignItems="center" spacing={1.5} sx={{ cursor: "pointer" }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            <Box sx={{
-              width: 38, height: 38, borderRadius: 2, flexShrink: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: "linear-gradient(135deg, rgba(0,137,123,0.4) 0%, rgba(0,137,123,0.2) 100%)",
-              border: "1px solid rgba(77,182,172,0.5)",
-              boxShadow: "0 0 16px rgba(0,137,123,0.3)",
-            }}>
-              <Typography sx={{ fontSize: 18, fontWeight: 900, color: TEAL, lineHeight: 1, letterSpacing: -1 }}>S</Typography>
-            </Box>
+            <Box
+              component="img"
+              src={StateraLogo}
+              alt="Statera"
+              sx={{
+                width: 38,
+                height: 38,
+                borderRadius: 2,
+                flexShrink: 0,
+                objectFit: "contain",
+                filter: "drop-shadow(0 0 10px rgba(0,137,123,0.5))",
+              }}
+            />
             <Box>
               <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#fff", letterSpacing: -0.5, lineHeight: 1.1 }}>Statera AI</Typography>
               <Typography sx={{ fontSize: 9, color: TEAL, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>Healthcare</Typography>
@@ -766,60 +770,47 @@ export default function Landing() {
   const PRICING_PLANS = [
     {
       plan: "Starter",
-      price: "$79",
-      desc: "1 facility · up to 30 staff members.",
+      price: "$199",
+      desc: "1 facility",
       features: [
-        "1 facility included",
-        "Up to 30 staff members",
-        "AI Scheduler",
-        "Assignments & Open Shifts",
-        "Time Off management",
-        "Time Clock + CSV export",
-        "Staff self-service portal",
-        "Email support",
+        "1 facility",
+        "Scheduling",
+        "Demand templates",
+        "Constraints",
       ],
     },
     {
       plan: "Growth",
-      price: "$199",
-      desc: "Up to 3 facilities · up to 150 staff members.",
+      price: "$499",
+      desc: "Up to 3 facilities",
       features: [
         "Up to 3 facilities",
-        "Up to 150 staff members",
-        "Full AI Scheduler with bulk accept",
-        "Open Shifts Marketplace",
-        "Compliance Rules engine",
-        "Coverage & Demand Analytics",
-        "Gusto + QuickBooks integration",
-        "Priority support",
+        "Everything in Starter",
+        "Multi-facility management",
+        "Reports",
       ],
       highlight: true,
     },
     {
-      plan: "Scale",
-      price: "$399",
-      desc: "Up to 10 facilities · up to 500 staff members.",
+      plan: "Pro",
+      price: "$999",
+      desc: "Up to 10 facilities",
       features: [
         "Up to 10 facilities",
-        "Up to 500 staff members",
         "Everything in Growth",
-        "Multi-facility analytics dashboard",
-        "Custom compliance rule sets",
-        "Dedicated onboarding specialist",
-        "Phone & priority support",
+        "AI scheduling",
+        "Forecasting",
       ],
     },
     {
       plan: "Enterprise",
       price: "Custom",
-      desc: "Unlimited facilities & staff — built for health networks.",
+      desc: "Unlimited facilities",
       features: [
-        "Unlimited facilities & staff",
-        "SSO / Active Directory integration",
-        "Dedicated account manager",
-        "SLA-backed uptime guarantee",
-        "Custom API access",
-        "On-site onboarding & training",
+        "Unlimited facilities",
+        "Priority support",
+        "Advanced AI",
+        "Custom integrations",
       ],
     },
   ];
