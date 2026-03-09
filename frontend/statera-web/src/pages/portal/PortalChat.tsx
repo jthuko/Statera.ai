@@ -5,9 +5,9 @@ import {
   Alert, Box, CircularProgress, Divider, IconButton, InputAdornment,
   List, ListItemButton, ListItemText, Stack, TextField, Typography,
   Badge, Button, Dialog, DialogTitle, DialogContent, DialogActions,
-  Avatar,
+  Avatar, useMediaQuery, useTheme,
 } from "@mui/material";
-import { Send as SendIcon, Add as AddIcon, Done as DoneIcon, DoneAll as DoneAllIcon } from "@mui/icons-material";
+import { Send as SendIcon, Add as AddIcon, Done as DoneIcon, DoneAll as DoneAllIcon, ArrowBack as ArrowBackIcon } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { useAuth } from "../../auth/useAuth";
 import {
@@ -17,6 +17,8 @@ import {
 
 export default function PortalChat() {
   const { user } = useAuth();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [rooms, setRooms] = useState<ChatRoomDto[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [selectedRoom, setSelectedRoom] = useState<ChatRoomDto | null>(null);
@@ -33,6 +35,7 @@ export default function PortalChat() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [userSearch, setUserSearch] = useState("");
   const [startingDm, setStartingDm] = useState(false);
+  const [dmError, setDmError] = useState<string | null>(null);
 
   const loadRooms = useCallback(async () => {
     try {
@@ -112,6 +115,7 @@ export default function PortalChat() {
 
   async function startDm(target: AppUserDto) {
     setStartingDm(true);
+    setDmError(null);
     try {
       // Reuse existing DM if one already exists
       const existing = rooms.find(
@@ -140,6 +144,10 @@ export default function PortalChat() {
     return other?.displayName ?? "Direct Message";
   };
 
+  // On mobile: show list panel OR thread panel, not both
+  const showList = !isMobile || !selectedRoom;
+  const showThread = !isMobile || !!selectedRoom;
+
   if (roomsLoading) return <Box sx={{ pt: 4, textAlign: "center" }}><CircularProgress /></Box>;
 
   return (
@@ -147,7 +155,8 @@ export default function PortalChat() {
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)", zIndex: 10, minWidth: 300 }}>{error}</Alert>}
 
       {/* Room list */}
-      <Box sx={{ width: 200, borderRight: "1px solid rgba(255,255,255,0.1)", overflowY: "auto", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+      {showList && (
+      <Box sx={{ width: isMobile ? "100%" : 200, borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,0.1)", overflowY: "auto", flexShrink: 0, display: "flex", flexDirection: "column" }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 1 }}>
           <Typography variant="caption" color="text.secondary" fontWeight={600}>
             CONVERSATIONS
@@ -158,9 +167,14 @@ export default function PortalChat() {
         </Stack>
         <List dense disablePadding>
           {rooms.length === 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-              No conversations yet.
-            </Typography>
+            <Box sx={{ p: 3, textAlign: "center" }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                No conversations yet.
+              </Typography>
+              <Button variant="outlined" size="small" startIcon={<AddIcon />} onClick={openNewMsgDialog}>
+                Start a message
+              </Button>
+            </Box>
           )}
           {rooms.map(room => (
             <ListItemButton
@@ -182,8 +196,10 @@ export default function PortalChat() {
           ))}
         </List>
       </Box>
+      )}
 
       {/* Message area */}
+      {showThread && (
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {!selectedRoom ? (
           <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1.5 }}>
@@ -194,7 +210,12 @@ export default function PortalChat() {
           </Box>
         ) : (
           <>
-            <Box sx={{ px: 2, py: 1, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+            <Box sx={{ px: 2, py: 1, borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", gap: 1 }}>
+              {isMobile && (
+                <IconButton size="small" onClick={() => setSelectedRoom(null)} sx={{ mr: 0.5 }}>
+                  <ArrowBackIcon fontSize="small" />
+                </IconButton>
+              )}
               <Typography variant="subtitle1" fontWeight={600}>{roomName(selectedRoom)}</Typography>
             </Box>
 
@@ -270,19 +291,20 @@ export default function PortalChat() {
           </>
         )}
       </Box>
+      )}
       {/* New Message dialog */}
-      <Dialog open={newMsgOpen} onClose={() => setNewMsgOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={newMsgOpen} onClose={() => setNewMsgOpen(false)} maxWidth="xs" fullWidth fullScreen={isMobile}>
         <DialogTitle>New Message</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
           <TextField
-            autoFocus fullWidth size="small" placeholder="Search by name or email…"
+            fullWidth size="small" placeholder="Search by name or email…"
             value={userSearch} onChange={e => setUserSearch(e.target.value)}
             sx={{ mb: 1 }}
           />
           {usersLoading ? (
             <Box sx={{ textAlign: "center", py: 3 }}><CircularProgress size={24} /></Box>
           ) : (
-            <List dense disablePadding sx={{ maxHeight: 320, overflowY: "auto" }}>
+            <List dense disablePadding sx={{ maxHeight: isMobile ? "calc(100vh - 200px)" : 320, overflowY: "auto" }}>
               {allUsers
                 .filter(u => {
                   const q = userSearch.toLowerCase();

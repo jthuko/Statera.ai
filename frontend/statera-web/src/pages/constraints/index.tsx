@@ -115,13 +115,15 @@ export default function ConstraintsRulesPage() {
             </Stack>
 
             <Stack direction="row" spacing={1.5} alignItems="center">
-              <FormControl size="small" sx={{ minWidth: 240 }}>
-                <InputLabel>Facility</InputLabel>
-                <Select label="Facility" value={facilityId}
-                  onChange={e => setSelectedId(String(e.target.value))}>
-                  {facilities.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
-                </Select>
-              </FormControl>
+              {facilities.length > 1 && (
+                <FormControl size="small" sx={{ minWidth: 240 }}>
+                  <InputLabel>Facility</InputLabel>
+                  <Select label="Facility" value={facilityId}
+                    onChange={e => setSelectedId(String(e.target.value))}>
+                    {facilities.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
+                  </Select>
+                </FormControl>
+              )}
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}

@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Button, List, ListItem, ListItemIcon, ListItemText, Stack, Typography } from "@mui/material";
+import { Box, Button, Chip, Divider, List, ListItem, ListItemIcon, ListItemText, Stack, Typography } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useNavigate } from "react-router-dom";
@@ -56,6 +56,14 @@ function UpgradePrompt() {
           </ListItem>
         ))}
       </List>
+
+      <Divider sx={{ width: "100%", maxWidth: 380, mb: 3 }} />
+
+      <Stack direction="row" alignItems="flex-end" spacing={0.5} sx={{ mb: 1 }}>
+        <Typography variant="h3" fontWeight={900} lineHeight={1}>$499</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>/month</Typography>
+      </Stack>
+      <Chip label="Up to 3 facilities" size="small" sx={{ mb: 3 }} />
 
       <Stack direction="row" spacing={2}>
         <Button

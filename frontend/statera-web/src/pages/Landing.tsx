@@ -85,25 +85,20 @@ function NavBar({ mobileMenuOpen, setMobileMenuOpen }: { mobileMenuOpen: boolean
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ py: { xs: 1, md: 1.5 }, px: { xs: 0, md: 1 } }}>
 
           {/* Logo */}
-          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ cursor: "pointer" }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+          <Box sx={{ cursor: "pointer" }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
             <Box
               component="img"
               src={StateraLogo}
               alt="Statera"
               sx={{
-                width: 38,
-                height: 38,
-                borderRadius: 2,
+                height: 36,
+                width: "auto",
                 flexShrink: 0,
                 objectFit: "contain",
                 filter: "drop-shadow(0 0 10px rgba(0,137,123,0.5))",
               }}
             />
-            <Box>
-              <Typography sx={{ fontSize: 17, fontWeight: 800, color: "#fff", letterSpacing: -0.5, lineHeight: 1.1 }}>Statera AI</Typography>
-              <Typography sx={{ fontSize: 9, color: TEAL, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>Healthcare</Typography>
-            </Box>
-          </Stack>
+          </Box>
 
           {/* Desktop nav */}
           <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: "none", md: "flex" } }}>

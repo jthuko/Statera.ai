@@ -551,18 +551,20 @@ export default function OpenShiftsPage() {
       <Card variant="outlined" sx={{ mb: 2, borderColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.1)" }}>
         <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
           <Stack direction="row" spacing={1.5} flexWrap="wrap" alignItems="center">
-            <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>Facility</InputLabel>
-              <Select
-                label="Facility"
-                value={facility?.id ?? ""}
-                onChange={e => setSelectedId(e.target.value)}
-              >
-                {facilities.map(f => (
-                  <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {facilities.length > 1 && (
+              <FormControl size="small" sx={{ minWidth: 200 }}>
+                <InputLabel>Facility</InputLabel>
+                <Select
+                  label="Facility"
+                  value={facility?.id ?? ""}
+                  onChange={e => setSelectedId(e.target.value)}
+                >
+                  {facilities.map(f => (
+                    <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
 
             <FormControl size="small" sx={{ minWidth: 140 }}>
               <InputLabel>Status</InputLabel>

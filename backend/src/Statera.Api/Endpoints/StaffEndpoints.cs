@@ -270,9 +270,9 @@ public static class StaffEndpoints
             db.Staff.Add(e);
             await db.SaveChangesAsync();
 
-            // Only create a login account when AdminAccess is explicitly requested
+            // Create a login account whenever an email is provided
             string? tempPassword = null;
-            if (req.AdminAccess && !string.IsNullOrWhiteSpace(e.Email))
+            if (!string.IsNullOrWhiteSpace(e.Email))
             {
                 var existingUser = await um.FindByEmailAsync(e.Email);
                 if (existingUser is null)
@@ -283,9 +283,23 @@ public static class StaffEndpoints
                         UserName       = e.Email,
                         Email          = e.Email,
                         EmailConfirmed = true,
-                        SystemRole     = "FacilityAdmin"
+                        SystemRole     = req.AdminAccess ? "FacilityAdmin" : "Staff"
                     };
                     await um.CreateAsync(appUser, tempPassword);
+
+                    // FacilityAdmin accounts need a facility role so they can see their facility
+                    if (req.AdminAccess)
+                    {
+                        db.UserFacilityRoles.Add(new UserFacilityRole
+                        {
+                            Id           = Guid.NewGuid(),
+                            UserId       = appUser.Id,
+                            FacilityId   = e.FacilityId,
+                            FacilityRole = "FacilityAdmin",
+                            AssignedUtc  = DateTime.UtcNow
+                        });
+                        await db.SaveChangesAsync();
+                    }
                 }
             }
 
@@ -479,8 +493,8 @@ public static class StaffEndpoints
             {
                 a.Id, a.StaffId,
                 DayOfWeek = (int)a.DayOfWeek,
-                StartLocal = a.StartLocal.ToString(@"hh\:mm"),
-                EndLocal   = a.EndLocal.ToString(@"hh\:mm"),
+                StartLocal = a.StartLocal.ToString(@"HH\:mm"),
+                EndLocal   = a.EndLocal.ToString(@"HH\:mm"),
             }));
         });
 

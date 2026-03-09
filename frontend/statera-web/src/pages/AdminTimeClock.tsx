@@ -368,10 +368,12 @@ export default function AdminTimeClock() {
       <Card variant="outlined" sx={{ mb: 2, borderColor: "rgba(255,255,255,0.06)" }}>
         <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} flexWrap="wrap" alignItems="center">
-            <TextField select label="Facility" size="small" value={facilityId ?? ""}
-              onChange={e => setSelectedId(e.target.value)} sx={{ minWidth: 200 }}>
-              {facilities.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
-            </TextField>
+            {facilities.length > 1 && (
+              <TextField select label="Facility" size="small" value={facilityId ?? ""}
+                onChange={e => setSelectedId(e.target.value)} sx={{ minWidth: 200 }}>
+                {facilities.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
+              </TextField>
+            )}
             <TextField select label="Staff" size="small" value={staffId}
               onChange={e => setStaffId(e.target.value)} sx={{ minWidth: 200 }}>
               <MenuItem value="">All Staff</MenuItem>

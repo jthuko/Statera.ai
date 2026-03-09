@@ -3,7 +3,7 @@ import {
   Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress,
   Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
   InputAdornment, MenuItem, Skeleton, Stack, Table, TableBody, TableCell,
-  TableHead, TableRow, TextField, Typography,
+  TableHead, TableRow, TextField, Tooltip, Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
@@ -346,16 +346,18 @@ export default function Staff() {
 
       {/* Filters */}
       <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap">
-        <TextField
-          select size="small" label="Facility"
-          value={facility?.id ?? ""}
-          onChange={(e) => setSelectedId(e.target.value)}
-          sx={{ minWidth: 260 }}
-        >
-          {facilities.map(f => (
-            <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
-          ))}
-        </TextField>
+        {facilities.length > 1 && (
+          <TextField
+            select size="small" label="Facility"
+            value={facility?.id ?? ""}
+            onChange={(e) => setSelectedId(e.target.value)}
+            sx={{ minWidth: 260 }}
+          >
+            {facilities.map(f => (
+              <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+            ))}
+          </TextField>
+        )}
         <TextField
           select size="small" label="License"
           value={licenseFilter}

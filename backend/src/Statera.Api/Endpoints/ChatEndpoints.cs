@@ -18,7 +18,12 @@ public static class ChatEndpoints
         var g = v1.MapGroup("/chat").WithTags("Chat").RequireAuthorization()
             .AddEndpointFilter(async (ctx, next) =>
             {
-                // Chat (AI Assistant) requires Growth plan or higher
+                // Staff portal users are facility employees — always allow chat
+                var sysRole = ctx.HttpContext.User.FindFirstValue("system_role");
+                if (string.Equals(sysRole, "Staff", StringComparison.OrdinalIgnoreCase))
+                    return await next(ctx);
+
+                // Admin chat requires Growth plan or higher
                 if (!TierEnforcement.CanAccessGrowthFeature(ctx.HttpContext))
                     return TierEnforcement.UpgradeRequired();
                 return await next(ctx);

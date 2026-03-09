@@ -312,12 +312,14 @@ export default function Scheduler() {
 
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "flex-end" }}>
           {/* Common */}
-          <FormControl size="small" sx={{ minWidth: 240 }}>
-            <InputLabel>Facility</InputLabel>
-            <Select label="Facility" value={facility?.id ?? ""} onChange={e => setSelectedId(String(e.target.value))}>
-              {facilities.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
-            </Select>
-          </FormControl>
+          {facilities.length > 1 && (
+            <FormControl size="small" sx={{ minWidth: 240 }}>
+              <InputLabel>Facility</InputLabel>
+              <Select label="Facility" value={facility?.id ?? ""} onChange={e => setSelectedId(String(e.target.value))}>
+                {facilities.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
+              </Select>
+            </FormControl>
+          )}
 
           <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel>Unit</InputLabel>

@@ -129,11 +129,11 @@ export default function StaffFormDialog(props: {
               />
             </Stack>
             <FormControlLabel control={<Switch defaultChecked {...register('active') as any} />} label="Active" />
-            <Tooltip title={!hasEmail ? "An email address is required to grant admin access" : ""} placement="top-start">
+            <Tooltip title={!hasEmail ? "An email address is required to enable portal or admin access" : "Email grants staff portal access. Enable this to also grant full admin access."} placement="top-start">
               <span>
                 <FormControlLabel
                   control={<Switch {...register('adminAccess') as any} disabled={!hasEmail} />}
-                  label="Grant Facility Admin Access"
+                  label="Grant Admin Access (email = portal access)"
                   sx={{ opacity: hasEmail ? 1 : 0.5 }}
                 />
               </span>

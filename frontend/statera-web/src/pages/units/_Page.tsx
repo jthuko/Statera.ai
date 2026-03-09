@@ -109,19 +109,21 @@ export default function UnitsPage() {
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h5" fontWeight={700}>Units</Typography>
         <Stack direction="row" spacing={2}>
-          <TextField
-            select
-            label="Facility"
-            size="small"
-            value={selected?.id ?? ""}
-            onChange={(e) => setSelectedId(e.target.value)}
-            sx={{ minWidth: 260 }}
-            disabled={loadingFacilities}
-          >
-            {facilities.map((f: Facility) => (
-              <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
-            ))}
-          </TextField>
+          {facilities.length > 1 && (
+            <TextField
+              select
+              label="Facility"
+              size="small"
+              value={selected?.id ?? ""}
+              onChange={(e) => setSelectedId(e.target.value)}
+              sx={{ minWidth: 260 }}
+              disabled={loadingFacilities}
+            >
+              {facilities.map((f: Facility) => (
+                <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+              ))}
+            </TextField>
+          )}
           <Button variant="contained" onClick={() => setCreateOpen(true)}>New Unit</Button>
         </Stack>
       </Stack>

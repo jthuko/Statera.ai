@@ -29,7 +29,8 @@ export interface SignupData {
 
 interface AuthContextValue {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<User>;
   signup: (data: SignupData) => Promise<void>;
   logout: () => void;
   impersonate: (staffId: string) => Promise<void>;
@@ -45,6 +46,7 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isImpersonating, setIsImpersonating] = useState<boolean>(() => {
     return !!localStorage.getItem("statera:impersonatorAccessToken");
   });
@@ -58,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem("statera:user");
       }
     }
+    setLoading(false);
   }, []);
 
   function setUserPersist(next: User | null) {
@@ -69,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(next);
   }
 
-  async function loadMeAndSet(fallbackEmail?: string) {
+  async function loadMeAndSet() {
     try {
       const meRes = await api.get<{
         id: string;
@@ -97,15 +100,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserPersist(parsed);
       return parsed;
     } catch {
-      if (!fallbackEmail) throw new Error("Failed to load user");
-      const fallback: User = {
-        id: "self",
-        email: fallbackEmail,
-        systemRole: "FacilityAdmin",
-        facilityIds: [],
-      };
-      setUserPersist(fallback);
-      return fallback;
+      // Fall back to decoding the JWT directly — avoids wrong-role defaults
+      const token = localStorage.getItem("statera:accessToken");
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          const partial: User = {
+            id: payload.sub ?? "self",
+            email: payload.email ?? "",
+            systemRole: (payload.system_role ?? "FacilityAdmin") as SystemRole,
+            facilityIds: payload.facility_id
+              ? (Array.isArray(payload.facility_id) ? payload.facility_id : [payload.facility_id])
+              : [],
+            staffId: payload.staff_id ?? null,
+          };
+          setUserPersist(partial);
+          return partial;
+        } catch { /* fall through */ }
+      }
+      throw new Error("Failed to load user profile. Please try again.");
     }
   }
 
@@ -129,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof refreshToken === "string" && refreshToken) {
       localStorage.setItem("statera:refreshToken", refreshToken);
     }
-    await loadMeAndSet(data.email);
+    await loadMeAndSet();
   }
 
   async function login(email: string, password: string) {
@@ -149,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("statera:impersonatorUser");
     setIsImpersonating(false);
 
-    await loadMeAndSet(email);
+    return await loadMeAndSet();
   }
 
   async function impersonate(staffId: string) {
@@ -259,7 +272,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, impersonate, stopImpersonation, isImpersonating, isAuthorized, hasFacilityAccess, isTrialExpired, trialDaysLeft }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, impersonate, stopImpersonation, isImpersonating, isAuthorized, hasFacilityAccess, isTrialExpired, trialDaysLeft }}>
       {children}
     </AuthContext.Provider>
   );

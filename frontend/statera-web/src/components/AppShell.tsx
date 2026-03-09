@@ -130,7 +130,7 @@ export default function AppShell() {
     { to: "/app",                    label: "Dashboard",           icon: <DashboardIcon /> },
     { to: "/app/scheduler",          label: "Scheduler",           icon: <CalendarMonth /> },
     { to: "/app/staff",              label: "Staff Directory",     icon: <Group /> },
-    { to: "/app/facilities",         label: "Facilities",          icon: <LocalHospital /> },
+    { to: "/app/facilities",         label: "Facilities",          icon: <LocalHospital />, show: isOwner },
     { to: "/app/units",              label: "Units",               icon: <Apartment /> },
     { to: "/app/assignments",        label: "Assignments",         icon: <Assignment /> },
     { to: "/app/open-shifts",        label: "Open Shifts",         icon: <WorkHistoryIcon /> },
@@ -314,22 +314,18 @@ export default function AppShell() {
           )}
 
           {/* Logo */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mr: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", mr: 1 }}>
             <Box
               component="img"
               src={StateraLogo}
               alt="Statera"
               sx={{
-                width: 30,
-                height: 30,
-                borderRadius: 1.5,
+                height: 32,
+                width: "auto",
                 objectFit: "contain",
                 filter: "drop-shadow(0 0 10px rgba(0,137,123,0.35))",
               }}
             />
-            <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: -0.5 }}>
-              Statera AI
-            </Typography>
           </Box>
 
           <Box sx={{ flexGrow: 1 }} />

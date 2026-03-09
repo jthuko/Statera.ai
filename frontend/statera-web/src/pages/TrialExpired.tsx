@@ -63,8 +63,8 @@ export default function TrialExpiredPage() {
           src={StateraLogo}
           alt="Statera"
           sx={{
-            width: 60,
-            height: 60,
+            width: 200,
+            height: "auto",
             objectFit: "contain",
             display: "block",
             mx: "auto",

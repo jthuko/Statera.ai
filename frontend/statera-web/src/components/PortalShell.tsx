@@ -240,15 +240,22 @@ export default function PortalShell() {
               src={StateraLogo}
               alt="Statera"
               sx={{
-                width: 30,
-                height: 30,
-                borderRadius: 1.5,
+                height: 32,
+                width: "auto",
                 objectFit: "contain",
                 filter: "drop-shadow(0 0 10px rgba(0,137,123,0.35))",
               }}
             />
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Statera — Staff Portal
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+                textTransform: "uppercase", color: "rgba(255,255,255,0.6)",
+                border: "1px solid rgba(255,255,255,0.25)", borderRadius: 0.75,
+                px: 0.75, py: 0.25, lineHeight: 1.4, display: { xs: "none", sm: "block" },
+              }}
+            >
+              Staff Portal
             </Typography>
           </Box>
           <Typography variant="body2" sx={{ opacity: 0.75, mr: 1, display: { xs: "none", sm: "block" } }}>

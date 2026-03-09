@@ -184,7 +184,7 @@ using (var scope = app.Services.CreateScope())
         scope.ServiceProvider,
         logger,
         app.Environment.IsDevelopment(),
-        resetDatabase: app.Environment.IsDevelopment()
+        resetDatabase: false  // Never wipe data — preserves accounts across restarts
     );
 }
 

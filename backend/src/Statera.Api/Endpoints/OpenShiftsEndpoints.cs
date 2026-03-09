@@ -461,7 +461,10 @@ public static class OpenShiftsEndpoints
                     r.Id, r.OpenShiftId, r.Status, r.RequestedUtc, r.ReviewedUtc,
                     Shift = s is null ? null : (object)new
                     {
-                        s.Role, s.StartUtc, s.EndUtc, s.Notes, s.FacilityId, s.UnitId
+                        s.Role,
+                        StartUtc = DateTime.SpecifyKind(s.StartUtc, DateTimeKind.Utc),
+                        EndUtc   = DateTime.SpecifyKind(s.EndUtc,   DateTimeKind.Utc),
+                        s.Notes, s.FacilityId, s.UnitId
                     }
                 };
             });
@@ -481,7 +484,10 @@ public static class OpenShiftsEndpoints
         int? requestCount) => new
     {
         s.Id, s.FacilityId, s.UnitId, s.Role,
-        s.StartUtc, s.EndUtc, s.Notes, s.Status, s.CreatedUtc,
+        StartUtc        = DateTime.SpecifyKind(s.StartUtc, DateTimeKind.Utc),
+        EndUtc          = DateTime.SpecifyKind(s.EndUtc,   DateTimeKind.Utc),
+        CreatedUtc      = DateTime.SpecifyKind(s.CreatedUtc, DateTimeKind.Utc),
+        s.Notes, s.Status,
         RequestCount    = requestCount,
         MyRequestId     = myRequestId,
         MyRequestStatus = myRequestStatus,
