@@ -19,6 +19,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   Star as StarIcon,
   TrendingDown as TrendingDownIcon,
+  TrendingUp as TrendingUpIcon,
   AccessAlarm as AlarmIcon,
   Psychology as PsychologyIcon,
   Shield as ShieldIcon,
@@ -27,6 +28,9 @@ import {
   TableChart as TableChartIcon,
   Close as CloseIcon,
   Menu as MenuIcon,
+  MonitorHeart as MonitorHeartIcon,
+  EditCalendar as EditCalendarIcon,
+  AutoFixHigh as AutoFixHighIcon,
 } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -732,6 +736,19 @@ export default function Landing() {
       ],
       screenIndex: 4,
     },
+    {
+      label: "AI Predictions",
+      icon: <AIIcon />,
+      title: "Predict Problems Before They Happen",
+      desc: "Statera's AI engine analyzes 12 weeks of historical data, sick call-off patterns, and seasonal trends to forecast staffing shortages weeks in advance — then tells you exactly how many PRN staff to add and when.",
+      bullets: [
+        "Shortage forecasts up to 4 weeks ahead",
+        "Per-role probability scores with severity levels",
+        "Burnout risk tracking across your entire team",
+        "Auto Schedule from census and nurse-to-patient ratios",
+      ],
+      screenIndex: 0,
+    },
   ];
 
   const STATS = [
@@ -793,8 +810,8 @@ export default function Landing() {
       features: [
         "Up to 10 facilities",
         "Everything in Growth",
-        "AI scheduling",
-        "Forecasting",
+        "AI scheduling + Auto Schedule",
+        "Staffing Predictions + Burnout",
       ],
     },
     {
@@ -835,6 +852,18 @@ export default function Landing() {
       q: "Is my data secure?",
       a: "All data is encrypted in transit (TLS 1.3) and at rest. Access tokens are stored securely and role-based access control ensures each user sees only what they're authorized to see. We follow healthcare data security best practices.",
     },
+    {
+      q: "How do Staffing Predictions work?",
+      a: "Statera analyzes 12 weeks of historical assignment data per role and day-of-week, combines it with your currently scheduled coverage, historical sick call-off approval rates, and seasonal demand factors (flu season Nov–Feb, major holidays). For each role and date in the next 4 weeks it calculates a shortage probability. High and Critical predictions also include an AI-generated plain-English insight explaining the specific risk.",
+    },
+    {
+      q: "What is Burnout Prediction tracking?",
+      a: "Burnout Prediction monitors five signals over a rolling 28-day window for every active staff member: total hours worked, weekly overtime (hours above 40/week), maximum consecutive days worked, short rest violations (less than 10 hours between back-to-back shifts), and approved sick call-offs. A risk score of 0–100% is computed and color-coded as Low, Medium, High, or Critical. For High and Critical staff, Claude AI generates a personalized explanation and 2–3 specific recovery suggestions.",
+    },
+    {
+      q: "What is Auto Schedule?",
+      a: "Auto Schedule lets you enter a patient census and nurse-to-patient ratios (e.g. 1 RN per 8 patients). Statera calculates how many of each role are required, queries the scheduling engine for the best-fit qualified staff, and automatically creates all assignments while applying every compliance rule (availability, credentials, rest periods, overtime). You can review the results in an accordion by date and role, then switch to Manual Schedule to adjust any individual slot.",
+    },
   ];
 
   const ALL_FEATURES = [
@@ -850,6 +879,9 @@ export default function Landing() {
     { icon: <NotifIcon sx={{ fontSize: 24, color: TEAL }} />, title: "Real-Time Notifications", desc: "Instant alerts for shift approvals, time-off requests, and coverage alerts." },
     { icon: <TableChartIcon sx={{ fontSize: 24, color: TEAL }} />, title: "Demand Templates", desc: "Define ideal staffing patterns per unit and day — let Statera fill the gaps." },
     { icon: <PhoneIcon sx={{ fontSize: 24, color: TEAL }} />, title: "Mobile-First Staff Portal", desc: "Fully responsive portal for staff — no app download, works on any device." },
+    { icon: <EditCalendarIcon sx={{ fontSize: 24, color: TEAL }} />, title: "Auto Schedule", desc: "Enter census and nurse-to-patient ratios — Statera builds the entire schedule automatically in seconds." },
+    { icon: <TrendingUpIcon sx={{ fontSize: 24, color: TEAL }} />, title: "Staffing Predictions", desc: "AI forecasts shortages weeks ahead using historical patterns, sick call-off rates, and seasonal trends." },
+    { icon: <MonitorHeartIcon sx={{ fontSize: 24, color: TEAL }} />, title: "Burnout Prediction", desc: "Track consecutive shifts, overtime, rest violations, and call-offs to catch burnout before it happens." },
   ];
 
   return (
@@ -907,8 +939,9 @@ export default function Landing() {
                 Healthcare Staff
               </Typography>
               <Typography sx={{ fontSize: { xs: 16, md: 18 }, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, mb: 4, maxWidth: 520 }}>
-                Statera AI automates shift scheduling, manages time off, enforces compliance rules,
-                and gives your staff a self-service portal — all in one intelligent platform built for healthcare.
+                Statera AI automates shift scheduling, predicts staffing shortages weeks ahead,
+                tracks nurse burnout risk, and gives your staff a self-service portal —
+                all in one intelligent platform built for healthcare.
               </Typography>
 
               {/* CTA buttons */}
@@ -1059,6 +1092,111 @@ export default function Landing() {
               </Grid>
             ))}
           </Grid>
+        </Container>
+      </Box>
+
+      {/* ══════════════════════════════════════════════════════════════
+          AI INTELLIGENCE SPOTLIGHT
+      ══════════════════════════════════════════════════════════════ */}
+      <Box sx={{
+        py: { xs: 8, md: 12 },
+        background: "linear-gradient(160deg, rgba(0,137,123,0.07) 0%, rgba(0,60,80,0.04) 100%)",
+        borderTop: "1px solid rgba(0,137,123,0.1)",
+        borderBottom: "1px solid rgba(0,137,123,0.1)",
+      }}>
+        <Container maxWidth="lg">
+          <Box sx={{ textAlign: "center", mb: 7 }}>
+            <Chip
+              label="New AI Features"
+              icon={<AIIcon sx={{ fontSize: "13px !important", color: `${TEAL} !important` }} />}
+              sx={{ mb: 2, bgcolor: "rgba(0,137,123,0.12)", color: TEAL, border: "1px solid rgba(0,137,123,0.35)", fontWeight: 600, fontSize: 11 }}
+            />
+            <Typography variant="h3" fontWeight={800} sx={{ mb: 2, fontSize: { xs: "1.75rem", md: "2.25rem" } }}>
+              Stop reacting. Start{" "}
+              <Box component="span" sx={{ background: `linear-gradient(135deg, ${TEAL} 0%, ${TEAL_MID} 100%)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                predicting.
+              </Box>
+            </Typography>
+            <Typography sx={{ color: "rgba(255,255,255,0.55)", maxWidth: 560, mx: "auto", fontSize: 16 }}>
+              Statera's latest AI features turn your scheduling data into foresight —
+              so you fix shortages and burnout before your patients or staff ever notice.
+            </Typography>
+          </Box>
+
+          <Grid container spacing={3}>
+            {[
+              {
+                icon: <EditCalendarIcon sx={{ fontSize: 32, color: TEAL }} />,
+                title: "Auto Schedule",
+                badge: "New",
+                badgeColor: "#00897b",
+                desc: "Enter your census and nurse-to-patient ratios. Statera calculates how many RNs, LPNs, and CNAs are needed, finds the best-available qualified staff, and creates every assignment automatically — in seconds.",
+                example: "24 patients · 1:8 ratio → 3 RNs auto-assigned for night shift",
+                bullets: ["One click fills the entire week", "Respects all compliance rules", "Switch to Manual Schedule anytime"],
+              },
+              {
+                icon: <TrendingUpIcon sx={{ fontSize: 32, color: "#f57c00" }} />,
+                title: "Staffing Predictions",
+                badge: "New",
+                badgeColor: "#e65100",
+                desc: "AI analyzes 12 weeks of historical patterns, your current schedule, sick call-off rates, and seasonal factors to predict shortages weeks before they happen — with a probability score and specific recommendation.",
+                example: "⚠ Predicted CNA shortage · March 18–24 · Night shift · 82% probability → Add 2 PRN CNAs",
+                bullets: ["Historical + seasonal + sick-rate analysis", "Per-role probability scores", "Actionable recommendation per prediction"],
+              },
+              {
+                icon: <MonitorHeartIcon sx={{ fontSize: 32, color: "#ef5350" }} />,
+                title: "Burnout Prediction",
+                badge: "New",
+                badgeColor: "#c62828",
+                desc: "Tracks consecutive shifts, overtime hours, sleep window violations, and sick call-off patterns to compute a burnout risk score (0–100%) per staff member. AI generates a personalized narrative and recovery plan.",
+                example: "🔴 Jessica has 78% burnout risk · 7 consecutive days · 12h overtime → Schedule recovery day",
+                bullets: ["5 burnout signals tracked per person", "AI narrative + suggested actions", "Color-coded risk dashboard"],
+              },
+            ].map((feat, i) => (
+              <Grid item xs={12} md={4} key={i}>
+                <Box sx={{
+                  p: 3, borderRadius: 3, height: "100%",
+                  bgcolor: DARK_CARD,
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  transition: "border-color 0.2s, transform 0.2s",
+                  "&:hover": { borderColor: "rgba(77,182,172,0.3)", transform: "translateY(-4px)" },
+                  display: "flex", flexDirection: "column",
+                }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+                    <Box sx={{ p: 1.25, borderRadius: 2, bgcolor: "rgba(0,137,123,0.1)", border: "1px solid rgba(0,137,123,0.15)", display: "inline-flex" }}>
+                      {feat.icon}
+                    </Box>
+                    <Chip label={feat.badge} size="small" sx={{ bgcolor: feat.badgeColor, color: "#fff", fontWeight: 700, fontSize: 10 }} />
+                  </Stack>
+                  <Typography variant="h6" fontWeight={800} sx={{ mb: 1.5 }}>{feat.title}</Typography>
+                  <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: 14, lineHeight: 1.7, mb: 2, flex: 1 }}>{feat.desc}</Typography>
+                  {/* Example callout */}
+                  <Box sx={{ p: 1.5, mb: 2, borderRadius: 1.5, bgcolor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <Typography sx={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", fontFamily: "monospace", lineHeight: 1.5 }}>{feat.example}</Typography>
+                  </Box>
+                  <Stack spacing={0.75}>
+                    {feat.bullets.map(b => (
+                      <Stack key={b} direction="row" spacing={1} alignItems="center">
+                        <CheckIcon sx={{ fontSize: 13, color: TEAL, flexShrink: 0 }} />
+                        <Typography sx={{ fontSize: 12.5, color: "rgba(255,255,255,0.65)" }}>{b}</Typography>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+
+          <Box sx={{ textAlign: "center", mt: 5 }}>
+            <Button component={RouterLink} to="/signup" variant="contained" size="large" endIcon={<ArrowIcon />} sx={{
+              bgcolor: TEAL_DARK, color: "#fff", px: 4, py: 1.5, fontSize: 15, fontWeight: 700,
+              borderRadius: 2, textTransform: "none",
+              boxShadow: "0 0 20px rgba(0,137,123,0.4)",
+              "&:hover": { bgcolor: "#00796b", boxShadow: "0 0 32px rgba(0,137,123,0.6)" },
+            }}>
+              Try All AI Features Free
+            </Button>
+          </Box>
         </Container>
       </Box>
 

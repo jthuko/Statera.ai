@@ -26,6 +26,8 @@ import {
   LockOutlined as LockOutlinedIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  MonitorHeart as MonitorHeartIcon,
+  TrendingUp as TrendingUpIcon,
 } from "@mui/icons-material";
 import { Outlet, Link as RouterLink, useMatch, useResolvedPath } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -140,6 +142,8 @@ export default function AppShell() {
     { to: "/app/demand-templates",   label: "Demand Templates",    icon: <EventNote />, tier: "growth" },
     { to: "/app/timeclock",          label: "Time Clock",          icon: <AccessAlarm /> },
     { to: "/app/chat",               label: "Chat",                icon: <Chat />,      tier: "growth" },
+    { to: "/app/burnout",            label: "Burnout Prediction",  icon: <MonitorHeartIcon />, tier: "growth" },
+    { to: "/app/staffing-predictions", label: "Staffing Predictions", icon: <TrendingUpIcon />, tier: "growth" },
   ];
 
   const onKey = (e: React.KeyboardEvent) => {

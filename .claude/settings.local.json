@@ -1,7 +1,25 @@
 {
   "permissions": {
     "allow": [
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm install react-native-paper react-native-vector-icons @expo/vector-icons axios dayjs @react-native-async-storage/async-storage --legacy-peer-deps)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(dotnet build --configuration Release)",
+      "Bash(aws ecr get-login-password --region us-east-1)",
+      "Bash(docker login --username AWS --password-stdin 318247877206.dkr.ecr.us-east-1.amazonaws.com)",
+      "Bash(docker build -t 318247877206.dkr.ecr.us-east-1.amazonaws.com/statera-api:latest \"c:/Users/medic/OneDrive/Desktop/John T/Statera/Statera.ai/backend\")",
+      "Bash(docker context use desktop-linux)",
+      "Bash(cmd /c start \"\" \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\")",
+      "Bash(docker info)",
+      "Bash(npx expo start)",
+      "Bash(npm install @react-native-async-storage/async-storage@^2.1.2 --legacy-peer-deps)",
+      "Bash(node --version)",
+      "Bash(npm --version)",
+      "Bash(npm install)",
+      "Bash(npx expo start --no-web)",
+      "Bash(npm install --legacy-peer-deps)",
+      "Bash(rm -rf node_modules package-lock.json)",
+      "Bash(npx expo install --fix)"
     ]
   }
 }

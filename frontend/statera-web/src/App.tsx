@@ -29,6 +29,8 @@ import FacilityAdminPage from "./pages/facilities/FacilityAdminPage";
 import ChatPage from "./pages/ChatPage";
 import AdminTimeClock from "./pages/AdminTimeClock";
 import OpenShiftsPage from "./pages/OpenShifts";
+import BurnoutPage from "./pages/BurnoutPage";
+import StaffingPredictionPage from "./pages/StaffingPredictionPage";
 
 // Portal pages (staff)
 import PortalDashboard from "./pages/portal/PortalDashboard";
@@ -101,6 +103,8 @@ export default function App() {
         <Route path="open-shifts" element={<OpenShiftsPage />} />
         <Route path="demand-templates" element={<UpgradeGate><DemandTemplatesListPage /></UpgradeGate>} />
         <Route path="demand-templates/:id" element={<UpgradeGate><DemandTemplateEditorPage /></UpgradeGate>} />
+        <Route path="burnout" element={<UpgradeGate><BurnoutPage /></UpgradeGate>} />
+        <Route path="staffing-predictions" element={<UpgradeGate><StaffingPredictionPage /></UpgradeGate>} />
         <Route path="dashboard" element={<Navigate to="/app" replace />} />
         <Route path="*" element={<Navigate to="/app/assignments" replace />} />
       </Route>

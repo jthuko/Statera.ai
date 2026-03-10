@@ -160,6 +160,8 @@ v1.MapHelpEndpoints();
 v1.MapOpenShiftEndpoints();
 v1.MapIntegrationsEndpoints();
 v1.MapBillingEndpoints();
+v1.MapBurnoutEndpoints();
+v1.MapStaffingPredictionEndpoints();
 
 
 // Convenience: root -> Swagger

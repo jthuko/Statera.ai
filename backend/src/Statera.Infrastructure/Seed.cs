@@ -851,6 +851,204 @@ public static class DevDataSeeder
             logger.LogInformation("DevDataSeeder: added '{Title}' help article.", openShiftsTitle);
         }
 
+        // ── Auto Schedule (admin only — "Scheduler" category is not in STAFF_CATEGORIES) ──
+        const string autoScheduleTitle = "Auto Schedule — Census-Driven Scheduling";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == autoScheduleTitle))
+        {
+            static string JA(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string SA(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Scheduler",
+                Title        = autoScheduleTitle,
+                SortOrder    = 3,
+                TagsJson     = JA("auto schedule", "census", "ratios", "RN", "LPN", "CNA", "staffing", "auto", "admin"),
+                SectionsJson = SA(
+                    (null, "Auto Schedule generates and assigns a complete staffing schedule automatically based on your patient census and nurse-to-patient ratios. Switch to the Auto Schedule tab in the Scheduler page."),
+                    ("Step 1 — Set census & ratios", "Enter the current patient census (number of patients). Then enable each role you need to staff (RN, LPN, CNA) and set its ratio — for example, '1 staff per 8 patients' for RN means one RN is required for every 8 patients. A live preview chip shows how many of each role will be needed per shift."),
+                    ("Step 2 — Set the date range & shift", "Choose a From and To date, a shift start and end time, and tick the days of the week the shift runs. For overnight shifts set an end time earlier than the start time — the system handles the date rollover automatically."),
+                    ("Step 3 — Click Auto Schedule", "Statera calculates the required staff count per role, queries the scheduling engine for the best-available candidates (applying all constraints: availability, licenses, fatigue, overtime, rest periods), and automatically creates all assignments. A progress bar tracks completion."),
+                    ("Reviewing results", "After generation each date expands in an accordion showing every role, how many were needed, which staff were assigned, and a status chip: Full (all slots filled), Short (partial fill), or Unfilled (no eligible staff found)."),
+                    ("Unfilled slots", "If a slot could not be filled it means no eligible staff were available after applying all scheduling rules. You can switch to Manual Schedule to investigate suggestions for that specific date and role, post an Open Shift, or adjust constraints."),
+                    ("Manual Schedule tab", "The Manual Schedule tab is unchanged — use it to suggest candidates for a specific shift and accept them one at a time, or use Accept Best for All Days to bulk-accept the top candidate per day."))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", autoScheduleTitle);
+        }
+
+        // ── Admin: Add / Edit / Delete Staff (admin only — "Staff" category not in STAFF_CATEGORIES) ──
+        const string mobileStaffMgmtTitle = "Adding, Editing & Removing Staff (Mobile)";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == mobileStaffMgmtTitle))
+        {
+            static string JM(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string SM(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Staff",
+                Title        = mobileStaffMgmtTitle,
+                SortOrder    = 5,
+                TagsJson     = JM("staff", "add", "create", "edit", "delete", "remove", "mobile", "admin"),
+                SectionsJson = SM(
+                    (null, "In the mobile admin app you can add new staff members, edit their details, or remove them directly from the Staff screen."),
+                    ("Adding a staff member", "Tap the + button in the bottom-right corner of the Staff screen. Fill in First Name, Last Name, Role (e.g. RN, LPN, CNA), Employment Type, and optionally Email and Phone. Toggle Active on or off. Tap Add Staff to save.\n\nIf an email is provided a portal login is automatically created for that staff member with a temporary password of TempPass123! — share this with them so they can log in and change it."),
+                    ("Editing a staff member", "Tap a staff card to expand it, then tap Edit. The same form opens pre-filled with the current values. Change any field and tap Save Changes."),
+                    ("Deleting a staff member", "Tap a staff card to expand it, then tap Delete. Confirm the deletion in the prompt. This permanently removes the staff record. Time clock entries, assignments, and time-off history linked to that staff member are also removed."),
+                    ("Active vs Inactive", "Toggling Active off hides the staff member from scheduling suggestions and the default staff list, but preserves all their history. Use this for staff on extended leave instead of deleting them."))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", mobileStaffMgmtTitle);
+        }
+
+        // ── Staff Portal: Edit Profile (staff only — "Staff Portal" category, no admin tag) ──
+        const string editProfileTitle = "Editing Your Profile";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == editProfileTitle))
+        {
+            static string JP(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string SP(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Staff Portal",
+                Title        = editProfileTitle,
+                SortOrder    = 3,
+                TagsJson     = JP("profile", "edit", "phone", "emergency contact", "portal", "mobile"),
+                SectionsJson = SP(
+                    (null, "You can update your contact and emergency information directly from the Profile tab in the mobile app."),
+                    ("How to edit", "Open the Profile tab and tap Edit Profile. You can update your phone number, emergency contact name, and emergency contact phone number. Tap Save Changes when done."),
+                    ("What you can change", "Phone number, emergency contact name, and emergency contact phone are the fields you can update yourself. Your name, role, and license information can only be changed by your administrator."),
+                    ("Signing out", "Tap Sign Out at the bottom of the Profile screen. You will be prompted to confirm before being logged out."))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", editProfileTitle);
+        }
+
+        // ── Staff Portal: Schedule Calendar (staff only) ──
+        const string scheduleCalTitle = "Viewing Your Schedule";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == scheduleCalTitle))
+        {
+            static string JC(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string SC(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Staff Portal",
+                Title        = scheduleCalTitle,
+                SortOrder    = 4,
+                TagsJson     = JC("schedule", "calendar", "shifts", "week", "portal", "mobile"),
+                SectionsJson = SC(
+                    (null, "The Schedule tab shows your assigned shifts for the week in a calendar view."),
+                    ("Reading the calendar", "The week strip at the top shows all 7 days. Days that have a shift scheduled show a small dot beneath the date number. Today's date is highlighted in teal."),
+                    ("Selecting a day", "Tap any day in the strip to see the shifts for that day listed below. Each shift card shows the start and end time, your role, and the unit if one is assigned."),
+                    ("Navigating weeks", "Use the left and right arrows at the top to move to the previous or next week."),
+                    ("No shifts", "If a day shows 'No shifts scheduled' it means you have no assignments for that day. Contact your admin if you believe this is incorrect."))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", scheduleCalTitle);
+        }
+
+        // ── Staff Portal: Clock-in Status on Dashboard (staff only) ──
+        const string clockStatusTitle = "Clock-In Status on Your Dashboard";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == clockStatusTitle))
+        {
+            static string JK(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string SK(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Time Clock",
+                Title        = clockStatusTitle,
+                SortOrder    = 5,
+                TagsJson     = JK("clock in", "status", "dashboard", "portal", "mobile", "clocked in"),
+                SectionsJson = SK(
+                    (null, "Your dashboard home screen now shows whether you are currently clocked in so you can see your status at a glance without opening the Time Clock tab."),
+                    ("Status indicators", "The status card at the top of Home shows one of three states:\n• Clocked In — you are actively on the clock. The card shows the time you clocked in.\n• On Lunch — you clocked out for lunch. The card shows when your lunch started.\n• Not Clocked In — you have no active time clock entry."),
+                    ("Clocking in and out", "To clock in or out go to the Time Clock tab. The dashboard card is read-only and updates automatically when your status changes."))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", clockStatusTitle);
+        }
+
+        // ── Staffing Predictions (admin only — "Scheduler" category not in STAFF_CATEGORIES) ──
+        const string predTitle = "Staffing Predictions — AI Shortage Forecasting";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == predTitle))
+        {
+            static string JP2(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string SP2(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Scheduler",
+                Title        = predTitle,
+                SortOrder    = 5,
+                TagsJson     = JP2("staffing", "prediction", "shortage", "forecast", "AI", "census", "seasonal", "call-off", "admin"),
+                SectionsJson = SP2(
+                    (null, "Staffing Predictions uses AI to forecast staffing shortages up to 4 weeks in advance — before they happen. It shows specific role/date windows at risk, a probability percentage, and an actionable recommendation like 'Add 2 PRN CNAs'."),
+                    ("What drives a prediction", "Each shortage prediction is based on four signals:\n• Historical assignment patterns — 12 weeks of actual staffing data per role and day-of-week\n• Current scheduled coverage — how many staff are already assigned for the predicted dates\n• Sick call-off rates — historical approval rate of sick time-off requests on that day-of-week\n• Seasonal factors — flu season (Nov–Feb) and major holidays (Thanksgiving, Christmas, July 4th) raise predicted sick rates"),
+                    ("Reading a prediction card", "Each card shows:\n• Role and date range of the predicted shortage\n• A color-coded severity chip: Critical, High, Medium, or Low\n• A probability bar — e.g. 82% means history and current data suggest an 82% chance of being under-staffed\n• A recommended action (e.g. 'Add 2 PRN CNAs')\n• An AI-generated one-sentence plain-English insight for Critical and High predictions"),
+                    ("Severity levels", "• Critical (85–100%) — act immediately; consider agency staff\n• High (70–84%) — schedule PRN or float pool coverage soon\n• Medium (55–69%) — monitor closely; consider posting an open shift\n• Low (50–54%) — low confidence signal; keep an eye on call-offs"),
+                    ("Acting on a prediction", "Common actions:\n• Add a PRN or agency staff member to the predicted dates\n• Post an Open Shift so staff can volunteer to cover\n• Run Auto Schedule for those dates to fill with available qualified staff\n• Redistribute shifts from a lower-risk period to cover the gap\n• Contact float pool or agency ahead of the shortage window"),
+                    ("Accuracy notes", "Predictions are more accurate when there is 8+ weeks of assignment history. New facilities with little historical data will see broader uncertainty. The system defaults to a baseline sick rate until patterns are established. Predictions refresh each time you visit the page."))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", predTitle);
+        }
+
+        // ── Burnout Prediction (admin only — "Scheduler" category not in STAFF_CATEGORIES) ──
+        const string burnoutTitle = "Burnout Prediction — AI Risk Tracking";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == burnoutTitle))
+        {
+            static string JB(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string SB(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Scheduler",
+                Title        = burnoutTitle,
+                SortOrder    = 4,
+                TagsJson     = JB("burnout", "risk", "AI", "prediction", "overtime", "consecutive", "fatigue", "admin"),
+                SectionsJson = SB(
+                    (null, "Burnout Prediction uses AI to track each staff member's workload over the last 28 days and calculate their burnout risk score. Managers see instant warnings like 'Jessica has a 78% burnout risk' so they can act before a staff member calls out or resigns."),
+                    ("Risk levels", "Each staff member is assigned one of four risk levels:\n• Critical (75–100%) — immediate action required\n• High (50–74%) — schedule relief soon\n• Medium (25–49%) — monitor closely\n• Low (0–24%) — workload is sustainable"),
+                    ("What is tracked", "The system tracks five burnout signals over the last 4 weeks:\n• Total hours worked — hours above 160 in 4 weeks add risk\n• Overtime hours — each hour over 40 per week raises the score\n• Consecutive days — working 4, 5–6, or 7+ days in a row adds significant risk\n• Short rest violations — fewer than 10 hours between consecutive shifts\n• Sick call-offs — approved sick time-off requests in the window"),
+                    ("AI Insight", "For staff rated High or Critical, the AI generates a personalized 1–2 sentence explanation of why they are at risk. This appears in the expanded card under the spark icon. The AI insight requires an Anthropic API key to be configured."),
+                    ("Suggested Actions", "Each High or Critical staff member also receives 2–3 concrete suggested actions such as 'Schedule a mandatory recovery day' or 'Cap overtime — do not assign additional shifts this week.' These appear under the lightbulb icon in the expanded card."),
+                    ("Acting on a warning", "Common interventions include:\n• Scheduling a recovery day (remove or do not add shifts)\n• Swapping a shift with a lower-risk colleague\n• Posting an Open Shift so a different staff member can cover\n• Reducing consecutive stretches by inserting days off\n• Reviewing constraints to enforce minimum rest rules"),
+                    ("Data window", "The burnout window is always the last 28 days from today. The page refreshes each time you visit. There is no manual date range — this keeps the view current and action-oriented."))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", burnoutTitle);
+        }
+
         logger.LogInformation("DevDataSeeder: seeding complete.");
     }
 }
