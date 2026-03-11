@@ -19,7 +19,16 @@
       "Bash(npx expo start --no-web)",
       "Bash(npm install --legacy-peer-deps)",
       "Bash(rm -rf node_modules package-lock.json)",
-      "Bash(npx expo install --fix)"
+      "Bash(npx expo install --fix)",
+      "Bash(npm run build)",
+      "Bash(docker context use default)",
+      "Bash(docker context ls)",
+      "Bash(Start-Process \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\")",
+      "Bash(docker push 318247877206.dkr.ecr.us-east-1.amazonaws.com/statera-api:latest)",
+      "Bash(aws apprunner start-deployment --service-arn \"arn:aws:apprunner:us-east-1:318247877206:service/statera-api/0ac3dcdcea7640f6b4bccf1a4b641221\" --region us-east-1)",
+      "Bash(dotnet build src/Statera.Api/Statera.Api.csproj --no-restore -v quiet)",
+      "Bash(aws cloudfront create-invalidation --distribution-id E1JKA6QJ121YWF --paths \"/*\")",
+      "Bash(dotnet build src/Statera.Api/Statera.Api.csproj)"
     ]
   }
 }

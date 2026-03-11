@@ -37,9 +37,13 @@ public static class SchedulerEndpoints
             if (!string.IsNullOrWhiteSpace(req.FacilityId) && Guid.TryParse(req.FacilityId, out var fid))
                 facilityId = fid;
 
-            // Resolve UnitId
+            // Resolve UnitId — empty/blank means "any unit" (Guid.Empty = no unit filter)
             Guid unitId;
-            if (!Guid.TryParse(req.UnitId, out unitId))
+            if (string.IsNullOrWhiteSpace(req.UnitId))
+            {
+                unitId = Guid.Empty; // signals heuristic to skip unit filtering
+            }
+            else if (!Guid.TryParse(req.UnitId, out unitId))
             {
                 if (int.TryParse(req.UnitId, out var idx))
                 {
@@ -53,13 +57,7 @@ public static class SchedulerEndpoints
                 }
                 else
                 {
-                    var fallbackQuery = db.Units.AsQueryable();
-                    if (facilityId.HasValue)
-                        fallbackQuery = fallbackQuery.Where(u => u.FacilityId == facilityId.Value);
-                    var first = await fallbackQuery.Select(u => u.Id).FirstOrDefaultAsync();
-                    if (first == Guid.Empty)
-                        return Results.BadRequest(new { error = "UnitId invalid and no fallback unit" });
-                    unitId = first;
+                    return Results.BadRequest(new { error = "Invalid UnitId format" });
                 }
             }
 

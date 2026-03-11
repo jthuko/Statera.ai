@@ -435,6 +435,294 @@ public static class OpenShiftsEndpoints
             return Results.NoContent();
         });
 
+        // POST /api/v1/open-shifts/fill-probability — predict how likely a shift will be filled
+        // Accepts: { facilityId, role, startUtc, endUtc, hourlyRate? }
+        // Returns: { probability, label, factors[], suggestions[] }
+        g.MapPost("/fill-probability", async (
+            [FromBody] FillProbabilityRequest req,
+            [FromServices] AppDbContext db,
+            CancellationToken ct) =>
+        {
+            var histStart = DateTime.UtcNow.AddDays(-90);
+            var now       = DateTime.UtcNow;
+
+            // Load historical open shifts for this facility + role in last 90 days
+            var historicalShifts = await db.OpenShifts
+                .AsNoTracking()
+                .Where(s => s.FacilityId == req.FacilityId
+                         && s.Role == req.Role
+                         && s.CreatedUtc >= histStart)
+                .Include(s => s.Requests)
+                .ToListAsync(ct);
+
+            var targetDow = (int)req.StartUtc.DayOfWeek;
+
+            // Base fill rate from historical data (overall and DOW-specific)
+            double baseFillRate;
+            if (historicalShifts.Count == 0)
+            {
+                baseFillRate = 0.55; // default if no data
+            }
+            else
+            {
+                var totalShifts   = historicalShifts.Count;
+                var filledShifts  = historicalShifts.Count(s => s.Requests.Any(r => r.Status == "Approved" || r.Status == "Pending"));
+                var overallRate   = (double)filledShifts / totalShifts;
+
+                var dowShifts  = historicalShifts.Where(s => (int)s.StartUtc.DayOfWeek == targetDow).ToList();
+                if (dowShifts.Count >= 3)
+                {
+                    var dowFilled = dowShifts.Count(s => s.Requests.Any(r => r.Status == "Approved" || r.Status == "Pending"));
+                    var dowRate   = (double)dowFilled / dowShifts.Count;
+                    // Weighted average: 60% DOW-specific, 40% overall
+                    baseFillRate  = dowRate * 0.6 + overallRate * 0.4;
+                }
+                else
+                {
+                    baseFillRate = overallRate;
+                }
+            }
+
+            // ── Adjustment factors ────────────────────────────────────────────
+            var factors     = new List<string>();
+            var suggestions = new List<string>();
+            var adjustment  = 0.0;
+
+            // Night shift penalty: shift starts between 10pm and 6am
+            var startHour = req.StartUtc.Hour;
+            var isNight   = startHour >= 22 || startHour < 6;
+            if (isNight)
+            {
+                adjustment -= 0.18;
+                factors.Add("night shift — historically lower acceptance");
+                suggestions.Add("Offer a $50 night shift bonus to boost acceptance");
+            }
+
+            // Weekend penalty
+            var isWeekend = targetDow is 0 or 6;
+            if (isWeekend)
+            {
+                adjustment -= 0.12;
+                factors.Add("weekend shift — lower staff availability");
+                suggestions.Add("Post this shift 48–72 hours in advance to improve coverage");
+            }
+
+            // Lead time: shift starts in < 24 hours
+            var hoursUntilShift = (req.StartUtc - now).TotalHours;
+            if (hoursUntilShift < 24)
+            {
+                adjustment -= 0.15;
+                factors.Add("short notice — less than 24 hours to fill");
+                suggestions.Add("Consider contacting PRN staff directly to fill quickly");
+            }
+            else if (hoursUntilShift < 48)
+            {
+                adjustment -= 0.07;
+                factors.Add("limited lead time — less than 48 hours posted");
+            }
+
+            // Pay rate comparison
+            if (req.HourlyRate.HasValue)
+            {
+                var baseline = req.Role switch
+                {
+                    "RN"   => 35.0,
+                    "LPN"  => 25.0,
+                    "CNA"  => 18.0,
+                    "MD"   => 80.0,
+                    "PA"   => 55.0,
+                    "NP"   => 50.0,
+                    "CRNA" => 70.0,
+                    "RRT"  => 28.0,
+                    "EMT"  => 22.0,
+                    _      => 30.0,
+                };
+
+                var payDelta = req.HourlyRate.Value - baseline;
+                if (payDelta < -5)
+                {
+                    adjustment -= 0.18;
+                    factors.Add($"low pay — ${req.HourlyRate.Value:F0}/hr is below typical ${baseline:F0}/hr");
+                    suggestions.Add($"Increase pay by ${Math.Ceiling(-payDelta):F0}/hr to reach market rate");
+                }
+                else if (payDelta < 0)
+                {
+                    adjustment -= 0.08;
+                    factors.Add($"slightly below-market pay (${req.HourlyRate.Value:F0}/hr vs ${baseline:F0}/hr typical)");
+                    suggestions.Add($"Consider a small pay increase of ${Math.Ceiling(-payDelta):F0}/hr");
+                }
+                else if (payDelta >= 5)
+                {
+                    adjustment += 0.12;
+                    factors.Add($"above-market pay (${req.HourlyRate.Value:F0}/hr) — strong incentive");
+                }
+            }
+
+            // Low historical acceptance
+            if (historicalShifts.Count >= 5 && baseFillRate < 0.4)
+            {
+                factors.Add($"historically low acceptance for {req.Role} on {req.StartUtc.DayOfWeek}s ({baseFillRate:P0} fill rate)");
+                if (!suggestions.Any(s => s.Contains("bonus")))
+                    suggestions.Add("Offer a shift bonus or increase pay to attract more requests");
+            }
+
+            var probability = Math.Round(Math.Min(0.97, Math.Max(0.03, baseFillRate + adjustment)), 2);
+
+            var label = probability switch
+            {
+                >= 0.75 => "High",
+                >= 0.50 => "Medium",
+                >= 0.30 => "Low",
+                _       => "Very Low",
+            };
+
+            if (factors.Count == 0)
+                factors.Add(historicalShifts.Count >= 5
+                    ? $"based on {historicalShifts.Count} historical {req.Role} shifts"
+                    : "limited historical data for this role");
+
+            if (suggestions.Count == 0 && probability < 0.6)
+                suggestions.Add("Post the shift at least 48 hours in advance for better visibility");
+
+            return Results.Ok(new FillProbabilityResponse(probability, label, factors, suggestions));
+        }).RequireAuthorization("Authenticated");
+
+        // POST /api/v1/open-shifts/staff-recommendations — rank staff by likelihood of accepting
+        // Factors: historical request rate, night-shift affinity, withdrawal rate, workload, availability
+        g.MapPost("/staff-recommendations", async (
+            [FromBody] StaffRecommendationsRequest req,
+            [FromServices] AppDbContext db,
+            CancellationToken ct) =>
+        {
+            var now          = DateTime.UtcNow;
+            var histStart    = now.AddDays(-90);
+            var workloadCut  = now.AddDays(-14);
+            var targetDow    = (int)req.StartUtc.DayOfWeek;
+            var isNight      = req.StartUtc.Hour >= 22 || req.StartUtc.Hour < 6;
+
+            // 1. Active staff matching role at this facility
+            var staffList = await db.Staff.AsNoTracking()
+                .Where(s => s.FacilityId == req.FacilityId && s.Active
+                         && s.Role == req.Role)
+                .Select(s => new { s.Id, s.FirstName, s.LastName })
+                .ToListAsync(ct);
+
+            if (staffList.Count == 0)
+                return Results.Ok(new StaffRecommendationsResponse([], 0));
+
+            var staffIds = staffList.Select(s => s.Id).ToList();
+
+            // 2. Historical open shifts for this facility + role (last 90 days)
+            var historicalShifts = await db.OpenShifts
+                .AsNoTracking()
+                .Where(s => s.FacilityId == req.FacilityId
+                         && s.Role == req.Role
+                         && s.CreatedUtc >= histStart)
+                .Include(s => s.Requests)
+                .ToListAsync(ct);
+
+            var totalPosted = historicalShifts.Count;
+
+            // 3. Recent assignments for workload (last 14 days)
+            var recentWork = await db.Assignments.AsNoTracking()
+                .Where(a => staffIds.Contains(a.StaffId) && a.StartUtc >= workloadCut)
+                .Select(a => new { a.StaffId, a.StartUtc, a.EndUtc })
+                .ToListAsync(ct);
+
+            // 4. Availabilities
+            var availabilities = await db.StaffAvailabilities.AsNoTracking()
+                .Where(av => staffIds.Contains(av.StaffId))
+                .ToListAsync(ct);
+
+            var facilityState = await db.Facilities.AsNoTracking()
+                .Where(f => f.Id == req.FacilityId)
+                .Select(f => f.State)
+                .FirstOrDefaultAsync(ct);
+
+            var recommendations = new List<StaffRecommendation>();
+            var startK = DateTime.SpecifyKind(req.StartUtc, DateTimeKind.Utc);
+            var endK   = DateTime.SpecifyKind(req.EndUtc,   DateTimeKind.Utc);
+
+            foreach (var staff in staffList)
+            {
+                var myRequests = historicalShifts
+                    .SelectMany(s => s.Requests.Where(r => r.StaffId == staff.Id))
+                    .ToList();
+                var totalReq   = myRequests.Count;
+                var withdrawn  = myRequests.Count(r => r.Status == "Withdrawn");
+                var nightReqs  = historicalShifts.Count(s =>
+                    (s.StartUtc.Hour >= 22 || s.StartUtc.Hour < 6)
+                    && s.Requests.Any(r => r.StaffId == staff.Id));
+
+                var myWork     = recentWork.Where(a => a.StaffId == staff.Id).ToList();
+                var hrs14      = myWork.Sum(a => (a.EndUtc - a.StartUtc).TotalHours);
+
+                var myAvail    = availabilities.Where(av => av.StaffId == staff.Id).ToList();
+                bool? avMatch  = myAvail.Count == 0
+                    ? null
+                    : ShiftFitsAvailability(myAvail, startK, endK, facilityState);
+
+                // ── Score ──────────────────────────────────────────────────────
+                var score   = 50.0;
+                var signals = new List<string>();
+
+                // Request rate (+0 to +30)
+                if (totalPosted > 0)
+                {
+                    var rate = (double)totalReq / totalPosted;
+                    score += rate * 30;
+                    if (rate >= 0.6 && totalPosted >= 3)
+                        signals.Add("Frequently picks up open shifts");
+                    else if (rate < 0.15 && totalPosted >= 5)
+                        signals.Add("Rarely requests open shifts");
+                }
+
+                // Night affinity
+                if (totalReq > 0)
+                {
+                    var nightPct = (double)nightReqs / totalReq;
+                    if (isNight && nightPct >= 0.5)
+                    { score += 15; signals.Add("Often takes night shifts"); }
+                    else if (isNight && nightPct < 0.15 && totalReq >= 3)
+                    { score -= 12; signals.Add("Prefers day shifts"); }
+                }
+
+                // Reliability
+                if (totalReq >= 2)
+                {
+                    var wRate = (double)withdrawn / totalReq;
+                    if (wRate >= 0.3)
+                    { score -= 20; signals.Add("Occasionally withdraws requests"); }
+                    else if (wRate == 0)
+                    { score += 8; signals.Add("No cancellations on record"); }
+                }
+
+                // Workload
+                if (hrs14 > 80)      { score -= 20; signals.Add("Heavy workload past 2 weeks"); }
+                else if (hrs14 > 60) { score -= 10; signals.Add("Busy past 2 weeks"); }
+                else if (myWork.Count > 0 && hrs14 < 30)
+                { score += 6; signals.Add("Light schedule — available capacity"); }
+
+                // Availability
+                if (avMatch == true)       { score += 10; signals.Add("Marked available for this time"); }
+                else if (avMatch == false) { score -= 20; signals.Add("Outside availability window"); }
+
+                var finalScore = (int)Math.Round(Math.Min(98, Math.Max(5, score)));
+                if (signals.Count == 0)
+                    signals.Add(totalPosted == 0 ? "No shift history yet — new to the marketplace" : "No notable patterns yet");
+
+                recommendations.Add(new StaffRecommendation(
+                    staff.Id.ToString(),
+                    $"{staff.FirstName} {staff.LastName}",
+                    req.Role,
+                    finalScore,
+                    signals));
+            }
+
+            var top = recommendations.OrderByDescending(r => r.Probability).Take(5).ToList();
+            return Results.Ok(new StaffRecommendationsResponse(top, staffList.Count));
+        }).RequireAuthorization("Authenticated");
+
         // GET /api/v1/open-shifts/my-requests — staff sees their own requests
         g.MapGet("/my-requests", async (HttpContext ctx, [FromServices] AppDbContext db) =>
         {
@@ -689,3 +977,33 @@ public record UpdateOpenShiftRequest(
     Guid? UnitId);
 
 public record ReviewRequestBody(string Action); // "Approve" | "Deny"
+
+public record FillProbabilityRequest(
+    Guid FacilityId,
+    string Role,
+    DateTime StartUtc,
+    DateTime EndUtc,
+    double? HourlyRate);
+
+public record FillProbabilityResponse(
+    double Probability,
+    string Label,          // "High" | "Medium" | "Low" | "Very Low"
+    IEnumerable<string> Factors,
+    IEnumerable<string> Suggestions);
+
+public record StaffRecommendationsRequest(
+    Guid FacilityId,
+    string Role,
+    DateTime StartUtc,
+    DateTime EndUtc);
+
+public record StaffRecommendation(
+    string StaffId,
+    string StaffName,
+    string Role,
+    int Probability,       // 0–100
+    IEnumerable<string> Signals);
+
+public record StaffRecommendationsResponse(
+    IEnumerable<StaffRecommendation> Recommendations,
+    int TotalEligible);

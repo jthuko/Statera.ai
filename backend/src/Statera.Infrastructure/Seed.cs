@@ -1049,6 +1049,35 @@ public static class DevDataSeeder
             logger.LogInformation("DevDataSeeder: added '{Title}' help article.", burnoutTitle);
         }
 
+        // ── Shift Fill Probability (admin only — "Staff" category) ───────────
+        const string fillProbTitle = "Shift Fill Probability — Predicting Open Shift Coverage";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == fillProbTitle))
+        {
+            static string JFP(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string SFP(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Staff",
+                Title        = fillProbTitle,
+                SortOrder    = 6,
+                TagsJson     = JFP("open shift", "fill probability", "prediction", "pay rate", "PRN", "admin"),
+                SectionsJson = SFP(
+                    (null, "Before you post an open shift, Statera predicts how likely it is to be filled. The prediction appears automatically in the Post Shift dialog as you fill in the details — no extra steps needed."),
+                    ("Fill probability levels", "The prediction shows a percentage and label:\n• High (75–100%) — likely to fill quickly with no changes needed\n• Medium (50–74%) — should fill, but consider posting early\n• Low (30–49%) — at risk of going unfilled; see suggestions\n• Very Low (0–29%) — unlikely to fill without intervention"),
+                    ("What factors are analyzed", "Statera analyzes four factors to calculate the probability:\n• Historical fill rate — past open shifts for this role on the same day of the week\n• Time of shift — night shifts (10 pm–6 am) have lower acceptance rates\n• Lead time — shifts posted with less than 24 hours notice are harder to fill\n• Pay rate — if you enter an hourly rate, Statera compares it to the typical market rate for the role"),
+                    ("Hourly Rate field", "The Hourly Rate field in the Post Shift dialog is optional and is only used to improve the fill probability estimate. It is not stored with the shift. If the rate is below the market baseline (RN ~$35/hr, LPN ~$25/hr, CNA ~$18/hr, etc.), Statera will flag it and suggest increasing pay."),
+                    ("Suggestions", "When the probability is Low or Very Low, Statera shows one or more suggestions under the lightbulb icon, such as:\n• Offer a $50 night shift bonus to boost acceptance\n• Increase pay by $X/hr to reach market rate\n• Post the shift at least 48 hours in advance for better visibility\n• Contact PRN staff directly to fill quickly"),
+                    ("Improving fill rates", "If shifts in a certain role or time slot consistently show low probability:\n• Build a larger PRN pool in that role\n• Post shifts earlier — aim for 72+ hours lead time\n• Review your pay rates against market benchmarks\n• Use the Open Shifts page filters to identify patterns in unfilled shifts"))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", fillProbTitle);
+        }
+
         logger.LogInformation("DevDataSeeder: seeding complete.");
     }
 }

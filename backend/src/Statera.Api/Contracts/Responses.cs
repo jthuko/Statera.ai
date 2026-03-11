@@ -7,7 +7,9 @@ public sealed record FacilityItemResponse(
     string Address,
     string City,
     string State,
-    string Zip
+    string Zip,
+    string? LogoUrl = null,
+    string? PrimaryColor = null
 );
 
 public sealed record UnitItemResponse(

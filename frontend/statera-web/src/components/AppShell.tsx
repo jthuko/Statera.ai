@@ -33,6 +33,7 @@ import { Outlet, Link as RouterLink, useMatch, useResolvedPath } from "react-rou
 import { useAuth } from "../auth/useAuth";
 import { useColorMode } from "../context/ColorModeContext";
 import { usePlanFeatures } from "../auth/usePlanFeatures";
+import { useFacility } from "../context/facility";
 import AppNotificationBell from "./AppNotificationBell";
 import AppHelpAssistant from "./AppHelpAssistant";
 import StateraLogo from "../assets/statera-logo.png";
@@ -116,6 +117,7 @@ export default function AppShell() {
   const { logout, user, trialDaysLeft } = useAuth();
   const { mode, toggleMode } = useColorMode();
   const { isGrowthPlus }     = usePlanFeatures();
+  const { selected: selectedFacility } = useFacility();
   const isDark   = mode === "dark";
   const isOwner  = user?.systemRole === "Owner";
   const isMobile = useMediaQuery("(max-width: 900px)");
@@ -296,9 +298,15 @@ export default function AppShell() {
         elevation={0}
         sx={{
           zIndex: (t) => t.zIndex.drawer + 1,
-          background: isDark
-            ? "linear-gradient(90deg, rgba(0,55,55,0.97) 0%, rgba(0,80,100,0.95) 100%)"
-            : "linear-gradient(90deg, #00695c 0%, #0277bd 100%)",
+          background: (() => {
+            const c = selectedFacility?.primaryColor;
+            if (c) return isDark
+              ? `linear-gradient(90deg, ${c}cc 0%, ${c}aa 100%)`
+              : `linear-gradient(90deg, ${c} 0%, ${c}cc 100%)`;
+            return isDark
+              ? "linear-gradient(90deg, rgba(0,55,55,0.97) 0%, rgba(0,80,100,0.95) 100%)"
+              : "linear-gradient(90deg, #00695c 0%, #0277bd 100%)";
+          })(),
           borderBottom: isDark
             ? "1px solid rgba(0,137,123,0.2)"
             : "1px solid rgba(0,105,92,0.3)",
@@ -321,8 +329,8 @@ export default function AppShell() {
           <Box sx={{ display: "flex", alignItems: "center", mr: 1 }}>
             <Box
               component="img"
-              src={StateraLogo}
-              alt="Statera"
+              src={selectedFacility?.logoUrl ?? StateraLogo}
+              alt={selectedFacility?.logoUrl ? selectedFacility.name : "Statera"}
               sx={{
                 height: 32,
                 width: "auto",

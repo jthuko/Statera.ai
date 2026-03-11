@@ -16,6 +16,11 @@ public sealed record UpdateFacilityRequest(
     string? Zip
 );
 
+public sealed record BrandingUpdateRequest(
+    string? LogoUrl,
+    string? PrimaryColor
+);
+
 // Admin management contracts
 public sealed record AssignFacilityAdminRequest(string UserId, string FacilityRole = "FacilityAdmin");
 

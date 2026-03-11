@@ -24,6 +24,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import SearchIcon from "@mui/icons-material/Search";
 import EventBusyIcon from "@mui/icons-material/EventBusy";
 import LinkIcon from "@mui/icons-material/Link";
+import PaletteIcon from "@mui/icons-material/Palette";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -31,6 +32,7 @@ dayjs.extend(relativeTime);
 
 import { useFacility } from "../../context/facility";
 import { useNotifications } from "../../context/NotificationContext";
+import { useUpdateBranding } from "../../api/facilities";
 
 import {
   ConstraintDto, CreateConstraintRequest, UpdateConstraintRequest,
@@ -97,8 +99,9 @@ const TAB_ICONS = [
   <AutoFixHighIcon fontSize="small" />,
   <AccessTimeIcon fontSize="small" />,
   <LinkIcon fontSize="small" />,
+  <PaletteIcon fontSize="small" />,
 ];
-const TAB_LABELS = ["Constraints", "Coverage", "Time Off", "Scheduler", "Time Clock", "Integrations"];
+const TAB_LABELS = ["Constraints", "Coverage", "Time Off", "Scheduler", "Time Clock", "Integrations", "Branding"];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function FacilityAdminPage() {
@@ -209,6 +212,7 @@ export default function FacilityAdminPage() {
       )}
       {tab === 4 && <TimeClockTab facilityId={facilityId} setToast={setToast} />}
       {tab === 5 && <IntegrationsTab facilityId={facilityId} setToast={setToast} />}
+      {tab === 6 && <BrandingTab facilityId={facilityId} facility={facility} setToast={setToast} />}
 
       <Snackbar open={!!toast} autoHideDuration={3500} onClose={() => setToast(null)}>
         <Alert severity={toast?.sev ?? "success"} onClose={() => setToast(null)} sx={{ width: "100%" }}>
@@ -1063,6 +1067,132 @@ function IntegrationsTab({ facilityId, setToast }: {
       </Card>
 
       {loading && <CircularProgress size={20} sx={{ color: "#4db6ac" }} />}
+    </Stack>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tab 7: Branding
+// ═══════════════════════════════════════════════════════════════════════════════
+function BrandingTab({ facilityId, facility, setToast }: {
+  facilityId: string;
+  facility: { name: string; logoUrl?: string | null; primaryColor?: string | null } | null;
+  setToast: (t: { msg: string; sev: "success" | "error" } | null) => void;
+}) {
+  const [logoPreview, setLogoPreview] = React.useState<string>(facility?.logoUrl ?? "");
+  const [color, setColor]             = React.useState<string>(facility?.primaryColor ?? "#00695c");
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const { mutateAsync, isPending } = useUpdateBranding();
+
+  // Sync if facility loads after mount
+  React.useEffect(() => {
+    setLogoPreview(facility?.logoUrl ?? "");
+    setColor(facility?.primaryColor ?? "#00695c");
+  }, [facility?.logoUrl, facility?.primaryColor]);
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 512 * 1024) {
+      setToast({ msg: "Logo must be under 512 KB", sev: "error" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setLogoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  async function handleSave() {
+    try {
+      await mutateAsync({
+        id: facilityId,
+        logoUrl: logoPreview || null,
+        primaryColor: color || null,
+      });
+      setToast({ msg: "Branding saved", sev: "success" });
+    } catch {
+      setToast({ msg: "Failed to save branding", sev: "error" });
+    }
+  }
+
+  return (
+    <Stack spacing={3} maxWidth={520}>
+      <Typography variant="h6" fontWeight={700}>Facility Branding</Typography>
+      <Typography variant="body2" color="text.secondary">
+        Upload a logo and choose a primary color to personalize your facility's app experience.
+      </Typography>
+
+      {/* Logo upload */}
+      <Card variant="outlined">
+        <CardContent>
+          <Typography variant="subtitle2" fontWeight={600} mb={1.5}>Logo</Typography>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Box
+              sx={{
+                width: 80, height: 80, border: "1px dashed", borderColor: "divider",
+                borderRadius: 2, display: "flex", alignItems: "center", justifyContent: "center",
+                overflow: "hidden", bgcolor: "action.hover",
+              }}
+            >
+              {logoPreview
+                ? <Box component="img" src={logoPreview} alt="logo preview" sx={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                : <PaletteIcon sx={{ color: "text.disabled", fontSize: 32 }} />
+              }
+            </Box>
+            <Stack spacing={1}>
+              <Button variant="outlined" size="small" onClick={() => fileRef.current?.click()}>
+                Upload Image
+              </Button>
+              {logoPreview && (
+                <Button variant="text" size="small" color="error" onClick={() => setLogoPreview("")}>
+                  Remove
+                </Button>
+              )}
+              <Typography variant="caption" color="text.secondary">PNG, JPG, SVG · max 512 KB</Typography>
+            </Stack>
+          </Stack>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={handleFile} />
+        </CardContent>
+      </Card>
+
+      {/* Primary color */}
+      <Card variant="outlined">
+        <CardContent>
+          <Typography variant="subtitle2" fontWeight={600} mb={1.5}>Primary Color</Typography>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Box
+              sx={{
+                width: 40, height: 40, borderRadius: 1, bgcolor: color,
+                border: "1px solid", borderColor: "divider", flexShrink: 0,
+              }}
+            />
+            <TextField
+              label="Hex color"
+              value={color}
+              onChange={e => setColor(e.target.value)}
+              size="small"
+              sx={{ width: 160 }}
+              placeholder="#00695c"
+            />
+            <Box
+              component="input"
+              type="color"
+              value={color}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setColor(e.target.value)}
+              sx={{ width: 40, height: 40, border: "none", cursor: "pointer", borderRadius: 1, p: 0 }}
+            />
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Button
+        variant="contained"
+        onClick={handleSave}
+        disabled={isPending}
+        sx={{ alignSelf: "flex-start" }}
+      >
+        {isPending ? "Saving…" : "Save Branding"}
+      </Button>
     </Stack>
   );
 }

@@ -170,6 +170,10 @@ public class Facility
     public string? StripeCustomerId { get; set; }
     public string? StripeSubscriptionId { get; set; }
 
+    // ── Branding ──────────────────────────────────────────────────────────
+    public string? LogoUrl { get; set; }       // base64 data URL or CDN URL
+    public string? PrimaryColor { get; set; }  // hex e.g. "#00695c"
+
     public ICollection<Unit> Units { get; set; } = new List<Unit>();
 }
 

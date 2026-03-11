@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+dayjs.extend(utc);
 import {
   Container, Typography, Box, Button, CircularProgress, Alert,
   FormControl, InputLabel, Select, MenuItem,
@@ -161,11 +163,13 @@ export default function Scheduler() {
     const staffList = await listFacilityStaff(facility.id);
     const staffMap  = new Map(staffList.map(s => [s.id, s]));
     const buildShift = (date: string) => {
-      const startUtc = dayjs(`${date}T${autoStartTime}`).toISOString();
+      // Use dayjs.utc so the typed time is sent as-is in UTC (no browser tz offset added).
+      // This matches how availability windows are stored (local-time-as-UTC on the server).
+      const startUtc = dayjs.utc(`${date}T${autoStartTime}`).toISOString();
       const endDate  = autoEndTime <= autoStartTime
         ? dayjs(date).add(1, "day").format("YYYY-MM-DD")
         : date;
-      const endUtc = dayjs(`${endDate}T${autoEndTime}`).toISOString();
+      const endUtc = dayjs.utc(`${endDate}T${autoEndTime}`).toISOString();
       return { startUtc, endUtc };
     };
 
@@ -255,8 +259,8 @@ export default function Scheduler() {
   async function runSingle() {
     setLoading(true); setRows([]); setDateGroups([]);
     try {
-      const startUtc = dayjs(startDt).toISOString();
-      const endUtc   = dayjs(endDt).toISOString();
+      const startUtc = dayjs.utc(startDt).toISOString();
+      const endUtc   = dayjs.utc(endDt).toISOString();
       const [suggestions, staffList] = await Promise.all([
         suggestAssignments({ startUtc, endUtc, unitId: unitId || "", requiredCredential: cred, facilityId: facility!.id }),
         listFacilityStaff(facility!.id),
@@ -290,9 +294,9 @@ export default function Scheduler() {
       setFacilityStaff(staffList);
       const staffMap  = new Map(staffList.map(s => [s.id, s]));
       const buildShift = (date: string) => {
-        const startUtc = dayjs(`${date}T${shiftStartTime}`).toISOString();
+        const startUtc = dayjs.utc(`${date}T${shiftStartTime}`).toISOString();
         const endDate  = shiftEndTime <= shiftStartTime ? dayjs(date).add(1, "day").format("YYYY-MM-DD") : date;
-        const endUtc   = dayjs(`${endDate}T${shiftEndTime}`).toISOString();
+        const endUtc   = dayjs.utc(`${endDate}T${shiftEndTime}`).toISOString();
         return { startUtc, endUtc };
       };
 
@@ -785,7 +789,7 @@ export default function Scheduler() {
                               <Tooltip title="Assignment created"><CheckCircleOutlineIcon color="success" fontSize="small" /></Tooltip>
                             ) : (
                               <Button size="small" variant="contained" color="primary"
-                                onClick={() => openAcceptDialog(r, dayjs(startDt).toISOString(), dayjs(endDt).toISOString())}>
+                                onClick={() => openAcceptDialog(r, dayjs.utc(startDt).toISOString(), dayjs.utc(endDt).toISOString())}>
                                 Accept
                               </Button>
                             )}

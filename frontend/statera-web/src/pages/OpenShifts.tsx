@@ -1,10 +1,10 @@
 // src/pages/OpenShifts.tsx
 // Admin: manage open shifts / shift marketplace
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress,
   Dialog, DialogActions, DialogContent, DialogTitle,
-  Divider, FormControl, IconButton, InputLabel, MenuItem,
+  Divider, FormControl, IconButton, InputLabel, LinearProgress, MenuItem,
   Select, Stack, Table, TableBody, TableCell, TableHead, TableRow,
   TextField, Tooltip, Typography, useTheme,
 } from "@mui/material";
@@ -16,6 +16,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import PeopleIcon from "@mui/icons-material/People";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
+import LightbulbIcon from "@mui/icons-material/Lightbulb";
+import ShowChartIcon from "@mui/icons-material/ShowChart";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import dayjs, { Dayjs } from "dayjs";
 import { useFacility } from "../context/facility";
@@ -25,6 +27,149 @@ import {
   OpenShiftDto, OpenShiftRequestDto,
 } from "../api/openShifts";
 import { listUnits, UnitDto } from "../api/units";
+import api from "../api/axios";
+
+// ─── Fill Probability ──────────────────────────────────────────────────────────
+
+interface FillProbabilityResult {
+  probability: number;
+  label: "High" | "Medium" | "Low" | "Very Low";
+  factors: string[];
+  suggestions: string[];
+}
+
+function fillLabelColor(label: string): string {
+  switch (label) {
+    case "High":     return "#4caf50";
+    case "Medium":   return "#f57c00";
+    case "Low":      return "#ef5350";
+    default:         return "#d32f2f";
+  }
+}
+
+function FillProbabilityPanel({ result }: { result: FillProbabilityResult }) {
+  const pct   = Math.round(result.probability * 100);
+  const color = fillLabelColor(result.label);
+  return (
+    <Box sx={{ mt: 1, p: 1.5, borderRadius: 1.5, border: "1px solid rgba(77,182,172,0.2)", bgcolor: "rgba(0,0,0,0.2)" }}>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+        <ShowChartIcon sx={{ fontSize: 15, color: "#4db6ac" }} />
+        <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          Shift Fill Probability
+        </Typography>
+        <Typography variant="caption" sx={{ fontWeight: 700, color, ml: "auto !important" }}>
+          {pct}% — {result.label}
+        </Typography>
+      </Stack>
+      <LinearProgress
+        variant="determinate"
+        value={pct}
+        sx={{
+          height: 6, borderRadius: 3, mb: 1,
+          bgcolor: "rgba(255,255,255,0.08)",
+          "& .MuiLinearProgress-bar": { borderRadius: 3, bgcolor: color },
+        }}
+      />
+      {result.factors.length > 0 && (
+        <Box sx={{ mb: result.suggestions.length > 0 ? 1 : 0 }}>
+          <Typography variant="caption" sx={{ color: "text.disabled", fontWeight: 600 }}>Why:</Typography>
+          {result.factors.map((f, i) => (
+            <Typography key={i} variant="caption" sx={{ display: "block", color: "text.secondary", pl: 1 }}>• {f}</Typography>
+          ))}
+        </Box>
+      )}
+      {result.suggestions.length > 0 && (
+        <Box sx={{ p: 1, borderRadius: 1, bgcolor: "rgba(0,137,123,0.08)", border: "1px solid rgba(77,182,172,0.15)" }}>
+          <Stack direction="row" spacing={0.5} alignItems="flex-start">
+            <LightbulbIcon sx={{ fontSize: 13, color: "#4db6ac", mt: 0.2, flexShrink: 0 }} />
+            <Box>
+              {result.suggestions.map((s, i) => (
+                <Typography key={i} variant="caption" sx={{ display: "block", color: "rgba(255,255,255,0.8)", fontWeight: 500 }}>{s}</Typography>
+              ))}
+            </Box>
+          </Stack>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+// ─── Staff Recommendations ─────────────────────────────────────────────────────
+
+interface StaffRecommendation {
+  staffId: string;
+  staffName: string;
+  role: string;
+  probability: number;
+  signals: string[];
+}
+
+interface StaffRecommendationsResult {
+  recommendations: StaffRecommendation[];
+  totalEligible: number;
+}
+
+function probColor(p: number): string {
+  if (p >= 75) return "#4caf50";
+  if (p >= 50) return "#f57c00";
+  if (p >= 30) return "#ef5350";
+  return "#d32f2f";
+}
+
+function initials(name: string) {
+  return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function StaffRecommendationsPanel({ result }: { result: StaffRecommendationsResult }) {
+  if (result.recommendations.length === 0) return null;
+  return (
+    <Box sx={{ mt: 0, p: 1.5, borderRadius: 1.5, border: "1px solid rgba(77,182,172,0.2)", bgcolor: "rgba(0,0,0,0.2)" }}>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+        <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          Best Match
+        </Typography>
+        <Typography variant="caption" sx={{ color: "text.disabled", ml: "auto !important" }}>
+          {result.totalEligible} eligible staff
+        </Typography>
+      </Stack>
+      <Stack spacing={1}>
+        {result.recommendations.map((r, i) => {
+          const color = probColor(r.probability);
+          return (
+            <Box key={r.staffId} sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              {/* Rank + avatar */}
+              <Box sx={{
+                width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                bgcolor: i === 0 ? "rgba(77,182,172,0.2)" : "rgba(255,255,255,0.06)",
+                border: `1px solid ${i === 0 ? "rgba(77,182,172,0.4)" : "rgba(255,255,255,0.1)"}`,
+              }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, fontSize: 10, color: i === 0 ? "#4db6ac" : "text.secondary" }}>
+                  {initials(r.staffName)}
+                </Typography>
+              </Box>
+              {/* Name + signals */}
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>{r.staffName}</Typography>
+                <Typography variant="caption" sx={{ color: "text.disabled", display: "block" }} noWrap>
+                  {r.signals.slice(0, 2).join(" · ")}
+                </Typography>
+              </Box>
+              {/* Probability */}
+              <Box sx={{ textAlign: "right", flexShrink: 0 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color, display: "block" }}>{r.probability}%</Typography>
+                <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 10 }}>acceptance</Typography>
+              </Box>
+            </Box>
+          );
+        })}
+      </Stack>
+      <Typography variant="caption" sx={{ color: "text.disabled", display: "block", mt: 1.5, fontStyle: "italic" }}>
+        Based on historical acceptance patterns, workload &amp; availability
+      </Typography>
+    </Box>
+  );
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -90,21 +235,57 @@ interface PostShiftDialogProps {
 }
 
 function PostShiftDialog({ open, facilityId, units, onClose, onCreated }: PostShiftDialogProps) {
-  const [role, setRole]     = useState(ROLES[0]);
-  const [unitId, setUnitId] = useState<string>("");
-  const [start, setStart]   = useState<Dayjs | null>(dayjs().add(1, "day").hour(7).minute(0).second(0));
-  const [end, setEnd]       = useState<Dayjs | null>(dayjs().add(1, "day").hour(15).minute(0).second(0));
-  const [notes, setNotes]   = useState("");
-  const [busy, setBusy]     = useState(false);
-  const [err, setErr]       = useState<string | null>(null);
+  const [role, setRole]       = useState(ROLES[0]);
+  const [unitId, setUnitId]   = useState<string>("");
+  const [start, setStart]     = useState<Dayjs | null>(dayjs().add(1, "day").hour(7).minute(0).second(0));
+  const [end, setEnd]         = useState<Dayjs | null>(dayjs().add(1, "day").hour(15).minute(0).second(0));
+  const [notes, setNotes]     = useState("");
+  const [hourlyRate, setHourlyRate] = useState<string>("");
+  const [busy, setBusy]       = useState(false);
+  const [err, setErr]         = useState<string | null>(null);
+  const [fillPrediction, setFillPrediction]   = useState<FillProbabilityResult | null>(null);
+  const [staffRecs, setStaffRecs]             = useState<StaffRecommendationsResult | null>(null);
+  const [predLoading, setPredLoading]         = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (open) {
-      setRole(ROLES[0]); setUnitId(""); setNotes(""); setErr(null);
+      setRole(ROLES[0]); setUnitId(""); setNotes(""); setErr(null); setHourlyRate("");
+      setFillPrediction(null); setStaffRecs(null);
       setStart(dayjs().add(1, "day").hour(7).minute(0).second(0));
       setEnd(dayjs().add(1, "day").hour(15).minute(0).second(0));
     }
   }, [open]);
+
+  // Debounce: fetch fill probability + staff recommendations together
+  useEffect(() => {
+    if (!start || !end || !end.isAfter(start)) { setFillPrediction(null); setStaffRecs(null); return; }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setPredLoading(true);
+      try {
+        const rate = hourlyRate ? parseFloat(hourlyRate) : undefined;
+        const [fillRes, recsRes] = await Promise.allSettled([
+          api.post<FillProbabilityResult>("/open-shifts/fill-probability", {
+            facilityId, role,
+            startUtc: start.toISOString(),
+            endUtc: end.toISOString(),
+            hourlyRate: rate && !isNaN(rate) ? rate : null,
+          }),
+          api.post<StaffRecommendationsResult>("/open-shifts/staff-recommendations", {
+            facilityId, role,
+            startUtc: start.toISOString(),
+            endUtc: end.toISOString(),
+          }),
+        ]);
+        setFillPrediction(fillRes.status === "fulfilled" ? fillRes.value.data : null);
+        setStaffRecs(recsRes.status === "fulfilled" ? recsRes.value.data : null);
+      } finally {
+        setPredLoading(false);
+      }
+    }, 600);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [facilityId, role, start, end, hourlyRate]);
 
   const canSave = !!role && !!start && !!end && end.isAfter(start);
 
@@ -170,6 +351,17 @@ function PostShiftDialog({ open, facilityId, units, onClose, onCreated }: PostSh
           />
 
           <TextField
+            label="Hourly Rate (optional)"
+            value={hourlyRate}
+            onChange={e => setHourlyRate(e.target.value)}
+            size="small"
+            type="number"
+            inputProps={{ min: 0, step: 0.5 }}
+            InputProps={{ startAdornment: <Typography variant="body2" sx={{ mr: 0.5, color: "text.secondary" }}>$</Typography> }}
+            helperText="Used to estimate fill probability"
+          />
+
+          <TextField
             label="Notes (optional)"
             value={notes}
             onChange={e => setNotes(e.target.value)}
@@ -177,6 +369,18 @@ function PostShiftDialog({ open, facilityId, units, onClose, onCreated }: PostSh
             size="small"
             inputProps={{ maxLength: 512 }}
           />
+
+          {/* Predictions section */}
+          {predLoading && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <CircularProgress size={12} sx={{ color: "#4db6ac" }} />
+              <Typography variant="caption" sx={{ color: "text.disabled" }}>Analyzing shift data…</Typography>
+            </Box>
+          )}
+          {!predLoading && fillPrediction && <FillProbabilityPanel result={fillPrediction} />}
+          {!predLoading && staffRecs && staffRecs.recommendations.length > 0 && (
+            <StaffRecommendationsPanel result={staffRecs} />
+          )}
 
           {err && <Alert severity="error">{err}</Alert>}
         </Stack>

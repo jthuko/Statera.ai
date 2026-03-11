@@ -6,4 +6,6 @@ export type Facility = {
   address?: string;
   zip?: string;
   adminUserId?: string;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
 };

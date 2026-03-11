@@ -7,6 +7,8 @@ export type Facility = {
   city?: string;
   state?: string;
   adminUserId?: string;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
 };
 
 const base = "/facilities"; // axios.baseURL already includes /api/v1
@@ -46,6 +48,15 @@ export function useDeleteFacility() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete(`${base}/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["facilities"] }),
+  });
+}
+
+export function useUpdateBranding() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, logoUrl, primaryColor }: { id: string; logoUrl?: string | null; primaryColor?: string | null }) =>
+      api.put(`${base}/${id}/branding`, { logoUrl, primaryColor }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["facilities"] }),
   });
 }

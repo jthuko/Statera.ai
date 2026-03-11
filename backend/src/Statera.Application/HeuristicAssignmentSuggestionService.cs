@@ -53,7 +53,10 @@ public class HeuristicAssignmentSuggestionService
             : new List<RuleConstraint>();
 
         var startDay           = DateOnly.FromDateTime(startUtc);
-        var facilityStateForUnit = await _repo.GetFacilityStateForUnitAsync(unitId, ct);
+        // Guid.Empty means "any unit" — no unit-level state lookup, availability uses fallback
+        var facilityStateForUnit = unitId != Guid.Empty
+            ? await _repo.GetFacilityStateForUnitAsync(unitId, ct)
+            : string.Empty;
 
         // Weekly history window
         var weekStart        = startUtc.Date.AddDays(-7);
@@ -76,7 +79,8 @@ public class HeuristicAssignmentSuggestionService
         foreach (var s in staff.Where(s => s.Active))
         {
             // ── Unit scope ────────────────────────────────────────────
-            if (s.UnitId.HasValue && s.UnitId.Value != unitId)
+            // Guid.Empty means "any unit" — skip unit filter
+            if (unitId != Guid.Empty && s.UnitId.HasValue && s.UnitId.Value != unitId)
                 continue;
 
             var reasons = new List<string>();
@@ -152,7 +156,7 @@ public class HeuristicAssignmentSuggestionService
             });
 
             if (hrs >= maxHoursWeek)  continue; // hard block
-            if (hrs >= overtimeCap)   continue; // overtime cap block
+            if (Math.Max(0, hrs - maxHoursWeek) >= overtimeCap) continue; // overtime cap: limits hours beyond the weekly max
 
             double penalty = 0;
             if (hrs > rule.WeeklyHoursThreshold)
@@ -227,7 +231,14 @@ public class HeuristicAssignmentSuggestionService
         // Fallback to server-local interpretation (prevents false negatives when facility TZ is unknown/mismatched)
         var serverStart = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc).ToLocalTime();
         var serverEnd   = DateTime.SpecifyKind(endUtc, DateTimeKind.Utc).ToLocalTime();
-        return ShiftFitsAvailabilityLocal(avail, serverStart, serverEnd);
+        if (ShiftFitsAvailabilityLocal(avail, serverStart, serverEnd))
+            return true;
+
+        // Final fallback: treat UTC shift times as equivalent to stored local times (no conversion).
+        // Handles the case where the frontend sends UTC shift times that match the stored windows.
+        return ShiftFitsAvailabilityLocal(avail,
+            DateTime.SpecifyKind(startUtc, DateTimeKind.Utc),
+            DateTime.SpecifyKind(endUtc,   DateTimeKind.Utc));
     }
 
     private static bool ShiftFitsAvailabilityLocal(ICollection<StaffAvailability> avail, DateTime localStart, DateTime localEnd)

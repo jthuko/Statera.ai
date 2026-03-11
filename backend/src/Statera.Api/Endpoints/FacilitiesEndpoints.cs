@@ -38,7 +38,7 @@ public static class FacilitiesEndpoints
 
             var rows = await query
                 .OrderBy(f => f.Name)
-                .Select(f => new FacilityItemResponse(f.Id, f.Name, f.Address, f.City, f.State, f.Zip))
+                .Select(f => new FacilityItemResponse(f.Id, f.Name, f.Address, f.City, f.State, f.Zip, f.LogoUrl, f.PrimaryColor))
                 .ToListAsync(ct);
 
             return Results.Ok(rows);
@@ -116,6 +116,21 @@ public static class FacilitiesEndpoints
             return Results.NoContent();
         })
         .RequireAuthorization("OwnerOnly");
+
+        // PUT /api/v1/facilities/{id}/branding
+        g.MapPut("/{id:guid}/branding", async (Guid id, [FromBody] BrandingUpdateRequest req, [FromServices] AppDbContext db, CancellationToken ct) =>
+        {
+            var e = await db.Facilities.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (e is null) return Results.NotFound();
+
+            if (req.LogoUrl is not null) e.LogoUrl = string.IsNullOrWhiteSpace(req.LogoUrl) ? null : req.LogoUrl;
+            if (req.PrimaryColor is not null) e.PrimaryColor = string.IsNullOrWhiteSpace(req.PrimaryColor) ? null : req.PrimaryColor.Trim();
+
+            await db.SaveChangesAsync(ct);
+
+            return Results.Ok(new FacilityItemResponse(e.Id, e.Name, e.Address, e.City, e.State, e.Zip, e.LogoUrl, e.PrimaryColor));
+        })
+        .RequireAuthorization("FacilityAccess");
 
         // ── Admin Management ─────────────────────────────────────────────────────
 
@@ -410,6 +425,14 @@ public static class FacilitiesEndpoints
         var serverStart = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc).ToLocalTime();
         var serverEnd   = DateTime.SpecifyKind(endUtc, DateTimeKind.Utc).ToLocalTime();
         if (ShiftFitsAvailabilityLocal(avail, serverStart, serverEnd))
+            return null;
+
+        // Final fallback: treat stored availability times as UTC-equivalent (no tz conversion).
+        // This ensures scheduling works when the frontend sends UTC shift times that match
+        // stored local availability windows (the intended design for this app).
+        var utcStart = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc);
+        var utcEnd   = DateTime.SpecifyKind(endUtc,   DateTimeKind.Utc);
+        if (ShiftFitsAvailabilityLocal(avail, utcStart, utcEnd))
             return null;
 
         var cursor = localStart.Date;

@@ -51,7 +51,7 @@ public static class StaffingPredictionEndpoints
             var templates = await db.ShiftTemplates
                 .AsNoTracking()
                 .Where(t => t.FacilityId == facilityId)
-                .Select(t => new { t.RoleId, t.RequiredCount })
+                .Select(t => new { RoleId = t.Name, t.RequiredCount })
                 .ToListAsync(ct);
 
             var requiredByRole = templates
@@ -141,9 +141,9 @@ public static class StaffingPredictionEndpoints
 
                 foreach (var role in allRoles)
                 {
-                    var required    = requiredByRole.GetValueOrDefault(role, 1);
+                    var required    = requiredByRole.GetValueOrDefault(role ?? "", 1);
                     var sickRate    = sickByDow[dow] * seasonal;
-                    var key         = (role, dow);
+                    var key         = (RoleId: role, (int)dow);
 
                     // Historical avg staffed on this DOW for this role
                     double histAvg = 0;
@@ -191,7 +191,7 @@ public static class StaffingPredictionEndpoints
 
                     if (probability >= 0.50)
                     {
-                        rawPredictions.Add(new RawPrediction(d, role, probability, required, scheduled, expectedGap, sickRate, shortageFreq, seasonal > 1.0));
+                        rawPredictions.Add(new RawPrediction(d, role ?? "", probability, required, scheduled, expectedGap, sickRate, shortageFreq, seasonal > 1.0));
                     }
                 }
             }
