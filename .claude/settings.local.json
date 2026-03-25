@@ -28,7 +28,12 @@
       "Bash(aws apprunner start-deployment --service-arn \"arn:aws:apprunner:us-east-1:318247877206:service/statera-api/0ac3dcdcea7640f6b4bccf1a4b641221\" --region us-east-1)",
       "Bash(dotnet build src/Statera.Api/Statera.Api.csproj --no-restore -v quiet)",
       "Bash(aws cloudfront create-invalidation --distribution-id E1JKA6QJ121YWF --paths \"/*\")",
-      "Bash(dotnet build src/Statera.Api/Statera.Api.csproj)"
+      "Bash(dotnet build src/Statera.Api/Statera.Api.csproj)",
+      "Bash(dotnet build src/Statera.Api/Statera.Api.csproj --nologo -c Release)",
+      "Bash(aws apprunner list-operations --service-arn \"arn:aws:apprunner:us-east-1:318247877206:service/statera-api/0ac3dcdcea7640f6b4bccf1a4b641221\" --region us-east-1 --query \"OperationSummaryList[0]\")",
+      "Bash(npx --version)",
+      "Bash(node capture.mjs)",
+      "Bash(node debug.mjs)"
     ]
   }
 }

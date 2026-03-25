@@ -27,6 +27,7 @@ const CATEGORY_COLOR: Record<string, string> = {
   "Units":               "#6d4c41",
   "Chat":                "#00695c",
   "Staff Portal":        "#0277bd",
+  "Scenario Simulator":  "#6a1b9a",
 };
 
 // Categories visible to staff users only (excludes all admin-only sections)

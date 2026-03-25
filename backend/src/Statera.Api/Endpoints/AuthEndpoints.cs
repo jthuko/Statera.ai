@@ -60,7 +60,23 @@ public static class AuthEndpoints
                     facilityIds = new List<Guid> { staffRecord.FacilityId };
             }
 
-            var tokens = await jwt.CreateAsync(user, facilityIds, ct, staffId);
+            // Embed plan claims in the JWT so tier enforcement works without a DB round-trip
+            string? loginPlanStatus = null;
+            string? loginPlanTier   = null;
+            if (facilityIds.Count > 0)
+            {
+                var pf = await db.Facilities.AsNoTracking()
+                    .Where(f => f.Id == facilityIds[0])
+                    .Select(f => new { f.PlanStatus, f.PlanTier })
+                    .FirstOrDefaultAsync(ct);
+                if (pf != null)
+                {
+                    loginPlanStatus = pf.PlanStatus.ToString();
+                    loginPlanTier   = pf.PlanTier.ToString();
+                }
+            }
+
+            var tokens = await jwt.CreateAsync(user, facilityIds, ct, staffId, loginPlanStatus, loginPlanTier);
             return Results.Ok(new AuthResponse(tokens.AccessToken, tokens.RefreshToken));
         });
 

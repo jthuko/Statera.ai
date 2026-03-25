@@ -28,6 +28,7 @@ import {
   ChevronRight as ChevronRightIcon,
   MonitorHeart as MonitorHeartIcon,
   TrendingUp as TrendingUpIcon,
+  Science as ScienceIcon,
 } from "@mui/icons-material";
 import { Outlet, Link as RouterLink, useMatch, useResolvedPath } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -41,7 +42,7 @@ import StateraLogo from "../assets/statera-logo.png";
 const DRAWER_EXPANDED  = 260;
 const DRAWER_COLLAPSED = 64;
 
-type NavItem = { to: string; label: string; icon: JSX.Element; show?: boolean; tier?: "growth" };
+type NavItem = { to: string; label: string; icon: JSX.Element; show?: boolean; tier?: "growth" | "scale" };
 
 function getInitials(email: string) {
   const parts = email.split("@")[0].split(/[._-]/);
@@ -116,7 +117,7 @@ export default function AppShell() {
 
   const { logout, user, trialDaysLeft } = useAuth();
   const { mode, toggleMode } = useColorMode();
-  const { isGrowthPlus }     = usePlanFeatures();
+  const { isGrowthPlus, isScalePlus } = usePlanFeatures();
   const { selected: selectedFacility } = useFacility();
   const isDark   = mode === "dark";
   const isOwner  = user?.systemRole === "Owner";
@@ -146,6 +147,7 @@ export default function AppShell() {
     { to: "/app/chat",               label: "Chat",                icon: <Chat />,      tier: "growth" },
     { to: "/app/burnout",            label: "Burnout Prediction",  icon: <MonitorHeartIcon />, tier: "growth" },
     { to: "/app/staffing-predictions", label: "Staffing Predictions", icon: <TrendingUpIcon />, tier: "growth" },
+    { to: "/app/scenario-simulator",   label: "Scenario Simulator",   icon: <ScienceIcon />,   tier: "scale" },
   ];
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -187,7 +189,10 @@ export default function AppShell() {
             <DrawerNavItem
               key={i.to}
               {...i}
-              locked={i.tier === "growth" && !isGrowthPlus}
+              locked={
+                (i.tier === "growth" && !isGrowthPlus) ||
+                (i.tier === "scale"  && !isScalePlus)
+              }
               collapsed={!isMobile && collapsed}
               onNavigate={isMobile ? () => setMobileOpen(false) : undefined}
             />

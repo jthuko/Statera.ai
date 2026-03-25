@@ -162,6 +162,7 @@ v1.MapIntegrationsEndpoints();
 v1.MapBillingEndpoints();
 v1.MapBurnoutEndpoints();
 v1.MapStaffingPredictionEndpoints();
+v1.MapSimulationEndpoints();
 
 
 // Convenience: root -> Swagger
@@ -188,6 +189,72 @@ using (var scope = app.Services.CreateScope())
         app.Environment.IsDevelopment(),
         resetDatabase: false  // Never wipe data — preserves accounts across restarts
     );
+
+    // ── Schema drift fix ──────────────────────────────────────────────────────
+    // EnsureCreatedAsync doesn't add new columns to existing tables. This block
+    // safely adds columns that were introduced after the initial DB creation,
+    // so deployments don't fail when the model has evolved.
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+            -- Facilities: plan / trial columns
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Facilities') AND name = 'PlanStatus')
+                ALTER TABLE Facilities ADD PlanStatus nvarchar(20) NOT NULL DEFAULT 'Trial';
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Facilities') AND name = 'PlanTier')
+                ALTER TABLE Facilities ADD PlanTier nvarchar(20) NOT NULL DEFAULT 'Growth';
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Facilities') AND name = 'TrialStartUtc')
+                ALTER TABLE Facilities ADD TrialStartUtc datetime2 NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Facilities') AND name = 'TrialEndsUtc')
+                ALTER TABLE Facilities ADD TrialEndsUtc datetime2 NULL;
+            -- Facilities: Stripe billing columns
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Facilities') AND name = 'StripeCustomerId')
+                ALTER TABLE Facilities ADD StripeCustomerId nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Facilities') AND name = 'StripeSubscriptionId')
+                ALTER TABLE Facilities ADD StripeSubscriptionId nvarchar(MAX) NULL;
+            -- Facilities: branding columns
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Facilities') AND name = 'LogoUrl')
+                ALTER TABLE Facilities ADD LogoUrl nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Facilities') AND name = 'PrimaryColor')
+                ALTER TABLE Facilities ADD PrimaryColor nvarchar(MAX) NULL;
+            -- Units: extended metadata columns
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Units') AND name = 'Type')
+                ALTER TABLE Units ADD Type nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Units') AND name = 'Floor')
+                ALTER TABLE Units ADD Floor nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Units') AND name = 'Capacity')
+                ALTER TABLE Units ADD Capacity int NULL;
+            -- Staff: demographics / payroll integration columns
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'Phone')
+                ALTER TABLE Staff ADD Phone nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'Address1')
+                ALTER TABLE Staff ADD Address1 nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'Address2')
+                ALTER TABLE Staff ADD Address2 nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'City')
+                ALTER TABLE Staff ADD City nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'State')
+                ALTER TABLE Staff ADD State nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'Zip')
+                ALTER TABLE Staff ADD Zip nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'DateOfBirth')
+                ALTER TABLE Staff ADD DateOfBirth date NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'EmergencyContactName')
+                ALTER TABLE Staff ADD EmergencyContactName nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'EmergencyContactPhone')
+                ALTER TABLE Staff ADD EmergencyContactPhone nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'PhotoUrl')
+                ALTER TABLE Staff ADD PhotoUrl nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'GustoEmployeeId')
+                ALTER TABLE Staff ADD GustoEmployeeId nvarchar(MAX) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'QuickBooksEmployeeId')
+                ALTER TABLE Staff ADD QuickBooksEmployeeId nvarchar(MAX) NULL;
+        ");
+        logger.LogInformation("Schema drift check complete.");
+    }
+    catch (Exception schemaEx)
+    {
+        logger.LogWarning("Schema drift fix skipped (DB may not be initialized yet): {Msg}", schemaEx.Message);
+    }
 }
 
 app.Run();

@@ -20,7 +20,8 @@ namespace Statera.Infrastructure
 
     public interface IJwtService
     {
-        Task<TokenPair> CreateAsync(AppUser user, IList<Guid> facilityIds, CancellationToken ct, Guid? staffId = null);
+        Task<TokenPair> CreateAsync(AppUser user, IList<Guid> facilityIds, CancellationToken ct,
+            Guid? staffId = null, string? planStatus = null, string? planTier = null);
     }
 
     public class JwtService : IJwtService
@@ -32,7 +33,8 @@ namespace Statera.Infrastructure
             _opts = opts.Value;
         }
 
-        public Task<TokenPair> CreateAsync(AppUser user, IList<Guid> facilityIds, CancellationToken ct, Guid? staffId = null)
+        public Task<TokenPair> CreateAsync(AppUser user, IList<Guid> facilityIds, CancellationToken ct,
+            Guid? staffId = null, string? planStatus = null, string? planTier = null)
         {
             // signing key & creds
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_opts.Key));
@@ -55,6 +57,10 @@ namespace Statera.Infrastructure
             // For Staff portal users: embed their Staff record ID
             if (staffId.HasValue)
                 claims.Add(new Claim("staff_id", staffId.Value.ToString()));
+
+            // Plan tier enforcement — embedded so API endpoints can check without a DB round-trip
+            if (planStatus != null) claims.Add(new Claim("plan_status", planStatus));
+            if (planTier   != null) claims.Add(new Claim("plan_tier",   planTier));
 
             // jwt
             var jwt = new JwtSecurityToken(

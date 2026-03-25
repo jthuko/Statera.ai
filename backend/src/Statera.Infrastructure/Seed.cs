@@ -1078,6 +1078,96 @@ public static class DevDataSeeder
             logger.LogInformation("DevDataSeeder: added '{Title}' help article.", fillProbTitle);
         }
 
+        // ── Scenario Simulator (admin only — "Scenario Simulator" not in STAFF_CATEGORIES) ──
+        const string simOverviewTitle = "AI Scenario Simulator — Overview";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == simOverviewTitle))
+        {
+            static string JSim(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string SSim(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Scenario Simulator",
+                Title        = simOverviewTitle,
+                SortOrder    = 1,
+                TagsJson     = JSim("scenario", "simulator", "what-if", "staffing", "AI", "decision", "admin"),
+                SectionsJson = SSim(
+                    (null, "The AI Scenario Simulator lets you model staffing decisions before making them. Instead of guessing what will happen, you run a simulation against your facility's real historical data and get ranked response options with cost, fill likelihood, and coverage scores — plus an AI narrative from Claude."),
+                    ("Where to find it", "Go to Scenario Simulator in the left navigation bar. It is available to Growth plan and above."),
+                    ("The three simulation types", "• Short-Staffed Unit — a unit is running short on staff. Find the best internal options before calling agency.\n• Call-Off Event — one or more staff call off last-minute. See who your backups are and which units are at risk.\n• Overtime Reduction — model the impact of capping overtime. See who's over cap, how much you save, and where coverage gaps appear."),
+                    ("How it works (3 steps)", "Step 1 — Choose your scenario type from the three cards.\nStep 2 — Fill in the parameters (unit, role, date, number of missing staff — or OT cap and window for overtime).\nStep 3 — Click Run Simulation. The engine queries your live data, scores response options, checks 12 weeks of history, and calls the AI for a narrative recommendation."),
+                    ("Reading results", "Results appear in three sections:\n• AI Recommendation — a 2–3 sentence plain-English action summary written for charge nurses and staffing coordinators.\n• Response Options — each option is tagged (Best, Cheapest, Safest, Alternative, or Last Resort) and shows a coverage score (0–100), fill likelihood (%), and estimated cost.\n• Historical Context — how often your facility has faced a similar situation in the last 12 weeks.\n• Simulation Metrics — a summary bar showing overall coverage score, cost or savings, fill likelihood, OT impact, and fatigue risk."),
+                    ("AI narrative", "If an Anthropic API key is configured, each simulation ends with a short AI recommendation tailored to your exact scenario numbers. Without a key the options and metrics are still fully generated — only the narrative is skipped."),
+                    ("No data is saved", "Simulations are stateless. Nothing is scheduled or changed when you run a simulation — it is purely a planning and decision-support tool."))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", simOverviewTitle);
+        }
+
+        const string simShortCallTitle = "Short-Staffed & Call-Off Simulations";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == simShortCallTitle))
+        {
+            static string JSim2(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string SSim2(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Scenario Simulator",
+                Title        = simShortCallTitle,
+                SortOrder    = 2,
+                TagsJson     = JSim2("short-staffed", "call-off", "gap", "shortage", "backup", "float", "coverage", "admin"),
+                SectionsJson = SSim2(
+                    (null, "These two simulation types answer the most common staffing crises: 'My unit is short tonight — what do I do?' and 'Two nurses just called off — who covers?'"),
+                    ("Short-Staffed vs Call-Off — what's the difference", "Short-Staffed models a gap that needs to be filled proactively (e.g. you know a shift will be under-staffed).\nCall-Off models last-minute absences that disrupt an existing schedule."),
+                    ("Inputs", "• Unit — select the affected unit from the dropdown (leave blank to simulate across all units).\n• Role — type the role that is short, e.g. RN, CNA, LPN, Charge Nurse.\n• Date — the date the shortage occurs.\n• Count — how many staff are missing (1–8)."),
+                    ("How options are ranked", "The engine queries your staff database in real time and classifies options:\n• Float Internal Staff — same-role staff from other units not currently scheduled. Ordered by lowest recent hours (least fatigued first).\n• Post Incentive Open Shift — staff available but not scheduled; estimated at $150/shift bonus.\n• Approve Overtime — already-scheduled staff under 40h this week who could extend.\n• Split Coverage / Redistribute — redistribute load across remaining staff and neighboring units.\n• Agency (Last Resort) — estimated at $75–85/hr agency rate."),
+                    ("Coverage Score", "Each option shows a Coverage Score from 0–100. 80+ means coverage is adequately maintained. Below 60 means patient safety may be affected and supervisor escalation is recommended."),
+                    ("Fill Likelihood", "The probability (%) that this option successfully fills the gap based on staff availability and historical fill patterns."),
+                    ("Safety Alert", "If the simulation detects that more than 50% of scheduled staff may be absent, or the missing count is 3 or more, a red Safety Alert banner appears at the top of the results. This is a signal to escalate to a supervisor immediately."),
+                    ("Historical Context", "At the bottom of results, the simulator shows how many times a similar shortage has occurred in the last 12 weeks for that unit — and what the typical response was. This helps you act on proven patterns rather than guessing."),
+                    ("Acting on results", "The simulator does not make changes. After reviewing the options:\n• Use the Assignments page to manually assign a floated staff member.\n• Use Open Shifts to post an incentive shift.\n• Use the Scheduler to extend or adjust an existing shift.\n• Contact agency directly if no internal options work."))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", simShortCallTitle);
+        }
+
+        const string simOtTitle = "Overtime Reduction Simulation";
+        if (!await db.HelpArticles.AnyAsync(a => a.Title == simOtTitle))
+        {
+            static string JSim3(params string[] tags) =>
+                System.Text.Json.JsonSerializer.Serialize(tags);
+            static string SSim3(params (string? Heading, string Body)[] sections) =>
+                System.Text.Json.JsonSerializer.Serialize(
+                    sections.Select(s => new { s.Heading, s.Body }));
+
+            db.HelpArticles.Add(new HelpArticle
+            {
+                Id           = Guid.NewGuid(),
+                Category     = "Scenario Simulator",
+                Title        = simOtTitle,
+                SortOrder    = 3,
+                TagsJson     = JSim3("overtime", "OT", "reduction", "cap", "savings", "cost", "coverage", "admin"),
+                SectionsJson = SSim3(
+                    (null, "The Overtime Reduction simulation answers: 'What happens to our staffing and budget if we cap overtime?' It identifies which staff are above the cap, projects dollar savings, and flags which units lose coverage — so you can decide whether and how to implement the cap."),
+                    ("Inputs", "• Max Overtime Hours — the weekly OT cap you want to model (use the slider, 0–20h). Default is 8h.\n• Simulation Window — how many days ahead to analyze: 7, 14, 21, or 28 days. Default is 7 days.\n• Unit — optional; leave blank to analyze all units."),
+                    ("Cost assumptions", "The engine uses a baseline rate of $45/hr with a 1.5× overtime multiplier. Potential savings are calculated as the hours above the cap × $45 × 0.5 (the premium portion). These are estimates — actual savings depend on your facility's pay rates."),
+                    ("Response options", "The simulation generates four options:\n• Hard Cap — enforce the cap immediately. Shows total savings and coverage gaps.\n• PRN / Part-Time First — offer excess shifts to PRN and part-time staff before approving any OT. Saves ~60% of potential OT cost.\n• Redistribute to Low-Hour Staff — identify staff under 32h/week and offer them the excess shifts. Zero additional cost.\n• Phased Cap — reduce OT in two steps over two weeks. Minimizes disruption while still capturing savings."),
+                    ("Coverage Risk", "A unit is flagged as a coverage gap if 50% or more of its scheduled staff in the window are projected to exceed the cap. If three or more units are at risk, a red Safety Alert is shown at the top of the results."),
+                    ("Historical Context", "The Historical Context section names the top 4 staff members projected over cap, their excess hours, and the total estimated current OT cost. This helps administrators prioritize conversations with managers."),
+                    ("Acting on results", "The simulator does not change any assignments. To implement an OT cap:\n• Update Constraints & Rules — add or tighten an OvertimeCapHours rule for the facility or affected units.\n• Use the Scheduler or Assignments page to manually redistribute shifts.\n• Post Open Shifts to give PRN/part-time staff the opportunity to pick up hours.\n• Review Burnout Prediction after implementing the cap to confirm fatigue risk improves."))
+            });
+            await db.SaveChangesAsync();
+            logger.LogInformation("DevDataSeeder: added '{Title}' help article.", simOtTitle);
+        }
+
         logger.LogInformation("DevDataSeeder: seeding complete.");
     }
 }
