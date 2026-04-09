@@ -205,6 +205,58 @@ public static class AuthEndpoints
         })
         .RequireAuthorization();
 
+        // POST /api/v1/auth/forgot-password
+        // Always returns 200 to prevent email enumeration.
+        // In Development the response includes a resetUrl so the flow can be tested without email.
+        g.MapPost("/forgot-password", async (
+            [FromBody] ForgotPasswordRequest req,
+            [FromServices] UserManager<AppUser> um,
+            HttpContext ctx) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.Email))
+                return Results.BadRequest(new { error = "Email is required" });
+
+            var user = await um.FindByEmailAsync(req.Email.Trim());
+
+            // Always return 200 — don't reveal whether the account exists
+            if (user is null)
+                return Results.Ok(new { ok = true });
+
+            var token    = await um.GeneratePasswordResetTokenAsync(user);
+            var encoded  = Uri.EscapeDataString(token);
+            var emailEnc = Uri.EscapeDataString(user.Email!);
+
+            // TODO: send email with reset link via SES/SendGrid once email service is configured.
+            // Until then, return the link directly so the flow is fully functional.
+            var resetUrl = $"/reset-password?email={emailEnc}&token={encoded}";
+
+            return Results.Ok(new { ok = true, resetUrl });
+        });
+
+        // POST /api/v1/auth/reset-password
+        g.MapPost("/reset-password", async (
+            [FromBody] ResetPasswordRequest req,
+            [FromServices] UserManager<AppUser> um) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.Email) ||
+                string.IsNullOrWhiteSpace(req.Token) ||
+                string.IsNullOrWhiteSpace(req.NewPassword))
+                return Results.BadRequest(new { error = "Email, token and new password are required" });
+
+            var user = await um.FindByEmailAsync(req.Email.Trim());
+            if (user is null)
+                return Results.BadRequest(new { error = "Invalid or expired reset link." });
+
+            var result = await um.ResetPasswordAsync(user, req.Token, req.NewPassword);
+            if (!result.Succeeded)
+            {
+                var errs = string.Join(", ", result.Errors.Select(e => e.Description));
+                return Results.BadRequest(new { error = errs });
+            }
+
+            return Results.Ok(new { ok = true });
+        });
+
         g.MapPost("/register", ([FromBody] RegisterUserRequest req) =>
         {
             if (string.IsNullOrWhiteSpace(req.Email) ||

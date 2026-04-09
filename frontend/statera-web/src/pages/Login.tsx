@@ -53,6 +53,11 @@ export default function LoginPage(){
             <TextField label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
             <TextField label="Password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required />
             <Button type="submit" variant="contained" disabled={loading}>Sign In</Button>
+            <Typography variant="body2" textAlign="center">
+              <RouterLink to="/forgot-password" style={{ color: "inherit", opacity: 0.6, fontSize: 13 }}>
+                Forgot password?
+              </RouterLink>
+            </Typography>
           </Stack>
         </form>
       </Paper>

@@ -163,6 +163,7 @@ v1.MapBillingEndpoints();
 v1.MapBurnoutEndpoints();
 v1.MapStaffingPredictionEndpoints();
 v1.MapSimulationEndpoints();
+v1.MapHiringEndpoints();
 
 
 // Convenience: root -> Swagger
@@ -248,6 +249,95 @@ using (var scope = app.Services.CreateScope())
                 ALTER TABLE Staff ADD GustoEmployeeId nvarchar(MAX) NULL;
             IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Staff') AND name = 'QuickBooksEmployeeId')
                 ALTER TABLE Staff ADD QuickBooksEmployeeId nvarchar(MAX) NULL;
+
+            -- ── Hiring / Onboarding tables ─────────────────────────────────────
+            IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'HiringCandidates')
+            BEGIN
+                CREATE TABLE HiringCandidates (
+                    Id uniqueidentifier NOT NULL PRIMARY KEY,
+                    FacilityId uniqueidentifier NOT NULL,
+                    FirstName nvarchar(100) NOT NULL,
+                    LastName nvarchar(100) NOT NULL,
+                    Email nvarchar(200) NULL,
+                    Phone nvarchar(30) NULL,
+                    Position nvarchar(50) NULL,
+                    Status nvarchar(20) NOT NULL DEFAULT 'Applied',
+                    AppliedUtc datetime2 NOT NULL DEFAULT GETUTCDATE(),
+                    OnboardingStartedUtc datetime2 NULL,
+                    HiredUtc datetime2 NULL,
+                    Notes nvarchar(2000) NULL,
+                    LinkedStaffId uniqueidentifier NULL
+                );
+                CREATE INDEX IX_HiringCandidates_FacilityId_Status ON HiringCandidates (FacilityId, Status);
+            END
+
+            IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'HiringChecklistTemplates')
+            BEGIN
+                CREATE TABLE HiringChecklistTemplates (
+                    Id uniqueidentifier NOT NULL PRIMARY KEY,
+                    FacilityId uniqueidentifier NOT NULL,
+                    Name nvarchar(200) NOT NULL,
+                    IsDefault bit NOT NULL DEFAULT 1,
+                    SortOrder int NOT NULL DEFAULT 0
+                );
+                CREATE INDEX IX_HiringChecklistTemplates_FacilityId ON HiringChecklistTemplates (FacilityId, SortOrder);
+                -- Seed default checklist items for all existing facilities
+                INSERT INTO HiringChecklistTemplates (Id, FacilityId, Name, IsDefault, SortOrder)
+                SELECT NEWID(), f.Id, t.Name, 1, t.SortOrder
+                FROM Facilities f
+                CROSS JOIN (VALUES
+                    (N'ANE Check', 1), (N'Background Check', 2), (N'OIG Check', 3),
+                    (N'Drug Test', 4), (N'W-4', 5), (N'K-4', 6), (N'I-9', 7)
+                ) AS t(Name, SortOrder)
+                WHERE NOT EXISTS (SELECT 1 FROM HiringChecklistTemplates ht WHERE ht.FacilityId = f.Id);
+            END
+
+            IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'CandidateChecklistItems')
+            BEGIN
+                CREATE TABLE CandidateChecklistItems (
+                    Id uniqueidentifier NOT NULL PRIMARY KEY,
+                    CandidateId uniqueidentifier NOT NULL,
+                    Name nvarchar(200) NOT NULL,
+                    IsChecked bit NOT NULL DEFAULT 0,
+                    CheckedUtc datetime2 NULL,
+                    DocumentId uniqueidentifier NULL,
+                    CONSTRAINT FK_CandidateChecklistItems_Candidates FOREIGN KEY (CandidateId)
+                        REFERENCES HiringCandidates(Id) ON DELETE CASCADE
+                );
+                CREATE INDEX IX_CandidateChecklistItems_CandidateId ON CandidateChecklistItems (CandidateId);
+            END
+
+            IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'CandidateDocuments')
+            BEGIN
+                CREATE TABLE CandidateDocuments (
+                    Id uniqueidentifier NOT NULL PRIMARY KEY,
+                    CandidateId uniqueidentifier NOT NULL,
+                    FileName nvarchar(300) NOT NULL,
+                    ContentType nvarchar(100) NOT NULL,
+                    FileSizeBytes bigint NOT NULL DEFAULT 0,
+                    FileData varbinary(max) NOT NULL,
+                    UploadedUtc datetime2 NOT NULL DEFAULT GETUTCDATE(),
+                    UploadedByUserId nvarchar(450) NULL,
+                    CONSTRAINT FK_CandidateDocuments_Candidates FOREIGN KEY (CandidateId)
+                        REFERENCES HiringCandidates(Id) ON DELETE CASCADE
+                );
+                CREATE INDEX IX_CandidateDocuments_CandidateId ON CandidateDocuments (CandidateId);
+            END
+
+            IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'StaffDocuments')
+            BEGIN
+                CREATE TABLE StaffDocuments (
+                    Id uniqueidentifier NOT NULL PRIMARY KEY,
+                    StaffId uniqueidentifier NOT NULL,
+                    FileName nvarchar(300) NOT NULL,
+                    ContentType nvarchar(100) NOT NULL,
+                    FileSizeBytes bigint NOT NULL DEFAULT 0,
+                    FileData varbinary(max) NOT NULL,
+                    UploadedUtc datetime2 NOT NULL DEFAULT GETUTCDATE(),
+                    UploadedByUserId nvarchar(450) NULL
+                );
+                CREATE INDEX IX_StaffDocuments_StaffId ON StaffDocuments (StaffId);
+            END
         ");
         logger.LogInformation("Schema drift check complete.");
     }

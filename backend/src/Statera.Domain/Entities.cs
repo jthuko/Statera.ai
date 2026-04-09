@@ -426,4 +426,70 @@ public class OpenShiftRequest
     public string? Notes { get; set; }
 }
 
-// placeholder - will edit below
+// ── Hiring / Onboarding ────────────────────────────────────────────────────────
+
+public enum CandidateStatus { Applied, Interviewing, Offered, Onboarding, Hired, Rejected }
+
+public class HiringCandidate
+{
+    public Guid Id { get; set; }
+    public Guid FacilityId { get; set; }
+    public string FirstName { get; set; } = default!;
+    public string LastName { get; set; } = default!;
+    public string? Email { get; set; }
+    public string? Phone { get; set; }
+    public string? Position { get; set; }   // CNA, CMA, RN, LPN, SW, etc.
+    public CandidateStatus Status { get; set; } = CandidateStatus.Applied;
+    public DateTime AppliedUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? OnboardingStartedUtc { get; set; }
+    public DateTime? HiredUtc { get; set; }
+    public string? Notes { get; set; }
+    public Guid? LinkedStaffId { get; set; }  // set when hired → Staff.Id
+    public ICollection<CandidateChecklistItem> ChecklistItems { get; set; } = new List<CandidateChecklistItem>();
+    public ICollection<CandidateDocument> Documents { get; set; } = new List<CandidateDocument>();
+}
+
+public class HiringChecklistTemplate   // per-facility default checklist items
+{
+    public Guid Id { get; set; }
+    public Guid FacilityId { get; set; }
+    public string Name { get; set; } = default!;
+    public bool IsDefault { get; set; } = true;
+    public int SortOrder { get; set; }
+}
+
+public class CandidateChecklistItem
+{
+    public Guid Id { get; set; }
+    public Guid CandidateId { get; set; }
+    public HiringCandidate Candidate { get; set; } = default!;
+    public string Name { get; set; } = default!;
+    public bool IsChecked { get; set; }
+    public DateTime? CheckedUtc { get; set; }
+    public Guid? DocumentId { get; set; }   // optional: linked doc
+}
+
+public class CandidateDocument
+{
+    public Guid Id { get; set; }
+    public Guid CandidateId { get; set; }
+    public HiringCandidate Candidate { get; set; } = default!;
+    public string FileName { get; set; } = default!;
+    public string ContentType { get; set; } = default!;
+    public long FileSizeBytes { get; set; }
+    public byte[] FileData { get; set; } = Array.Empty<byte>();   // stored in SQL varbinary(max)
+    public DateTime UploadedUtc { get; set; } = DateTime.UtcNow;
+    public string? UploadedByUserId { get; set; }
+}
+
+public class StaffDocument
+{
+    public Guid Id { get; set; }
+    public Guid StaffId { get; set; }
+    public string FileName { get; set; } = default!;
+    public string ContentType { get; set; } = default!;
+    public long FileSizeBytes { get; set; }
+    public byte[] FileData { get; set; } = Array.Empty<byte>();   // stored in SQL varbinary(max)
+    public DateTime UploadedUtc { get; set; } = DateTime.UtcNow;
+    public string? UploadedByUserId { get; set; }
+}

@@ -23,6 +23,9 @@ public record SignupRequest(
 
 public record AuthResponse(string AccessToken, string RefreshToken, string TokenType = "Bearer", int ExpiresIn = 3600);
 
+public record ForgotPasswordRequest(string Email);
+public record ResetPasswordRequest(string Email, string Token, string NewPassword);
+
 // Returned by GET /auth/me
 public record UserInfoResponse(
     string Id,

@@ -25,6 +25,10 @@ import SearchIcon from "@mui/icons-material/Search";
 import EventBusyIcon from "@mui/icons-material/EventBusy";
 import LinkIcon from "@mui/icons-material/Link";
 import PaletteIcon from "@mui/icons-material/Palette";
+import PersonSearchIcon from "@mui/icons-material/PersonSearch";
+import HowToRegIcon from "@mui/icons-material/HowToReg";
+import HiringPage from "../hiring";
+import OnboardingPage from "../onboarding";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -100,8 +104,10 @@ const TAB_ICONS = [
   <AccessTimeIcon fontSize="small" />,
   <LinkIcon fontSize="small" />,
   <PaletteIcon fontSize="small" />,
+  <PersonSearchIcon fontSize="small" />,
+  <HowToRegIcon fontSize="small" />,
 ];
-const TAB_LABELS = ["Constraints", "Coverage", "Time Off", "Scheduler", "Time Clock", "Integrations", "Branding"];
+const TAB_LABELS = ["Constraints", "Coverage", "Time Off", "Scheduler", "Time Clock", "Integrations", "Branding", "Hiring", "Onboarding"];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function FacilityAdminPage() {
@@ -213,6 +219,8 @@ export default function FacilityAdminPage() {
       {tab === 4 && <TimeClockTab facilityId={facilityId} setToast={setToast} />}
       {tab === 5 && <IntegrationsTab facilityId={facilityId} setToast={setToast} />}
       {tab === 6 && <BrandingTab facilityId={facilityId} facility={facility} setToast={setToast} />}
+      {tab === 7 && <HiringPage />}
+      {tab === 8 && <OnboardingPage />}
 
       <Snackbar open={!!toast} autoHideDuration={3500} onClose={() => setToast(null)}>
         <Alert severity={toast?.sev ?? "success"} onClose={() => setToast(null)} sx={{ width: "100%" }}>

@@ -12,20 +12,15 @@ export async function listUsers(): Promise<AppUserDto[]> {
   return data;
 }
 
-export interface ChatRoomLastMessage {
-  content: string;
-  sentUtc: string;
-  senderUserId: string;
-}
-
 export interface ChatRoomDto {
   id: string;
   facilityId: string;
   name?: string | null;
   type: "Direct" | "Group";
-  createdByUserId: string;
+  createdByUserId?: string;
   createdUtc: string;
-  lastMessage?: ChatRoomLastMessage | null;
+  lastMessage?: string | null;
+  lastMessageUtc?: string | null;
   unreadCount: number;
   members: ChatRoomMemberDto[];
 }

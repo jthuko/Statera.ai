@@ -16,8 +16,8 @@ public static class SimulationEndpoints
         var g = v1.MapGroup("/facilities/{facilityId}/simulate").WithTags("Simulation")
             .AddEndpointFilter(async (ctx, next) =>
             {
-                if (!TierEnforcement.CanAccessScaleFeature(ctx.HttpContext))
-                    return TierEnforcement.UpgradeRequiredScale();
+                if (!TierEnforcement.CanAccessGrowthFeature(ctx.HttpContext))
+                    return TierEnforcement.UpgradeRequired();
                 return await next(ctx);
             });
 

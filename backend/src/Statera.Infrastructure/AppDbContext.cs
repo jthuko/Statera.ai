@@ -80,6 +80,13 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
     public DbSet<OpenShift> OpenShifts => Set<OpenShift>();
     public DbSet<OpenShiftRequest> OpenShiftRequests => Set<OpenShiftRequest>();
 
+    // Hiring / Onboarding
+    public DbSet<HiringCandidate> HiringCandidates => Set<HiringCandidate>();
+    public DbSet<HiringChecklistTemplate> HiringChecklistTemplates => Set<HiringChecklistTemplate>();
+    public DbSet<CandidateChecklistItem> CandidateChecklistItems => Set<CandidateChecklistItem>();
+    public DbSet<CandidateDocument> CandidateDocuments => Set<CandidateDocument>();
+    public DbSet<StaffDocument> StaffDocuments => Set<StaffDocument>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
@@ -348,6 +355,55 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, string>
             e.Property(x => x.ReviewedByUserId).HasMaxLength(450);
             e.Property(x => x.Notes).HasMaxLength(512);
             e.HasIndex(x => new { x.OpenShiftId, x.StaffId }).IsUnique();
+            e.HasIndex(x => x.StaffId);
+        });
+
+        // HiringCandidate
+        b.Entity<HiringCandidate>(e =>
+        {
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.FirstName).IsRequired().HasMaxLength(100);
+            e.Property(x => x.LastName).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Email).HasMaxLength(200);
+            e.Property(x => x.Phone).HasMaxLength(30);
+            e.Property(x => x.Position).HasMaxLength(50);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+            e.HasIndex(x => new { x.FacilityId, x.Status });
+            e.HasMany(x => x.ChecklistItems)
+             .WithOne(c => c.Candidate)
+             .HasForeignKey(c => c.CandidateId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Documents)
+             .WithOne(d => d.Candidate)
+             .HasForeignKey(d => d.CandidateId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<HiringChecklistTemplate>(e =>
+        {
+            e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            e.HasIndex(x => new { x.FacilityId, x.SortOrder });
+        });
+
+        b.Entity<CandidateChecklistItem>(e =>
+        {
+            e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            e.HasIndex(x => x.CandidateId);
+        });
+
+        b.Entity<CandidateDocument>(e =>
+        {
+            e.Property(x => x.FileName).IsRequired().HasMaxLength(300);
+            e.Property(x => x.ContentType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.FileData).HasColumnType("varbinary(max)");
+            e.HasIndex(x => x.CandidateId);
+        });
+
+        b.Entity<StaffDocument>(e =>
+        {
+            e.Property(x => x.FileName).IsRequired().HasMaxLength(300);
+            e.Property(x => x.ContentType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.FileData).HasColumnType("varbinary(max)");
             e.HasIndex(x => x.StaffId);
         });
     }

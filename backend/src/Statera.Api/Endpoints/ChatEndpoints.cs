@@ -52,7 +52,12 @@ public static class ChatEndpoints
                 var myMember  = r.Members.FirstOrDefault(m => m.UserId == userId);
                 var lastMsg   = r.Messages.OrderByDescending(m => m.SentUtc).FirstOrDefault();
                 var unread    = r.Messages.Count(m => myMember?.LastReadUtc == null || m.SentUtc > myMember.LastReadUtc);
-                var memberInfos = r.Members.Select(m => new { m.UserId, DisplayName = users.GetValueOrDefault(m.UserId, m.UserId) });
+                var memberInfos = r.Members.Select(m => new {
+                    m.UserId,
+                    DisplayName = users.GetValueOrDefault(m.UserId, m.UserId),
+                    m.JoinedUtc,
+                    LastReadUtc = m.LastReadUtc,
+                });
                 return new
                 {
                     r.Id, r.FacilityId, r.Name, r.Type, r.CreatedUtc,
@@ -97,7 +102,7 @@ public static class ChatEndpoints
                     return Results.Ok(new
                     {
                         exRoom.Id, exRoom.FacilityId, exRoom.Name, exRoom.Type, exRoom.CreatedUtc,
-                        Members        = exRoom.Members.Select(m => new { m.UserId, DisplayName = exUsers.GetValueOrDefault(m.UserId, m.UserId) }),
+                        Members        = exRoom.Members.Select(m => new { m.UserId, DisplayName = exUsers.GetValueOrDefault(m.UserId, m.UserId), m.JoinedUtc, LastReadUtc = m.LastReadUtc }),
                         LastMessage    = exLastMsg?.Content,
                         LastMessageUtc = exLastMsg?.SentUtc,
                         UnreadCount    = 0,
@@ -144,7 +149,7 @@ public static class ChatEndpoints
             return Results.Created($"/api/v1/chat/rooms/{room.Id}", new
             {
                 newRoom.Id, newRoom.FacilityId, newRoom.Name, newRoom.Type, newRoom.CreatedUtc,
-                Members        = newRoom.Members.Select(m => new { m.UserId, DisplayName = newUsers.GetValueOrDefault(m.UserId, m.UserId) }),
+                Members        = newRoom.Members.Select(m => new { m.UserId, DisplayName = newUsers.GetValueOrDefault(m.UserId, m.UserId), m.JoinedUtc, LastReadUtc = m.LastReadUtc }),
                 LastMessage    = newLastMsg?.Content,
                 LastMessageUtc = newLastMsg?.SentUtc,
                 UnreadCount    = 0,

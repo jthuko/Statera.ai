@@ -135,7 +135,7 @@ export default function AppShell() {
     { to: "/app",                    label: "Dashboard",           icon: <DashboardIcon /> },
     { to: "/app/scheduler",          label: "Scheduler",           icon: <CalendarMonth /> },
     { to: "/app/staff",              label: "Staff Directory",     icon: <Group /> },
-    { to: "/app/facilities",         label: "Facilities",          icon: <LocalHospital />, show: isOwner },
+{ to: "/app/facilities",         label: "Facilities",          icon: <LocalHospital />, show: isOwner },
     { to: "/app/units",              label: "Units",               icon: <Apartment /> },
     { to: "/app/assignments",        label: "Assignments",         icon: <Assignment /> },
     { to: "/app/open-shifts",        label: "Open Shifts",         icon: <WorkHistoryIcon /> },
@@ -147,7 +147,7 @@ export default function AppShell() {
     { to: "/app/chat",               label: "Chat",                icon: <Chat />,      tier: "growth" },
     { to: "/app/burnout",            label: "Burnout Prediction",  icon: <MonitorHeartIcon />, tier: "growth" },
     { to: "/app/staffing-predictions", label: "Staffing Predictions", icon: <TrendingUpIcon />, tier: "growth" },
-    { to: "/app/scenario-simulator",   label: "Scenario Simulator",   icon: <ScienceIcon />,   tier: "scale" },
+    { to: "/app/scenario-simulator",   label: "Scenario Simulator",   icon: <ScienceIcon />,   tier: "growth" },
   ];
 
   const onKey = (e: React.KeyboardEvent) => {

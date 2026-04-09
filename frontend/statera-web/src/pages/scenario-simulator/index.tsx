@@ -291,8 +291,9 @@ export default function ScenarioSimulatorPage() {
       const resp = await runSimulation(facility.id, req);
       setResult(resp.data);
       setStep(2);
-    } catch {
-      setError("Simulation failed. Please check your inputs and try again.");
+    } catch (e: any) {
+      const msg = e?.response?.data?.message ?? e?.response?.data?.error ?? e?.message;
+      setError(msg ?? "Simulation failed. Please check your inputs and try again.");
     } finally {
       setLoading(false);
     }

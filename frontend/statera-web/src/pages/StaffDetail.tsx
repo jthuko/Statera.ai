@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Page from "./_Page";
 import {
@@ -27,12 +27,16 @@ import {
   Tab,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import SaveIcon from "@mui/icons-material/Save";
+import DescriptionIcon from "@mui/icons-material/Description";
+import DownloadIcon from "@mui/icons-material/Download";
+import FileUploadIcon from "@mui/icons-material/FileUpload";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -46,6 +50,10 @@ import {
   createPortalAccount, resetPortalPassword,
   type FullStaffDto, type AvailabilityDto, type PortalAccountResult,
 } from "../api/staff";
+import {
+  listStaffDocuments, uploadStaffDocument, downloadStaffDocument, deleteStaffDocument,
+  formatFileSize, type StaffDocumentDto,
+} from "../api/hiring";
 import StaffEditDialog, { StaffEditFormValues } from "../components/staff/StaffEditDialog";
 import { useAuth } from "../auth/useAuth";
 
@@ -262,15 +270,23 @@ export default function StaffDetail() {
                       Impersonate
                     </Button>
                   )}
-                  {data.email && !data.hasPortalAccount && !data.hasAdminAccount && (
-                    <Button
-                      startIcon={<PersonAddIcon />}
-                      variant="outlined"
-                      size="small"
-                      onClick={() => { setPortalResult(null); setPortalError(null); setPortalDialogOpen(true); }}
+                  {!data.hasPortalAccount && !data.hasAdminAccount && (
+                    <Tooltip
+                      title={!data.email ? "Add an email to this staff member first" : ""}
+                      arrow
                     >
-                      Portal Account
-                    </Button>
+                      <span>
+                        <Button
+                          startIcon={<PersonAddIcon />}
+                          variant="outlined"
+                          size="small"
+                          disabled={!data.email}
+                          onClick={() => { setPortalResult(null); setPortalError(null); setPortalDialogOpen(true); }}
+                        >
+                          Portal Account
+                        </Button>
+                      </span>
+                    </Tooltip>
                   )}
                   {data.hasPortalAccount && (
                     <Button
@@ -433,10 +449,12 @@ export default function StaffDetail() {
           <Box sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}>
             <Tabs value={tab} onChange={(_, v) => setTab(v)}>
               <Tab label="Availability" icon={<AccessTimeIcon fontSize="small" />} iconPosition="start" />
+              <Tab label="Documents" icon={<DescriptionIcon fontSize="small" />} iconPosition="start" />
             </Tabs>
           </Box>
           <CardContent>
             {tab === 0 && <AvailabilityPanel staffId={data.id} />}
+            {tab === 1 && <StaffDocumentsPanel staffId={data.id} />}
           </CardContent>
         </Card>
       )}
@@ -571,6 +589,95 @@ function formatTime(t: string) {
   const ampm = h >= 12 ? "PM" : "AM";
   const hour = h % 12 || 12;
   return `${hour}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+// ─── Staff Documents Panel ────────────────────────────────────────────────────
+function StaffDocumentsPanel({ staffId }: { staffId: string }) {
+  const [docs, setDocs] = useState<StaffDocumentDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setDocs(await listStaffDocuments(staffId)); }
+    catch { setError("Failed to load documents."); }
+    finally { setLoading(false); }
+  }, [staffId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleUpload(file: File) {
+    setUploading(true);
+    try { await uploadStaffDocument(staffId, file); await load(); }
+    catch { setError("Failed to upload document."); }
+    finally { setUploading(false); }
+  }
+
+  async function handleDelete(docId: string) {
+    try { await deleteStaffDocument(staffId, docId); await load(); }
+    catch { setError("Failed to delete document."); }
+  }
+
+  if (loading) return <Box sx={{ textAlign: "center", py: 4 }}><CircularProgress size={24} /></Box>;
+
+  return (
+    <Box>
+      {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>{error}</Alert>}
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+        <Typography variant="subtitle2" fontWeight={600}>
+          {docs.length} document{docs.length !== 1 ? "s" : ""} uploaded
+        </Typography>
+        <Button
+          size="small" variant="outlined"
+          startIcon={uploading ? <CircularProgress size={14} /> : <FileUploadIcon />}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+        >
+          Upload Document
+        </Button>
+        <input
+          ref={fileInputRef} type="file" hidden
+          accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.csv"
+          onChange={e => { const f = e.target.files?.[0]; if (f) { handleUpload(f); e.target.value = ""; } }}
+        />
+      </Stack>
+
+      {docs.length === 0 ? (
+        <Box sx={{ textAlign: "center", py: 4, opacity: 0.5 }}>
+          <DescriptionIcon sx={{ fontSize: 40, color: "text.secondary", mb: 1 }} />
+          <Typography variant="body2" color="text.secondary">No documents uploaded yet.</Typography>
+          <Typography variant="caption" color="text.disabled">Upload PDFs, images, or Office files.</Typography>
+        </Box>
+      ) : (
+        <Stack spacing={1}>
+          {docs.map(doc => (
+            <Stack key={doc.id} direction="row" alignItems="center" spacing={1.5}
+              sx={{ p: 1.5, borderRadius: 2, bgcolor: "rgba(255,255,255,0.03)", border: "1px solid", borderColor: "divider" }}>
+              <DescriptionIcon sx={{ color: "text.secondary", flexShrink: 0 }} />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={500} noWrap>{doc.fileName}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatFileSize(doc.fileSizeBytes)} · {new Date(doc.uploadedUtc).toLocaleDateString()}
+                </Typography>
+              </Box>
+              <Tooltip title="Download">
+                <IconButton size="small" onClick={() => downloadStaffDocument(staffId, doc.id, doc.fileName)}>
+                  <DownloadIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Delete">
+                <IconButton size="small" color="error" onClick={() => handleDelete(doc.id)}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          ))}
+        </Stack>
+      )}
+    </Box>
+  );
 }
 
 function AvailabilityPanel({ staffId }: { staffId: string }) {

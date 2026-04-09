@@ -8,6 +8,8 @@ import Login from "./pages/Login";
 import SignupPage from "./pages/Signup";
 import TrialExpiredPage from "./pages/TrialExpired";
 import BillingSuccessPage from "./pages/BillingSuccess";
+import ForgotPasswordPage from "./pages/ForgotPassword";
+import ResetPasswordPage from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Scheduler from "./pages/Scheduler";
 import Staff from "./pages/Staff";
@@ -52,6 +54,8 @@ export default function App() {
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/trial-expired" element={<TrialExpiredPage />} />
       <Route path="/billing/success" element={<BillingSuccessPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       {/* ── Staff Portal (staffOnly) ── */}
       <Route
@@ -106,8 +110,8 @@ export default function App() {
         <Route path="demand-templates/:id" element={<UpgradeGate><DemandTemplateEditorPage /></UpgradeGate>} />
         <Route path="burnout" element={<UpgradeGate><BurnoutPage /></UpgradeGate>} />
         <Route path="staffing-predictions" element={<UpgradeGate><StaffingPredictionPage /></UpgradeGate>} />
-        <Route path="scenario-simulator" element={<UpgradeGate tier="scale"><ScenarioSimulatorPage /></UpgradeGate>} />
-        <Route path="dashboard" element={<Navigate to="/app" replace />} />
+        <Route path="scenario-simulator" element={<UpgradeGate><ScenarioSimulatorPage /></UpgradeGate>} />
+<Route path="dashboard" element={<Navigate to="/app" replace />} />
         <Route path="*" element={<Navigate to="/app/assignments" replace />} />
       </Route>
 
