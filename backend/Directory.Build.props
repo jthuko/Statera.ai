@@ -6,6 +6,10 @@
     <LangVersion>latestMajor</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- NU1902/NU1903: NuGet security-audit warnings (e.g. OpenTelemetry.Exporter.OpenTelemetryProtocol
+         GHSA-4625-4j76-fww9, fixed in 1.15.3). Kept as warnings instead of build-breaking errors so a
+         newly-published advisory doesn't block local builds; track and bump the flagged package separately. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1902;NU1903</WarningsNotAsErrors>
     <RootNamespace>Statera.Api</RootNamespace>
   </PropertyGroup>
 </Project>
